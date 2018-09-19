@@ -33,7 +33,8 @@ class Flac {
     }
     
     func convert() throws {
-        let p = try Process.init(executableName: "flac", arguments: [input, "-f", "-o", output])
+        print("Flac:\n\(input)\n->\n\(output)\n")
+        let p = try Process.init(executableName: "flac", arguments: [input, "--totally-silent", "-f", "-o", output])
         p.launchUntilExit()
         try p.checkTerminationStatus()
     }

@@ -11,7 +11,7 @@ import Kwift
 
 func convertLosslessAudio(input: String, outputDir: String, preferedLanguages: Set<String>) throws {
     var flacConverters = [Flac]()
-    var arguments = ["-nostdin", "-y", "-i", input, "-vn"]
+    var arguments = ["-v", "quiet", "-nostdin", "-y", "-i", input, "-vn"]
     
     let context = try AVFormatContext.init(url: input)
     try context.findStreamInfo()

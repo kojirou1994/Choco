@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Kwift
 
 struct Mpls {
     let chapterCount: Int
@@ -15,6 +16,11 @@ struct Mpls {
     let fileName: String
     let trackLangs: [String]
     let updated: Bool
+    
+    init(filePath: String) throws {
+        let mkvid = try MkvmergeIdentification.init(filePath: filePath)
+        self.init(mkvid)
+    }
     
     init(_ info: MkvmergeIdentification) {
         guard let size = info.container.properties?.playlistSize,
@@ -44,7 +50,22 @@ struct Mpls {
     }
 }
 
-extension Mpls: Comparable, Equatable {
+extension Mpls: Comparable, Equatable, CustomStringConvertible {
+
+    var description: String {
+        #warning("duration not formatted")
+        return """
+        fileName: \(fileName)
+        files:
+        \(files.map {" - " + $0}.joined(separator: "\n"))
+        chapterCount: \(chapterCount)
+        size: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
+        duration: \(duration)
+        trackLangs: \(trackLangs)
+        updated: \(updated)
+        """
+    }
+    
     static func < (lhs: Mpls, rhs: Mpls) -> Bool {
         return lhs.fileName < rhs.fileName
     }
@@ -62,6 +83,32 @@ extension Mpls {
     
     var primaryLanguage: String {
         return trackLangs.first(where: {$0 != "und"}) ?? "und"
+    }
+    
+    func split() -> [MplsClip]? {
+        guard files.count > 0, !useFFmpeg else {
+            return nil
+        }
+        
+        do {
+            try generateChapterFile()
+        } catch {
+            print("Generate Chapter File for \(fileName) failed")
+            return nil
+        }
+        
+        return files.map({ (filepath) -> MplsClip in
+            let chapterName = fileName.filenameWithoutExtension + "_" + filepath.filenameWithoutExtension + "M2TS_chapter.txt"
+            let chapterPath = fileName.deletingLastPathComponent.appendingPathComponent(chapterName)
+            return MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapterPath) ? chapterPath : nil)
+        })
+    }
+    
+    private func generateChapterFile() throws {
+        let script = #file.deletingLastPathComponent.appendingPathComponent("../../BD_Chapters_MOD.py")
+        let p = try Process.init(executableName: "python", arguments: [script, fileName])
+        p.launchUntilExit()
+        try p.checkTerminationStatus()
     }
 }
 
@@ -86,4 +133,11 @@ extension Array where Element == Mpls {
         return result
     }
     
+}
+
+struct MplsClip {
+    let fileName: String
+    let trackLangs: [String]
+    let m2tsPath: String
+    let chapterPath: String?
 }

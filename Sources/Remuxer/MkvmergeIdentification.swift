@@ -1,3 +1,6 @@
+import Foundation
+import Kwift
+
 public struct MkvmergeIdentification: Decodable {
     /// an array describing the attachments found if any
     var attachments: [Attachment]
@@ -250,4 +253,21 @@ public struct MkvmergeIdentification: Decodable {
         case chapters
     }
 
+}
+
+extension MkvmergeIdentification {
+    
+    init(filePath: String) throws {
+        print("Reading file: \(filePath)")
+        let mkvmerge = try Process.init(executableName: "mkvmerge", arguments: ["-J", filePath])
+        
+        let pipe = Pipe.init()
+        mkvmerge.standardOutput = pipe
+        mkvmerge.launch()
+        
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        try mkvmerge.checkTerminationStatus()
+        self = try jsonDecoder.decode(MkvmergeIdentification.self, from: data)
+    }
+    
 }
