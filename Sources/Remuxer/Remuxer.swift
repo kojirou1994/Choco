@@ -50,19 +50,10 @@ let jsonDecoder = JSONDecoder()
 
 class Remuxer {
     
-    let preferedLanguages: Set<String> = ["und", "chi", "eng", "jpn"]
-    #if os(macOS)
-    var tempDir = "."
-    let outputDir = "Remuxer"
-    #else
-    var tempDir = "/mnt/h"
-    let outputDir = "/mnt/e"
-    #endif
-    
     let tempOutDir: String
     
     init() {
-        tempOutDir = tempDir.appendingPathComponent("tmp")
+        tempOutDir = Config.tempDir.appendingPathComponent("tmp")
         try? FileManager.default.createDirectory(atPath: tempOutDir, withIntermediateDirectories: true, attributes: nil)
     }
     
@@ -105,7 +96,7 @@ class Remuxer {
     func remux(bdPath: String, type: DiscType = .movie) throws {
         
         let bdFolderName = bdPath.filename
-        let finalOutputDir = outputDir.appendingPathComponent(bdFolderName)
+        let finalOutputDir = Config.outputDir.appendingPathComponent(bdFolderName)
         
         print("Remuxing BD: \(bdFolderName)")
         
@@ -292,7 +283,7 @@ class Remuxer {
         print("Splitting MPLS: \(mpls.fileName)")
         
         let bdFolder = mpls.fileName.deletingLastPathComponent.deletingLastPathComponent.deletingLastPathComponent.filename
-        let finalOutDir = outputDir.appendingPathComponent(bdFolder)
+        let finalOutDir = Config.outputDir.appendingPathComponent(bdFolder)
         
         guard let clips = mpls.split() else {
             print("MPLS \(mpls) can't be splited!")
@@ -325,7 +316,7 @@ class Remuxer {
     }
     
     private func generatePrimaryLanguages(with otherLanguages: [String]) -> Set<String> {
-        var preferedLanguages = self.preferedLanguages
+        var preferedLanguages = Config.preferedLanguages
         otherLanguages.forEach { (l) in
             preferedLanguages.insert(l)
         }
