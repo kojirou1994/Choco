@@ -11,12 +11,23 @@ import Kwift
 extension Process {
     func launchUntilExit() {
         launch()
+        #if os(macOS)
+        waitUntilExit()
+        #else
         while isRunning {
             sleep(1)
         }
+        #endif
     }
     
     func checkTerminationStatus() throws {
+        #if os(macOS)
+        waitUntilExit()
+        #else
+        while isRunning {
+            sleep(1)
+        }
+        #endif
         if terminationStatus != 0 {
             throw RemuxerError.processError(code: terminationStatus)
         }
