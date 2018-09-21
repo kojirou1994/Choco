@@ -16,6 +16,7 @@ enum RemuxerError: Error {
 public enum DiscType: String, CaseIterable {
     case movie
     case episodes
+    case dump
 }
 
 extension String {
@@ -116,12 +117,20 @@ class Remuxer {
             }
         }
         
-        print("Single File MPLS:")
-        singleFileMpls.forEach {print($0);print()}
-        print("Multiple File MPLS:")
-        cleanMultipleFileMpls.forEach {print($0);print()}
+        if singleFileMpls.count > 0 {
+            print("Single File MPLS:")
+            singleFileMpls.forEach {print($0);print()}
+        }
+        if cleanMultipleFileMpls.count > 0 {
+            print("Multiple File MPLS:")
+            cleanMultipleFileMpls.forEach {print($0);print()}
+        }
         
-        // TODO: check confliction
+        if type == .dump {
+            return
+        }
+        
+        // TODO: check conflict
         
         let finalMpls = cleanMultipleFileMpls + singleFileMpls
         
@@ -303,11 +312,20 @@ class Remuxer {
                 mux = false
             }
             if mux {
-                let outputFilename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.m2tsPath.filenameWithoutExtension).mkv"
-                let output = tempOutDir.appendingPathComponent(outputFilename)
-                let m = Mkvmerge.init(input: clip.m2tsPath, output: output, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, chapterPath: clip.chapterPath)
-                try m.mux()
-                try remux(file: m.output, outDir: finalOutDir, deleteAfterRemux: true)
+                let output: String
+                if mpls.useFFmpeg {
+                    let outputFilename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.m2tsPath.filenameWithoutExtension)-ffmpeg.mkv"
+                    output = tempOutDir.appendingPathComponent(outputFilename)
+                    let ff = FFmpegMerge.init(input: clip.m2tsPath, output: output)
+                    try ff.mux(mode: .videoOnly)
+                } else {
+                    let outputFilename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.m2tsPath.filenameWithoutExtension).mkv"
+                    output = tempOutDir.appendingPathComponent(outputFilename)
+                    let m = Mkvmerge.init(input: clip.m2tsPath, output: output, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, chapterPath: clip.chapterPath)
+                    try m.mux()
+                }
+                try remux(file: output, outDir: finalOutDir, deleteAfterRemux: true)
+                
             } else {
                 print("Skipping clip: \(clip)")
             }
