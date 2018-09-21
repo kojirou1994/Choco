@@ -25,9 +25,10 @@ struct Mpls {
     init(_ info: MkvmergeIdentification) {
         guard let size = info.container.properties?.playlistSize,
             let files = info.container.properties?.playlistFile,
-            let duration = info.container.properties?.playlistDuration else {
+            let durationValue = info.container.properties?.playlistDuration else {
                 fatalError("Invalid MPLS: \(info)")
         }
+        let duration = durationValue / 1_000_000_000
         if files.count == 0 {
             print("No files?")
             print("MPLS: \(info)")
@@ -51,16 +52,37 @@ struct Mpls {
 }
 
 extension Mpls: Comparable, Equatable, CustomStringConvertible {
+    
+    #if os(macOS)
+    static let durationFormatter: DateComponentsFormatter = {
+        let f = DateComponentsFormatter.init()
+        f.unitsStyle = .full
+        f.allowedUnits = [.hour, .minute, .second]
+        return f
+    }()
+    #else
+    class SimpleDurationFormatter {
+        
+        func string(from ti: TimeInterval) -> String? {
+            let v = Int(ti)
+            let hour = v / 3600
+            let minute = (v % 3600) / 60
+            let second = v % 60
+            return "\(hour):\(minute):\(second)"
+        }
+        
+    }
+    static let durationFormatter = SimpleDurationFormatter.init()
+    #endif
 
     var description: String {
-        #warning("duration not formatted")
         return """
         fileName: \(fileName)
         files:
         \(files.map {" - " + $0}.joined(separator: "\n"))
         chapterCount: \(chapterCount)
         size: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-        duration: \(duration)
+        duration: \(Mpls.durationFormatter.string(from: TimeInterval(duration)) ?? "Unknown")
         trackLangs: \(trackLangs)
         updated: \(updated)
         """
