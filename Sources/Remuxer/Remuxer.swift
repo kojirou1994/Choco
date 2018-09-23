@@ -92,6 +92,7 @@ public class Remuxer {
         let result = try parser.parse(Array(CommandLine.arguments.dropFirst()))
         var config = Config.init(outputDir: DefaultConfig.outputDir, tempDir: DefaultConfig.tempDir, mode: .auto, splits: nil, inputs: [], languages: DefaultConfig.preferedLanguages)
         try binder.fill(parseResult: result, into: &config)
+//        Swift.dump(config)
         
         av_log_set_level(AV_LOG_QUIET)
         mode = config.mode
@@ -151,7 +152,7 @@ public class Remuxer {
     func remux(blurayPath: String, useMode: RemuxMode) throws {
         
         let bdFolderName = blurayPath.filename
-        let finalOutputDir = DefaultConfig.outputDir.appendingPathComponent(bdFolderName)
+        let finalOutputDir = outputDir.appendingPathComponent(bdFolderName)
         
         print("Remuxing BD: \(bdFolderName)")
         
@@ -308,13 +309,14 @@ extension Remuxer {
         return try clips.compactMap { (clip) -> String? in
             if restFiles.contains(clip.m2tsPath) {
                 let output: String
+                let outputBasename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.index)-\(clip.m2tsPath.filenameWithoutExtension)"
                 if mpls.useFFmpeg {
-                    let outputFilename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.m2tsPath.filenameWithoutExtension)-ffmpeg.mkv"
+                    let outputFilename = "\(outputBasename)-ffmpeg.mkv"
                     output = tempDir.appendingPathComponent(outputFilename)
                     let ff = FFmpegMuxer.init(input: clip.m2tsPath, output: output)
                     try ff.convert(mode: .videoOnly)
                 } else {
-                    let outputFilename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.m2tsPath.filenameWithoutExtension).mkv"
+                    let outputFilename = "\(outputBasename).mkv"
                     output = tempDir.appendingPathComponent(outputFilename)
                     let m = MkvmergeMuxer.init(input: clip.m2tsPath, output: output, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, chapterPath: clip.chapterPath)
                     try m.convert()

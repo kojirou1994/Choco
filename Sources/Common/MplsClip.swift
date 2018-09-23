@@ -12,4 +12,5 @@ public struct MplsClip {
     public let trackLangs: [String]
     public let m2tsPath: String
     public let chapterPath: String?
+    public let index: Int
 }

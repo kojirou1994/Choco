@@ -148,11 +148,12 @@ extension Mpls {
         } catch {
             print("Generate Chapter File for \(fileName) failed")
         }
-        
+        var index = 0
         return files.map({ (filepath) -> MplsClip in
+            defer { index += 1 }
             let chapterName = fileName.filenameWithoutExtension + "_" + filepath.filenameWithoutExtension + "M2TS_chapter.txt"
             let chapterPath = fileName.deletingLastPathComponent.appendingPathComponent(chapterName)
-            return MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapterPath) ? chapterPath : nil)
+            return MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapterPath) ? chapterPath : nil, index: index)
         })
     }
     

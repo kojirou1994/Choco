@@ -28,7 +28,7 @@ extension Converter {
     }
     
     func printTask() {
-        print("\n\(Self.executable):\(input)\n->\n\(output)")
+        print("\n\(Self.executable):\n\(input)\n->\n\(output)")
     }
     
 }
