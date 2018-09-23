@@ -11,7 +11,7 @@ import Foundation
 extension String {
     
     public var filenameWithoutExtension: String {
-        return lastPathComponent.deletingPathExtension
+        return deletingPathExtension.lastPathComponent
     }
     
     public var filename: String {
