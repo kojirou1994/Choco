@@ -1,75 +1,81 @@
+//
+//  MkvmergeIdentification.swift
+//  Common
+//
+//  Created by Kojirou on 2018/9/22.
+//
+
 import Foundation
-import Kwift
 
 public struct MkvmergeIdentification: Decodable {
     /// an array describing the attachments found if any
-    var attachments: [Attachment]
-    var chapters: [Chapter]
+    public var attachments: [Attachment]
+    public var chapters: [Chapter]
     /// information about the identified container
-    var container: Container
-    var errors: [String]
-    var fileName: String
-    var globalTags: [GlobalTag]
-    var identificationFormatVersion: Int
-    var trackTags: [TrackTag]
-    var tracks: [Track]
-    var warnings: [String]
+    public var container: Container
+    public var errors: [String]
+    public var fileName: String
+    public var globalTags: [GlobalTag]
+    public var identificationFormatVersion: Int
+    public var trackTags: [TrackTag]
+    public var tracks: [Track]
+    public var warnings: [String]
     
     public struct Container: Decodable {
         /// additional properties for the container varying by container format
-        var properties: Properties?
+        public var properties: Properties?
         /// States whether or not mkvmerge knows about the format
-        var recognized: Bool
+        public var recognized: Bool
         /// States whether or not mkvmerge can read the format
-        var supported: Bool
+        public var supported: Bool
         /// A human-readable description/name for the container format
-        var type: String?
-    
+        public var type: String?
+        
         public struct Properties: Decodable {
-        
+            
             /// A unique number identifying the container type that's supposed to stay constant over all future releases of MKVToolNix
-            var containerType: Int?
+            public var containerType: Int?
             /// The muxing date in ISO 8601 format (in local time zone)
-            var dateLocal: String?
+            public var dateLocal: String?
             /// The muxing date in ISO 8601 format (in UTC)
-            var dateUtc: String?
+            public var dateUtc: String?
             /// The file's/segment's duration in nanoseconds
-            var duration: Int?
+            public var duration: Int?
             /// States whether or not the container has timestamps for the packets (e.g. Matroska, MP4) or not (e.g. SRT, MP3)
-            var isProvidingTimestamps: Bool?
+            public var isProvidingTimestamps: Bool?
             /// A Unicode string containing the name and possibly version of the low-level library or application that created the file
-            var muxingApplication: String?
+            public var muxingApplication: String?
             /// A hexadecimal string of the next segment's UID (only for Matroska files)
-            var nextSegmentUid: String?
+            public var nextSegmentUid: String?
             /// An array of names of additional files processed as well
-            var otherFile: [String]?
+            public var otherFile: [String]?
             /// States whether or not the identified file is a playlist (e.g. MPLS) referring to several other files
-            var playlist: Bool?
+            public var playlist: Bool?
             /// The number of chapters in a playlist if it is a one
-            var playlistChapters: Int?
+            public var playlistChapters: Int?
             /// The total duration in nanoseconds of all files referenced by the playlist if it is a one
-            var playlistDuration: Int?
+            public var playlistDuration: Int?
             /// An array of file names the playlist contains
-            var playlistFile: [String]?
+            public var playlistFile: [String]?
             /// The total size in bytes of all files referenced by the playlist if it is a one
-            var playlistSize: Int?
+            public var playlistSize: Int?
             /// "A hexadecimal string of the previous segment's UID (only for Matroska files)
-            var previousSegmentUid: String?
-            var programs: [Program]?
+            public var previousSegmentUid: String?
+            public var programs: [Program]?
             /// A hexadecimal string of the segment's UID (only for Matroska files)
-            var segmentUid: String?
-            var title: String?
+            public var segmentUid: String?
+            public var title: String?
             /// A Unicode string containing the name and possibly version of the high-level application that created the file
-            var writingApplication: String?
-        
+            public var writingApplication: String?
+            
             /// A container describing multiple programs multiplexed into the source file, e.g. multiple programs in one DVB transport stream
-            struct Program: Decodable {
+            public struct Program: Decodable {
                 /// A unique number identifying a set of tracks that belong together; used e.g. in DVB for multiplexing multiple stations within a single transport stream
-                var programNumber: Int?
+                public var programNumber: Int?
                 /// The name of a service provided by this program, e.g. a TV channel name such as 'arte HD'
-                var serviceName: String
+                public var serviceName: String
                 /// The name of the provider of the service provided by this program, e.g. a TV station name such as 'ARD'
-                var serviceProvider: String
+                public var serviceProvider: String
                 
                 private enum CodingKeys: String, CodingKey {
                     case programNumber = "program_number"
@@ -77,7 +83,7 @@ public struct MkvmergeIdentification: Decodable {
                     case serviceProvider = "service_provider"
                 }
             }
-        
+            
             private enum CodingKeys: String, CodingKey {
                 case containerType = "container_type"
                 case dateLocal = "date_local"
@@ -98,72 +104,72 @@ public struct MkvmergeIdentification: Decodable {
                 case title
                 case writingApplication = "writing_application"
             }
-        
+            
         }
-    
+        
     }
-
-    struct GlobalTag: Decodable {
-        var numEntries: Int
+    
+    public struct GlobalTag: Decodable {
+        public var numEntries: Int
         private enum CodingKeys: String, CodingKey {
             case numEntries = "num_entries"
         }
     }
     
-    struct TrackTag: Decodable {
-        var numEntries: Int
-        var trackId: Int
+    public struct TrackTag: Decodable {
+        public var numEntries: Int
+        public var trackId: Int
         private enum CodingKeys: String, CodingKey {
             case numEntries = "num_entries"
             case trackId = "track_id"
         }
     }
-
-    public struct Track: Decodable {
-        var codec: String
-        var id: Int
-        var type: String
-        var properties: Properties
     
-        public struct Properties: Decodable {
+    public struct Track: Decodable {
+        public var codec: String
+        public var id: Int
+        public var type: String
+        public var properties: Properties
         
-            var aacIsSbr: AacIsSbr?
-            var audioBitsPerSample: Int?
-            var audioChannels: Int?
-            var audioSamplingFrequency: Int?
-            var codecDelay: Int?
-            var codecId: String?
-            var codecPrivateData: String?
-            var codecPrivateLength: Int?
-            var contentEncodingAlgorithms: String?
-            var defaultDuration: Int?
-            var defaultTrack: Bool?
-            var displayDimensions: String?
-            var displayUnit: Int?
-            var enabledTrack: Bool?
-            var encoding: String?
-            var forcedTrack: Bool?
-            var language: String?
-            var minimumTimestamp: Int?
-            var multiplexedTracks: [Int]?
-            var number: Int?
-            var packetizer: String?
-            var pixelDimensions: String?
-            var programNumber: Int?
-            var stereoMode: Int?
-            var streamId: Int?
-            var subStreamId: Int?
-            var tagArtist: String?
-            var tagBitsps: String?
-            var tagBps: String?
-            var tagFps: String?
-            var tagTitle: String?
-            var teletextPage: Int?
-            var textSubtitles: Bool?
-            var trackName: String?
-            var uid: UInt?
-
-            enum AacIsSbr: String, Decodable {
+        public struct Properties: Decodable {
+            
+            public var aacIsSbr: AacIsSbr?
+            public var audioBitsPerSample: Int?
+            public var audioChannels: Int?
+            public var audioSamplingFrequency: Int?
+            public var codecDelay: Int?
+            public var codecId: String?
+            public var codecPrivateData: String?
+            public var codecPrivateLength: Int?
+            public var contentEncodingAlgorithms: String?
+            public var defaultDuration: Int?
+            public var defaultTrack: Bool?
+            public var displayDimensions: String?
+            public var displayUnit: Int?
+            public var enabledTrack: Bool?
+            public var encoding: String?
+            public var forcedTrack: Bool?
+            public var language: String?
+            public var minimumTimestamp: Int?
+            public var multiplexedTracks: [Int]?
+            public var number: Int?
+            public var packetizer: String?
+            public var pixelDimensions: String?
+            public var programNumber: Int?
+            public var stereoMode: Int?
+            public var streamId: Int?
+            public var subStreamId: Int?
+            public var tagArtist: String?
+            public var tagBitsps: String?
+            public var tagBps: String?
+            public var tagFps: String?
+            public var tagTitle: String?
+            public var teletextPage: Int?
+            public var textSubtitles: Bool?
+            public var trackName: String?
+            public var uid: UInt?
+            
+            public enum AacIsSbr: String, Decodable {
                 case `true`,`false`,unknown
             }
             
@@ -204,23 +210,22 @@ public struct MkvmergeIdentification: Decodable {
                 case trackName = "track_name"
                 case uid
             }
-        
+            
         }
     }
-
-    struct Attachment: Decodable {
-        var contentType: String?
-        var description: String?
-        var fileName: String
-        var id: Int
-        var size: Int
-        var properties: Property
-        var type: String?
+    
+    public struct Attachment: Decodable {
+        public var contentType: String?
+        public var description: String?
+        public var fileName: String
+        public var id: Int
+        public var size: Int
+        public var properties: Property
+        public var type: String?
         
-        struct Property: Decodable {
-            var uid: Int
+        public struct Property: Decodable {
+            public var uid: Int
         }
-        
         
         private enum CodingKeys: String, CodingKey {
             case contentType = "content_type"
@@ -233,13 +238,13 @@ public struct MkvmergeIdentification: Decodable {
         }
     }
     
-    struct Chapter: Decodable {
-        var numEntries: Int
+    public struct Chapter: Decodable {
+        public var numEntries: Int
         private enum CodingKeys: String, CodingKey {
             case numEntries = "num_entries"
         }
     }
-
+    
     private enum CodingKeys: String, CodingKey {
         case globalTags = "global_tags"
         case fileName = "file_name"
@@ -252,12 +257,12 @@ public struct MkvmergeIdentification: Decodable {
         case warnings
         case chapters
     }
-
+    
 }
 
 extension MkvmergeIdentification {
     
-    init(filePath: String) throws {
+    public init(filePath: String) throws {
         print("Reading file: \(filePath)")
         let mkvmerge = try Process.init(executableName: "mkvmerge", arguments: ["-J", filePath])
         
@@ -268,6 +273,10 @@ extension MkvmergeIdentification {
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         try mkvmerge.checkTerminationStatus()
         self = try jsonDecoder.decode(MkvmergeIdentification.self, from: data)
+    }
+    
+    public var primaryLanguage: String {
+        return tracks.first(where: {($0.properties.language ?? "und") != "und" })?.properties.language ?? "und"
     }
     
 }

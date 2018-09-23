@@ -6,36 +6,7 @@
 //
 
 import Foundation
-import SwiftFFmpeg
-import Kwift
-
-func convertLosslessAudio(input: String, outputDir: String, preferedLanguages: Set<String>) throws {
-    var flacConverters = [Flac]()
-    var arguments = ["-v", "quiet", "-nostdin", "-y", "-i", input, "-vn"]
-    
-    let context = try AVFormatContext.init(url: input)
-    try context.findStreamInfo()
-    context.streams.forEach { (stream) in
-        print("\(stream.index) \(stream.codecpar.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(stream.language)")
-        if stream.isGrossAudio, preferedLanguages.contains(stream.language) {
-            arguments.append("-map")
-            arguments.append("0:\(stream.index)")
-            let tempFlac = "\(outputDir)/\(input.filenameWithoutExtension)-\(stream.index)-\(stream.language)-ffmpeg.flac"
-            let finalFlac = "\(outputDir)/\(input.filenameWithoutExtension)-\(stream.index)-\(stream.language).flac"
-            arguments.append(tempFlac)
-            flacConverters.append(Flac.init(input: tempFlac, output: finalFlac))
-        }
-    }
-    
-    let ffmpeg = try Process.init(executableName: "ffmpeg", arguments: arguments)
-    ffmpeg.launchUntilExit()
-    try ffmpeg.checkTerminationStatus()
-    
-    try flacConverters.forEach { (flac) in
-        try flac.convert()
-        try FileManager.default.removeItem(atPath: flac.input)
-    }
-}
+import Common
 
 func dumpTracks(input: String) throws {
     let context = try AVFormatContext.init(url: input)
@@ -44,7 +15,6 @@ func dumpTracks(input: String) throws {
         print("\(stream.index) \(stream.codecpar.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(stream.language)")
         print(stream.metadata.dictionary)
     }
-    print(try context.findBestStream(type: .audio))
 }
 
 extension AVFormatContext {

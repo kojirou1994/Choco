@@ -1,28 +1,34 @@
 //
 //  Mpls.swift
-//  Remuxer
+//  Common
 //
-//  Created by Kojirou on 2018/9/16.
+//  Created by Kojirou on 2018/9/22.
 //
 
 import Foundation
-import Kwift
 
-struct Mpls {
-    let chapterCount: Int
-    let duration: Int
-    let files: [String]
-    let size: Int
-    let fileName: String
-    let trackLangs: [String]
-    let updated: Bool
+public struct Mpls {
     
-    init(filePath: String) throws {
+    public let chapterCount: Int
+    
+    public let duration: Int
+    
+    public let files: [String]
+    
+    public let size: Int
+    
+    public let fileName: String
+    
+    public let trackLangs: [String]
+    
+    public let updated: Bool
+    
+    public init(filePath: String) throws {
         let mkvid = try MkvmergeIdentification.init(filePath: filePath)
         self.init(mkvid)
     }
     
-    init(_ info: MkvmergeIdentification) {
+    public init(_ info: MkvmergeIdentification) {
         guard let size = info.container.properties?.playlistSize,
             let files = info.container.properties?.playlistFile,
             let durationValue = info.container.properties?.playlistDuration else {
@@ -49,6 +55,7 @@ struct Mpls {
         fileName = info.fileName
         chapterCount = info.container.properties?.playlistChapters ?? 0
     }
+    
 }
 
 extension Mpls: Comparable, Equatable, CustomStringConvertible {
@@ -74,12 +81,12 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
     }
     static let durationFormatter = SimpleDurationFormatter.init()
     #endif
-
-    var description: String {
+    
+    public var description: String {
         return """
-        fileName: \(fileName)
+        fileName: \(fileName.filename)
         files:
-        \(files.map {" - " + $0}.joined(separator: "\n"))
+        \(files.map {" - " + $0.filename}.joined(separator: "\n"))
         chapterCount: \(chapterCount)
         size: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
         duration: \(Mpls.durationFormatter.string(from: TimeInterval(duration)) ?? "Unknown")
@@ -88,35 +95,58 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
         """
     }
     
-    static func < (lhs: Mpls, rhs: Mpls) -> Bool {
+    public static func < (lhs: Mpls, rhs: Mpls) -> Bool {
         return lhs.fileName < rhs.fileName
     }
     
-    static func == (lhs: Mpls, rhs: Mpls) -> Bool {
+    public static func == (lhs: Mpls, rhs: Mpls) -> Bool {
         return (lhs.duration, lhs.size, lhs.files, lhs.trackLangs) == (rhs.duration, rhs.size, rhs.files, rhs.trackLangs)
     }
 }
 
+public enum MplsRemuxMode {
+    case direct
+    case split
+}
+
 extension Mpls {
     
-    var useFFmpeg: Bool {
+    public var useFFmpeg: Bool {
         return trackLangs.count == 0
     }
     
-    var primaryLanguage: String {
+    public var primaryLanguage: String {
         return trackLangs.first(where: {$0 != "und"}) ?? "und"
     }
     
-    func split() -> [MplsClip]? {
-        guard files.count > 0, !useFFmpeg else {
-            return nil
+    public var isSingle: Bool {
+        return files.count == 1
+    }
+    
+    public var remuxMode: MplsRemuxMode {
+        if isSingle {
+            return .direct
+        } else if files.count == chapterCount {
+            return .split
+        } else if !filesFormatMatches {
+            return .split
+        } else {
+            return .direct
         }
+    }
+    
+    private var filesFormatMatches: Bool {
+        // open every file and check
+        #warning("not implemented")
+        return true
+    }
+    
+    public func split() -> [MplsClip] {
         
         do {
             try generateChapterFile()
         } catch {
             print("Generate Chapter File for \(fileName) failed")
-            return nil
         }
         
         return files.map({ (filepath) -> MplsClip in
@@ -132,11 +162,12 @@ extension Mpls {
         p.launchUntilExit()
         try p.checkTerminationStatus()
     }
+    
 }
 
 extension Array where Element == Mpls {
     
-    var filetedByMe: [Mpls] {
+    public var duplicateMplsRemoved: [Mpls] {
         var result = [Mpls]()
         for current in self {
             if let existIndex = result.firstIndex(of: current) {
@@ -157,9 +188,4 @@ extension Array where Element == Mpls {
     
 }
 
-struct MplsClip {
-    let fileName: String
-    let trackLangs: [String]
-    let m2tsPath: String
-    let chapterPath: String?
-}
+
