@@ -183,7 +183,7 @@ public class Remuxer {
             }
         } else if useMode == .movie {
             try mplsList.forEach { (mpls) in
-                if mpls.useFFmpeg || mpls.updated {
+                if mpls.useFFmpeg || mpls.compressed {
                     tempFiles.append(contentsOf: try split(mpls: mpls))
                 } else {
                     let preferedLanguages = generatePrimaryLanguages(with: [mpls.primaryLanguage])
@@ -444,7 +444,7 @@ extension Remuxer {
             print("\(stream.index): \(stream.codecpar.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(stream.language)")
             if stream.isGrossAudio, preferedLanguages.contains(stream.language) {
                 // add to ffmpeg arguments
-                let tempFlac = tempDir.appendingPathComponent("/\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(stream.language)-ffmpeg.flac")
+                let tempFlac = tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(stream.language)-ffmpeg.flac")
                 let finalFlac = tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(stream.language).flac")
                 ffmpegArguments.append(contentsOf: ["-map", "0:\(stream.index)", tempFlac])
                 flacConverters.append(Flac.init(input: tempFlac, output: finalFlac))

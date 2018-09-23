@@ -21,7 +21,7 @@ public struct Mpls {
     
     public let trackLangs: [String]
     
-    public let updated: Bool
+    public let compressed: Bool
     
     public init(filePath: String) throws {
         let mkvid = try MkvmergeIdentification.init(filePath: filePath)
@@ -41,12 +41,12 @@ public struct Mpls {
             fatalError()
         } else if case let fileSet = Set(files), fileSet.count < files.count {
             // contains repeated files
-            updated = true
+            compressed = true
             self.size = size / files.count
             self.files = fileSet.sorted()
             self.duration = duration / files.count
         } else {
-            updated = false
+            compressed = false
             self.size = size
             self.files = files
             self.duration = duration
@@ -91,7 +91,7 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
         size: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
         duration: \(Mpls.durationFormatter.string(from: TimeInterval(duration)) ?? "Unknown")
         trackLangs: \(trackLangs)
-        updated: \(updated)
+        compressed: \(compressed)
         """
     }
     

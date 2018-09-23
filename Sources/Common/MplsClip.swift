@@ -14,3 +14,15 @@ public struct MplsClip {
     public let chapterPath: String?
     public let index: Int
 }
+
+extension MplsClip: CustomStringConvertible {
+    
+    public var description: String {
+        return """
+        fileName: \(fileName.filename)
+        m2ts: \(m2tsPath.filename)
+        chapterPath: \(chapterPath ?? "nil")
+        """
+    }
+    
+}
