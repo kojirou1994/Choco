@@ -12,16 +12,20 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-package-manager", from: "0.2.0")
     ],
     targets: [
+        .systemLibrary(
+            name: "CLibbluray",
+            pkgConfig: "libbluray"
+        ),
         .target(
             name: "Common",
             dependencies: ["SwiftFFmpeg", "Kwift", "Utility"]
         ),
         .target(
             name: "Remuxer",
-            dependencies: ["Common", "SwiftFFmpeg", "Kwift", "Utility"]),
+            dependencies: ["Common", "SwiftFFmpeg", "Kwift", "Utility", "CLibbluray"]),
         .target(
             name: "Exp",
-            dependencies: ["SwiftFFmpeg", "Kwift"]),
+            dependencies: ["SwiftFFmpeg", "Kwift", "CLibbluray"]),
         .testTarget(
             name: "RemuxerTests",
             dependencies: ["Remuxer"]),

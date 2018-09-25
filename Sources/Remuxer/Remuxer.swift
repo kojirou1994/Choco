@@ -43,6 +43,10 @@ enum RemuxMode: String, CaseIterable {
     case file
     // input is *.mpls
     case splitMpls
+    
+    static var allSelection: String {
+        return allCases.map{$0.rawValue}.joined(separator: "|")
+    }
 }
 
 public class Remuxer {
@@ -60,7 +64,10 @@ public class Remuxer {
     let inputs: [String]
     
     public init(arguments: [String]) throws {
-        let parser = ArgumentParser.init(commandName: "Remuxer", usage: "", overview: "", seeAlso: nil)
+        let parser = ArgumentParser.init(commandName: "Remuxer",
+                                         usage: "--mode \(RemuxMode.allSelection) [OPTIONS] [INPUT]",
+                                         overview: "Automatic remux BDMV or media files.",
+                                         seeAlso: nil)
         let binder = ArgumentBinder<Config>.init()
         
         binder.bind(option: parser.add(option: "--output", shortName: "-o", kind: String.self, usage: "output dir")) { (config, output) in
@@ -88,8 +95,14 @@ public class Remuxer {
         binder.bindArray(positional: parser.add(positional: "inputs", kind: [String].self, usage: "input's path")) { (config, inputs) in
             config.inputs = inputs
         }
-        
-        let result = try parser.parse(Array(CommandLine.arguments.dropFirst()))
+
+        let result: ArgumentParser.Result
+        do {
+            result = try parser.parse(Array(CommandLine.arguments.dropFirst()))
+        } catch {
+            print(error)
+            exit(1)
+        }
         var config = Config.init(outputDir: DefaultConfig.outputDir, tempDir: DefaultConfig.tempDir, mode: .auto, splits: nil, inputs: [], languages: DefaultConfig.preferedLanguages)
         try binder.fill(parseResult: result, into: &config)
 //        Swift.dump(config)
@@ -101,10 +114,12 @@ public class Remuxer {
         splits = config.splits
         languages = config.languages
         inputs = config.inputs
-        try? FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true, attributes: nil)
     }
     
     public func start() throws {
+        
+        try? FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true, attributes: nil)
+        
         switch mode {
         case .auto, .episodes, .movie, .dump:
             try inputs.forEach({ (input) in
@@ -151,7 +166,8 @@ public class Remuxer {
 
     func remux(blurayPath: String, useMode: RemuxMode) throws {
         
-        let bdFolderName = blurayPath.filename
+        let bdFolderName = getBlurayTitle(path: blurayPath)
+//            blurayPath.filename
         let finalOutputDir = outputDir.appendingPathComponent(bdFolderName)
         
         print("Remuxing BD: \(bdFolderName)")
@@ -224,18 +240,18 @@ public class Remuxer {
                 trackOrder.append("0:\(modify.offset)")
             case .remove(let type):
                 switch type {
-                case .audio:
+                case AVMEDIA_TYPE_AUDIO:
                     audioRemoveTracks.append(modify.offset)
-                case .subtitle:
+                case AVMEDIA_TYPE_SUBTITLE:
                     subtitleRemoveTracks.append(modify.offset)
                 default:
                     break
                 }
             case .replace(let type, let file, let lang):
                 switch type {
-                case .audio:
+                case AVMEDIA_TYPE_AUDIO:
                     audioRemoveTracks.append(modify.offset)
-                case .subtitle:
+                case AVMEDIA_TYPE_SUBTITLE:
                     subtitleRemoveTracks.append(modify.offset)
                 default:
                     break
@@ -419,7 +435,7 @@ extension Remuxer {
     }
     
     private func parse(mkvinfo: MkvmergeIdentification) throws -> [TrackModification] {
-        let context = try AVFormatContext.init(url: mkvinfo.fileName)
+        let context = try AVFormatContextWrapper.init(url: mkvinfo.fileName)
         try context.findStreamInfo()
         guard context.streamCount == mkvinfo.tracks.count else {
             print("ffmpeg and mkvmerge track count mismatch!")
@@ -430,7 +446,7 @@ extension Remuxer {
         let streams = context.streams
         var flacConverters = [Flac]()
         var ffmpegArguments = ["-v", "quiet", "-nostdin", "-y", "-i", mkvinfo.fileName, "-vn"]
-        var trackModifications = [TrackModification].init(repeating: .copy(type: .unknown), count: streams.count)
+        var trackModifications = [TrackModification].init(repeating: .copy(type: AVMEDIA_TYPE_UNKNOWN), count: streams.count)
         
         defer {
             display(modiifcations: trackModifications)
@@ -449,7 +465,7 @@ extension Remuxer {
                 ffmpegArguments.append(contentsOf: ["-map", "0:\(stream.index)", tempFlac])
                 flacConverters.append(Flac.init(input: tempFlac, output: finalFlac))
                 
-                trackModifications[index] = .replace(type: .audio, file: finalFlac, lang: stream.language)
+                trackModifications[index] = .replace(type: AVMEDIA_TYPE_AUDIO, file: finalFlac, lang: stream.language)
             } else if preferedLanguages.contains(stream.language) {
                 trackModifications[index] = .copy(type: stream.mediaType)
             } else {
@@ -459,7 +475,7 @@ extension Remuxer {
                 case let nextStream = streams[index+1],
                 nextStream.isAC3, stream.language == nextStream.language {
                 // Remove TRUEHD embed-in AC-3 track
-                trackModifications[index+1] = .remove(type: .audio)
+                trackModifications[index+1] = .remove(type: AVMEDIA_TYPE_AUDIO)
                 index += 1
             }
             index += 1
