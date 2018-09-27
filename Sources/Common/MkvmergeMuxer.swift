@@ -7,7 +7,7 @@
 
 import Foundation
 
-public final class MkvmergeMuxer: Converter {
+public struct MkvmergeMuxer: Converter {
     
     public static let executable = "mkvmerge"    
     
@@ -45,10 +45,7 @@ public final class MkvmergeMuxer: Converter {
         }
         self.extraArguments = extraArguments
     }
-    
-    public func convert() throws {
-        try checkPath()
-        printTask()
+    public var arguments: [String] {
         var arguments = ["-q", "--output", output]
         if audioLanguages.count > 0 {
             arguments.append("-a")
@@ -64,9 +61,7 @@ public final class MkvmergeMuxer: Converter {
         if chapterPath != nil {
             arguments.append(contentsOf: ["--chapters", chapterPath!])
         }
-        let p = try Process.init(executableName: "mkvmerge", arguments: arguments)
-        p.launchUntilExit()
-        try p.checkTerminationStatus()
+        return arguments
     }
     
 }

@@ -8,6 +8,10 @@
 import Foundation
 
 public final class Flac: Converter {
+    public var arguments: [String] {
+        return [input, "--totally-silent", "-f", "-o", output]
+    }
+    
     
     public static let executable = "flac"
     
@@ -18,14 +22,6 @@ public final class Flac: Converter {
     public init(input: String, output: String) {
         self.input = input
         self.output = output
-    }
-    
-    public func convert() throws {
-        try checkPath()
-        printTask()
-        let p = try Process.init(executableName: "flac", arguments: [input, "--totally-silent", "-f", "-o", output])
-        p.launchUntilExit()
-        try p.checkTerminationStatus()
     }
     
 }

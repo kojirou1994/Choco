@@ -9,7 +9,8 @@ let package = Package(
         // Dependencies declare other packages that this package depends on.
         .package(path: "../SwiftFFmpeg"),
         .package(url: "https://github.com/kojirou1994/Kwift", .branch("master")),
-        .package(url: "https://github.com/apple/swift-package-manager", from: "0.2.0")
+        .package(url: "https://github.com/apple/swift-package-manager", from: "0.2.0"),
+        .package(url: "https://github.com/IBM-Swift/BlueSignals", from: "1.0.0"),
     ],
     targets: [
         .systemLibrary(
@@ -22,7 +23,7 @@ let package = Package(
         ),
         .target(
             name: "Remuxer",
-            dependencies: ["Common", "SwiftFFmpeg", "Kwift", "Utility", "CLibbluray"]),
+            dependencies: ["Common", "SwiftFFmpeg", "Kwift", "Utility", "CLibbluray", "Signals"]),
         .target(
             name: "Exp",
             dependencies: ["SwiftFFmpeg", "Kwift", "CLibbluray"]),

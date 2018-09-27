@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftFFmpeg
 
 public struct Mpls {
     
@@ -136,9 +137,49 @@ extension Mpls {
     }
     
     private var filesFormatMatches: Bool {
+        if isSingle {
+            return true
+        }
         // open every file and check
-        #warning("not implemented")
+        let fileContexts = files.map { (file) -> AVFormatContextWrapper in
+            let c = try! AVFormatContextWrapper.init(url: file)
+            try! c.findStreamInfo()
+            return c
+        }
+        for index in 0..<(fileContexts.count-1) {
+            if !formatMatch(l: fileContexts[index], r: fileContexts[index+1]) {
+                return false
+            }
+        }
         return true
+    }
+    
+    private func formatMatch(l: AVFormatContextWrapper, r: AVFormatContextWrapper) -> Bool {
+        guard l.streamCount == r.streamCount else {
+            return false
+        }
+        let lStreams = l.streams
+        let rStreams = r.streams
+        for index in 0..<Int(l.streamCount) {
+            let lStream = lStreams[index]
+            let rStream = rStreams[index]
+            if lStream.mediaType != rStream.mediaType {
+                return false
+            }
+            switch lStream.mediaType {
+            case AVMEDIA_TYPE_AUDIO:
+                if !audioFormatMatch(l: lStream.codecpar, r: rStream.codecpar) {
+                    return false
+                }
+            default:
+                print("Only verify audio now")
+            }
+        }
+        return true
+    }
+    
+    private func audioFormatMatch(l: AVCodecParametersWrapper, r: AVCodecParametersWrapper) -> Bool {
+        return (l.channelCount, l.sampleRate, l.sampleFmt) == (r.channelCount, r.sampleRate, r.sampleFmt)
     }
     
     public func split() -> [MplsClip] {
@@ -148,17 +189,25 @@ extension Mpls {
         } catch {
             print("Generate Chapter File for \(fileName) failed")
         }
-        var index = 0
-        return files.map({ (filepath) -> MplsClip in
-            defer { index += 1 }
+        if files.count == 1 {
+            let filepath = files[0]
             let chapterName = fileName.filenameWithoutExtension + "_" + filepath.filenameWithoutExtension + "M2TS_chapter.txt"
             let chapterPath = fileName.deletingLastPathComponent.appendingPathComponent(chapterName)
-            return MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapterPath) ? chapterPath : nil, index: index)
-        })
+            return [MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapterPath) ? chapterPath : nil, index: nil)]
+        } else {
+            var index = 0
+            return files.map({ (filepath) -> MplsClip in
+                defer { index += 1 }
+                let chapterName = fileName.filenameWithoutExtension + "_" + filepath.filenameWithoutExtension + "M2TS_chapter.txt"
+                let chapterPath = fileName.deletingLastPathComponent.appendingPathComponent(chapterName)
+                return MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapterPath) ? chapterPath : nil, index: index)
+            })
+        }
     }
     
     private func generateChapterFile() throws {
-        let script = #file.deletingLastPathComponent.appendingPathComponent("../../BD_Chapters_MOD.py")
+        let script = "./BD_Chapters_MOD.py"
+//            #file.deletingLastPathComponent.appendingPathComponent("../../BD_Chapters_MOD.py")
         let p = try Process.init(executableName: "python", arguments: [script, fileName])
         p.launchUntilExit()
         try p.checkTerminationStatus()

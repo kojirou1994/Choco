@@ -2,6 +2,15 @@
   "object": {
     "pins": [
       {
+        "package": "Signals",
+        "repositoryURL": "https://github.com/IBM-Swift/BlueSignals",
+        "state": {
+          "branch": null,
+          "revision": "6f8b9d339e94c7d10c5345f075be58508d7e16f7",
+          "version": "1.0.7"
+        }
+      },
+      {
         "package": "Kwift",
         "repositoryURL": "https://github.com/kojirou1994/Kwift",
         "state": {

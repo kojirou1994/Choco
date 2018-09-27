@@ -29,7 +29,6 @@ struct Config {
     var languages: Set<String>
 }
 
-
 enum RemuxMode: String, CaseIterable {
     // auto detect
     case auto
@@ -62,6 +61,8 @@ public class Remuxer {
     let languages: Set<String>
     
     let inputs: [String]
+    
+    var runningProcess: Process?
     
     public init(arguments: [String]) throws {
         let parser = ArgumentParser.init(commandName: "Remuxer",
@@ -167,7 +168,7 @@ public class Remuxer {
     func remux(blurayPath: String, useMode: RemuxMode) throws {
         
         let bdFolderName = getBlurayTitle(path: blurayPath)
-//            blurayPath.filename
+
         let finalOutputDir = outputDir.appendingPathComponent(bdFolderName)
         
         print("Remuxing BD: \(bdFolderName)")
@@ -199,14 +200,14 @@ public class Remuxer {
             }
         } else if useMode == .movie {
             try mplsList.forEach { (mpls) in
-                if mpls.useFFmpeg || mpls.compressed {
+                if mpls.useFFmpeg || mpls.compressed || mpls.remuxMode == .split {
                     tempFiles.append(contentsOf: try split(mpls: mpls))
                 } else {
                     let preferedLanguages = generatePrimaryLanguages(with: [mpls.primaryLanguage])
                     let output = tempDir.appendingPathComponent(generateFilename(mpls: mpls) + ".mkv")
                     
                     let m = MkvmergeMuxer.init(input: mpls.fileName, output: output, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages)
-                    try m.convert()
+                    try launchProcessAndWaitAndCheck(process: m.convert())
                     tempFiles.append(output)
                 }
             }
@@ -219,7 +220,14 @@ public class Remuxer {
         }
     }
     
-    func remux(file: String, remuxOutputDir: String, deleteAfterRemux: Bool) throws {
+    func quickMux(mpls: Mpls, outputDir: String) throws {
+        guard mpls.files.count == 1 else {
+            return
+        }
+        let m2ts = mpls.files[0]
+    }
+    
+    func remux(file: String, remuxOutputDir: String, deleteAfterRemux: Bool, parseOnly: Bool = false) throws {
         let outputFilename = remuxOutputDir.appendingPathComponent(file.filenameWithoutExtension + ".mkv")
         guard outputFilename != file else {
             print("\(outputFilename) already exists!")
@@ -277,8 +285,7 @@ public class Remuxer {
         print("Mkvmerge arguments:\n\(arguments.joined(separator: " "))")
         let mkvmerge = try Process.init(executableName: "mkvmerge", arguments: arguments)
         print("\nMkvmerge:\n\(file)\n->\n\(outputFilename)")
-        mkvmerge.launchUntilExit()
-        try mkvmerge.checkTerminationStatus()
+        try launchProcessAndWaitAndCheck(process: mkvmerge)
         
         externalTracks.forEach { (t) in
             do {
@@ -325,17 +332,17 @@ extension Remuxer {
         return try clips.compactMap { (clip) -> String? in
             if restFiles.contains(clip.m2tsPath) {
                 let output: String
-                let outputBasename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.index)-\(clip.m2tsPath.filenameWithoutExtension)"
+                let outputBasename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.baseFilename)"
                 if mpls.useFFmpeg {
                     let outputFilename = "\(outputBasename)-ffmpeg.mkv"
                     output = tempDir.appendingPathComponent(outputFilename)
-                    let ff = FFmpegMuxer.init(input: clip.m2tsPath, output: output)
-                    try ff.convert(mode: .videoOnly)
+                    let ff = FFmpegMuxer.init(input: clip.m2tsPath, output: output, mode: .videoOnly)
+                    try launchProcessAndWaitAndCheck(process: ff.convert())
                 } else {
                     let outputFilename = "\(outputBasename).mkv"
                     output = tempDir.appendingPathComponent(outputFilename)
                     let m = MkvmergeMuxer.init(input: clip.m2tsPath, output: output, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, chapterPath: clip.chapterPath)
-                    try m.convert()
+                    try launchProcessAndWaitAndCheck(process: m.convert())
                 }
                 return output
             } else {
@@ -434,6 +441,13 @@ extension Remuxer {
         }
     }
     
+    private func launchProcessAndWaitAndCheck(process: Process) throws {
+        runningProcess = process
+        process.launchUntilExit()
+        try process.checkTerminationStatus()
+        runningProcess = nil
+    }
+    
     private func parse(mkvinfo: MkvmergeIdentification) throws -> [TrackModification] {
         let context = try AVFormatContextWrapper.init(url: mkvinfo.fileName)
         try context.findStreamInfo()
@@ -457,23 +471,24 @@ extension Remuxer {
         var index = 0
         while index < streams.count {
             let stream = streams[index]
-            print("\(stream.index): \(stream.codecpar.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(stream.language)")
-            if stream.isGrossAudio, preferedLanguages.contains(stream.language) {
+            let streamLanguage = mkvinfo.tracks[index].properties.language ?? "und"
+            print("\(stream.index): \(stream.codecpar.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(streamLanguage)")
+            if stream.isGrossAudio, preferedLanguages.contains(streamLanguage) {
                 // add to ffmpeg arguments
-                let tempFlac = tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(stream.language)-ffmpeg.flac")
-                let finalFlac = tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(stream.language).flac")
+                let tempFlac = tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage)-ffmpeg.flac")
+                let finalFlac = tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage).flac")
                 ffmpegArguments.append(contentsOf: ["-map", "0:\(stream.index)", tempFlac])
                 flacConverters.append(Flac.init(input: tempFlac, output: finalFlac))
                 
-                trackModifications[index] = .replace(type: AVMEDIA_TYPE_AUDIO, file: finalFlac, lang: stream.language)
-            } else if preferedLanguages.contains(stream.language) {
+                trackModifications[index] = .replace(type: AVMEDIA_TYPE_AUDIO, file: finalFlac, lang: streamLanguage)
+            } else if preferedLanguages.contains(streamLanguage) {
                 trackModifications[index] = .copy(type: stream.mediaType)
             } else {
                 trackModifications[index] = .remove(type: stream.mediaType)
             }
             if stream.isTruehd, index+1<streams.count,
                 case let nextStream = streams[index+1],
-                nextStream.isAC3, stream.language == nextStream.language {
+                nextStream.isAC3 {
                 // Remove TRUEHD embed-in AC-3 track
                 trackModifications[index+1] = .remove(type: AVMEDIA_TYPE_AUDIO)
                 index += 1
@@ -486,11 +501,10 @@ extension Remuxer {
         }
         
         let ffmpeg = try Process.init(executableName: "ffmpeg", arguments: ffmpegArguments)
-        ffmpeg.launchUntilExit()
-        try ffmpeg.checkTerminationStatus()
+        try launchProcessAndWaitAndCheck(process: ffmpeg)
         
         try flacConverters.forEach { (flac) in
-            try flac.convert()
+            try launchProcessAndWaitAndCheck(process: flac.convert())
             try FileManager.default.removeItem(atPath: flac.input)
         }
         

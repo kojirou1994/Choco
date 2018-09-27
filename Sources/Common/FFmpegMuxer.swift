@@ -7,30 +7,9 @@
 
 import Foundation
 
-public final class FFmpegMuxer: Converter {
+public struct FFmpegMuxer: Converter {
     
-    public static let executable = "ffmpeg"
-    
-    public let input: String
-    
-    public let output: String
-    
-    public init(input: String, output: String) {
-        self.input = input
-        self.output = output
-    }
-    
-    public enum CopyMode {
-        case copyAll, videoOnly, audioOnly
-    }
-    
-    public func convert() throws {
-        try convert(mode: .copyAll)
-    }
-    
-    public func convert(mode: CopyMode) throws {
-        try checkPath()
-        printTask()
+    public var arguments: [String] {
         let arguments: [String]
         switch mode {
         case .audioOnly:
@@ -40,9 +19,31 @@ public final class FFmpegMuxer: Converter {
         case .videoOnly:
             arguments = ["-v", "quiet", "-nostdin", "-y", "-i", input, "-c", "copy", "-an", "-sn", output]
         }
-        let p = try! Process.init(executableName: "ffmpeg", arguments: arguments)
-        p.launchUntilExit()
-        try p.checkTerminationStatus()
+        return arguments
+    }
+    
+    public static let executable = "ffmpeg"
+    
+    public let input: String
+    
+    public let output: String
+    
+    public let mode: CopyMode
+    
+    public init(input: String, output: String) {
+        self.input = input
+        self.output = output
+        self.mode = .copyAll
+    }
+    
+    public init(input: String, output: String, mode: CopyMode) {
+        self.input = input
+        self.output = output
+        self.mode = mode
+    }
+    
+    public enum CopyMode {
+        case copyAll, videoOnly, audioOnly
     }
     
 }

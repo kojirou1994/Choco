@@ -12,7 +12,7 @@ public struct MplsClip {
     public let trackLangs: [String]
     public let m2tsPath: String
     public let chapterPath: String?
-    public let index: Int
+    public let index: Int?
 }
 
 extension MplsClip: CustomStringConvertible {
@@ -23,6 +23,18 @@ extension MplsClip: CustomStringConvertible {
         m2ts: \(m2tsPath.filename)
         chapterPath: \(chapterPath ?? "nil")
         """
+    }
+    
+}
+
+extension MplsClip {
+    
+    public var baseFilename: String {
+        if let index = index {
+            return "\(index)-\(m2tsPath.filenameWithoutExtension)"
+        } else {
+            return m2tsPath.filenameWithoutExtension
+        }
     }
     
 }
