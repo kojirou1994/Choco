@@ -167,7 +167,7 @@ public class Remuxer {
 
     func remux(blurayPath: String, useMode: RemuxMode) throws {
         
-        let bdFolderName = getBlurayTitle(path: blurayPath)
+        let bdFolderName = getBlurayTitle(path: blurayPath).safeFilename()
 
         let finalOutputDir = outputDir.appendingPathComponent(bdFolderName)
         
