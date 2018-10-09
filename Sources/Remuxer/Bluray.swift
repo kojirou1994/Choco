@@ -8,10 +8,14 @@
 import Foundation
 import CLibbluray
 
-func getBlurayTitle(path: String) -> String {
+func getBlurayTitle(path: String, useLibbluray: Bool) -> String {
+    guard useLibbluray else {
+        return path.filename
+    }
     guard let bd = bd_open(path, nil),
-        let info = bd_get_disc_info(bd),
-        let name = info.pointee.disc_name else {
+        bd_set_player_setting_str(bd, BLURAY_PLAYER_SETTING_MENU_LANG.rawValue, "jpn") == 1,
+        let meta = bd_get_meta(bd),
+        let name = meta.pointee.di_name else {
             return path.filename
     }
     defer {

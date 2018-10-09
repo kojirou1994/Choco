@@ -6,8 +6,8 @@
         "repositoryURL": "https://github.com/IBM-Swift/BlueSignals",
         "state": {
           "branch": null,
-          "revision": "6f8b9d339e94c7d10c5345f075be58508d7e16f7",
-          "version": "1.0.7"
+          "revision": "f1a8a701c49fd214da3fc3458c1211f17c8e13f4",
+          "version": "1.0.10"
         }
       },
       {
@@ -15,7 +15,7 @@
         "repositoryURL": "https://github.com/kojirou1994/Kwift",
         "state": {
           "branch": "master",
-          "revision": "53b92ad4d64d89f51cd287b3822cd2bc44b86d3b",
+          "revision": "f5b5566354329fc6c40ee7cce99e083d8a87fac2",
           "version": null
         }
       },

@@ -182,33 +182,33 @@ extension Mpls {
         return (l.channelCount, l.sampleRate, l.sampleFmt) == (r.channelCount, r.sampleRate, r.sampleFmt)
     }
     
-    public func split() -> [MplsClip] {
+    public func split(chapterPath: String) -> [MplsClip] {
         
         do {
-            try generateChapterFile()
+            try generateChapterFile(chapterPath: chapterPath)
         } catch {
             print("Generate Chapter File for \(fileName) failed")
         }
         if files.count == 1 {
             let filepath = files[0]
             let chapterName = fileName.filenameWithoutExtension + "_" + filepath.filenameWithoutExtension + "M2TS_chapter.txt"
-            let chapterPath = fileName.deletingLastPathComponent.appendingPathComponent(chapterName)
-            return [MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapterPath) ? chapterPath : nil, index: nil)]
+            let chapter = chapterPath.appendingPathComponent(chapterName)
+            return [MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapter) ? chapter : nil, index: nil)]
         } else {
             var index = 0
             return files.map({ (filepath) -> MplsClip in
                 defer { index += 1 }
                 let chapterName = fileName.filenameWithoutExtension + "_" + filepath.filenameWithoutExtension + "M2TS_chapter.txt"
-                let chapterPath = fileName.deletingLastPathComponent.appendingPathComponent(chapterName)
-                return MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapterPath) ? chapterPath : nil, index: index)
+                let chapter = chapterPath.appendingPathComponent(chapterName)
+                return MplsClip.init(fileName: fileName, trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapter) ? chapter : nil, index: index)
             })
         }
     }
     
-    private func generateChapterFile() throws {
-        let script = "./BD_Chapters_MOD.py"
-//            #file.deletingLastPathComponent.appendingPathComponent("../../BD_Chapters_MOD.py")
-        let p = try Process.init(executableName: "python", arguments: [script, fileName])
+    private func generateChapterFile(chapterPath: String) throws {
+        let script = #file.deletingLastPathComponent.appendingPathComponent("../../BD_Chapters_MOD.py")
+//        "./BD_Chapters_MOD.py"
+        let p = try Process.init(executableName: "python", arguments: [script, fileName, "-o", chapterPath])
         p.launchUntilExit()
         try p.checkTerminationStatus()
     }

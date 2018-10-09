@@ -9,67 +9,65 @@ import Foundation
 import Common
 import Utility
 
-struct DefaultConfig {
-    
-    static let tempDir = ""
-    
-    static let outputDir = ""
-    
-    static let preferedLanguages: Set<String> = ["und", "chi", "eng", "jpn"]
-    
-}
+public class Remuxer: Cli {
 
-struct Config {
-    var outputDir: String
-    var tempDir: String
-    var mode: RemuxMode
-    /// use in splitMpls mode
-    var splits: [Int]?
-    var inputs: [String]
-    var languages: Set<String>
-}
-
-enum RemuxMode: String, CaseIterable {
-    // auto detect
-    case auto
-    // direct mux all mpls
-    case movie
-    // split all mpls
-    case episodes
-    // print mpls list
-    case dump
-    // input is *.mkv or something else
-    case file
-    // input is *.mpls
-    case splitMpls
-    
-    static var allSelection: String {
-        return allCases.map{$0.rawValue}.joined(separator: "|")
+    struct RemuxerArgument {
+        
+        var outputDir: String
+        
+        var tempDir: String
+        
+        enum RemuxMode: String, CaseIterable {
+            
+            // auto detect
+//            case auto
+            // direct mux all mpls
+            case movie
+            // split all mpls
+            case episodes
+            // print mpls list
+            case dump
+            // input is *.mkv or something else
+            case file
+            // input is *.mpls
+            case splitMpls
+            
+            static var allSelection: String {
+                return allCases.map{$0.rawValue}.joined(separator: "|")
+            }
+        }
+        
+        var mode: RemuxMode
+        
+        /// use in splitMpls mode
+        var splits: [Int]?
+        
+        var inputs: [String]
+        
+        var languages: Set<String>
+        
+        static let defaultLanguages: Set<String> = ["und", "chi", "eng", "jpn"]
+        
+        var deleteAfterRemux: Bool
+        
+        var useLibbluray: Bool
     }
-}
-
-public class Remuxer {
     
-    let mode: RemuxMode
+    typealias CliConfig = RemuxerArgument
     
-    let tempDir: String
+    var config: RemuxerArgument
     
-    let outputDir: String
+    init() {
+        config = RemuxerArgument.init(outputDir: "", tempDir: "", mode: .movie, splits: nil, inputs: [], languages: RemuxerArgument.defaultLanguages, deleteAfterRemux: false, useLibbluray: false)
+        av_log_set_level(AV_LOG_QUIET)
+    }
     
-    let splits: [Int]?
-    
-    let languages: Set<String>
-    
-    let inputs: [String]
-    
-    var runningProcess: Process?
-    
-    public init(arguments: [String]) throws {
+    func parse(arguments: [String] = Array(CommandLine.arguments.dropLast())) throws {
         let parser = ArgumentParser.init(commandName: "Remuxer",
-                                         usage: "--mode \(RemuxMode.allSelection) [OPTIONS] [INPUT]",
-                                         overview: "Automatic remux BDMV or media files.",
-                                         seeAlso: nil)
-        let binder = ArgumentBinder<Config>.init()
+                                         usage: "--mode \(RemuxerArgument.RemuxMode.allSelection) [OPTIONS] [INPUT]",
+            overview: "Automatic remux BDMV or media files.",
+            seeAlso: nil)
+        let binder = ArgumentBinder<RemuxerArgument>.init()
         
         binder.bind(option: parser.add(option: "--output", shortName: "-o", kind: String.self, usage: "output dir")) { (config, output) in
             config.outputDir = output
@@ -78,12 +76,12 @@ public class Remuxer {
             config.tempDir = temp
         }
         binder.bind(option: parser.add(option: "--mode", kind: String.self, usage: "remux mode")) { (config, mode) in
-            guard let modeV = RemuxMode.init(rawValue: mode) else {
+            guard let modeV = RemuxerArgument.RemuxMode.init(rawValue: mode) else {
                 fatalError("Unknown mode: \(mode)")
             }
             config.mode = modeV
         }
-        binder.bind(option: parser.add(option: "--splits", kind: String.self, usage: "split  info")) { (config, splits) in
+        binder.bind(option: parser.add(option: "--splits", kind: String.self, usage: "split info")) { (config, splits) in
             let v = splits.split(separator: ",").map({ (str) -> Int in
                 if let int = Int(str) {
                     return int
@@ -93,10 +91,16 @@ public class Remuxer {
             })
             config.splits = v
         }
+        binder.bind(option: parser.add(option: "--delete-after-remux", kind: Bool.self, usage: "delete the src after remux")) { (config, d) in
+            config.deleteAfterRemux = d
+        }
+        binder.bind(option: parser.add(option: "--use-libbluray", kind: Bool.self, usage: "delete the src after remux")) { (config, v) in
+            config.useLibbluray = v
+        }
         binder.bindArray(positional: parser.add(positional: "inputs", kind: [String].self, usage: "input's path")) { (config, inputs) in
             config.inputs = inputs
         }
-
+        
         let result: ArgumentParser.Result
         do {
             result = try parser.parse(Array(CommandLine.arguments.dropFirst()))
@@ -104,36 +108,41 @@ public class Remuxer {
             print(error)
             exit(1)
         }
-        var config = Config.init(outputDir: DefaultConfig.outputDir, tempDir: DefaultConfig.tempDir, mode: .auto, splits: nil, inputs: [], languages: DefaultConfig.preferedLanguages)
-        try binder.fill(parseResult: result, into: &config)
-//        Swift.dump(config)
         
-        av_log_set_level(AV_LOG_QUIET)
-        mode = config.mode
-        tempDir = config.tempDir.appendingPathComponent("tmp")
-        outputDir = config.outputDir
-        splits = config.splits
-        languages = config.languages
-        inputs = config.inputs
+        try binder.fill(parseResult: result, into: &config)
+        
+        Swift.dump(config)
     }
     
-    public func start() throws {
+    func run() throws {
+        var failedTasks: [String] = []
         
-        try? FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true, attributes: nil)
-        
-        switch mode {
-        case .auto, .episodes, .movie, .dump:
-            try inputs.forEach({ (input) in
-                try remux(blurayPath: input, useMode: mode)
+        switch config.mode {
+        case .dump:
+            try config.inputs.forEach(dump(blurayPath: ))
+        case /*.auto, */.episodes, .movie, .splitMpls:
+            config.inputs.forEach({ (input) in
+                try? FileManager.default.createDirectory(atPath: config.tempDir, withIntermediateDirectories: true, attributes: nil)
+                do {
+                    try remux(blurayPath: input, useMode: config.mode)
+                    if config.deleteAfterRemux {
+                        try? FileManager.default.removeItem(atPath: input)
+                    }
+                } catch {
+                    print(error)
+                    failedTasks.append(input)
+                }
+                clear()
             })
         case .file:
             var failed: [String] = []
-            try inputs.forEach({ (file) in
+            try config.inputs.forEach({ (file) in
                 var isDir: ObjCBool = false
                 if FileManager.default.fileExists(atPath: file, isDirectory: &isDir) {
                     if isDir.boolValue {
-                        let outputDir = self.outputDir.appendingPathComponent(file.filename)
-                        try? FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true, attributes: nil)
+                        // input is a directory, remux all contents
+                        let outputDir = config.outputDir.appendingPathComponent(file.filename)
+                        try FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true, attributes: nil)
                         let contents = try FileManager.default.contentsOfDirectory(atPath: file)
                         contents.forEach({ (fileInDir) in
                             do {
@@ -144,7 +153,7 @@ public class Remuxer {
                         })
                     } else {
                         do {
-                            try remux(file: file, remuxOutputDir: outputDir, deleteAfterRemux: false)
+                            try remux(file: file, remuxOutputDir: config.outputDir, deleteAfterRemux: false)
                         } catch {
                             failed.append(file)
                         }
@@ -156,20 +165,34 @@ public class Remuxer {
             if failed.count > 0 {
                 print("Muxing files failed:\n\(failed.joined(separator: "\n"))")
             }
-        case .splitMpls:
-            fatalError("split mode")
+        }
+        if failedTasks.count > 0 {
+            print("failed tasks:")
+            print(failedTasks.joined(separator: "\n"))
         }
     }
+    
+    var runningProcess: Process?
+    
+    func clear() {
+        try! FileManager.default.removeItem(atPath: config.tempDir)
+        runningProcess?.terminate()
+        runningProcess = nil
+    }
+    
+}
+
+extension Remuxer {
     
     func dump(blurayPath: String) throws {
         try remux(blurayPath: blurayPath, useMode: .dump)
     }
 
-    func remux(blurayPath: String, useMode: RemuxMode) throws {
+    func remux(blurayPath: String, useMode: RemuxerArgument.RemuxMode) throws {
         
-        let bdFolderName = getBlurayTitle(path: blurayPath).safeFilename()
+        let bdFolderName = getBlurayTitle(path: blurayPath, useLibbluray: config.useLibbluray).safeFilename()
 
-        let finalOutputDir = outputDir.appendingPathComponent(bdFolderName)
+        let finalOutputDir = config.outputDir.appendingPathComponent(bdFolderName)
         
         print("Remuxing BD: \(bdFolderName)")
         
@@ -179,6 +202,7 @@ public class Remuxer {
             print("MPLS List:\n")
             mplsList.forEach {print($0);print()}
         } else {
+            print("No mpls found!")
             return
         }
         
@@ -198,21 +222,27 @@ public class Remuxer {
                     allFiles.remove(usedFile)
                 })
             }
-        } else if useMode == .movie {
+        } else if useMode == .movie || useMode == .splitMpls {
             try mplsList.forEach { (mpls) in
                 if mpls.useFFmpeg || mpls.compressed || mpls.remuxMode == .split {
                     tempFiles.append(contentsOf: try split(mpls: mpls))
                 } else {
                     let preferedLanguages = generatePrimaryLanguages(with: [mpls.primaryLanguage])
-                    let output = tempDir.appendingPathComponent(generateFilename(mpls: mpls) + ".mkv")
+                    let outputFilename = generateFilename(mpls: mpls)
+                    let output = config.tempDir.appendingPathComponent(outputFilename + ".mkv")
                     
-                    let m = MkvmergeMuxer.init(input: mpls.fileName, output: output, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages)
-                    try launchProcessAndWaitAndCheck(process: m.convert())
-                    tempFiles.append(output)
+                    if useMode == .splitMpls {
+                        let m = MkvmergeMuxer.init(input: mpls.fileName, output: output, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, extraArguments: generateSplitArguments(mpls: mpls))
+                        try launchProcessAndWaitAndCheck(process: m.convert())
+                        let outputs = try FileManager.default.contentsOfDirectory(atPath: config.tempDir).filter({$0.hasPrefix(outputFilename)})
+                        tempFiles.append(contentsOf: outputs)
+                    } else {
+                        let m = MkvmergeMuxer.init(input: mpls.fileName, output: output, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages)
+                        try launchProcessAndWaitAndCheck(process: m.convert())
+                        tempFiles.append(output)
+                    }
                 }
             }
-        } else if useMode == .auto {
-            fatalError("Auto mode not finished")
         }
         
         try tempFiles.forEach { (tempFile) in
@@ -225,6 +255,7 @@ public class Remuxer {
             return
         }
         let m2ts = mpls.files[0]
+        #warning("not implemented!")
     }
     
     func remux(file: String, remuxOutputDir: String, deleteAfterRemux: Bool, parseOnly: Bool = false) throws {
@@ -326,7 +357,7 @@ extension Remuxer {
             return []
         }
         
-        let clips = mpls.split()
+        let clips = mpls.split(chapterPath: config.tempDir)
         let preferedLanguages = generatePrimaryLanguages(with: [mpls.primaryLanguage])
         
         return try clips.compactMap { (clip) -> String? in
@@ -335,12 +366,12 @@ extension Remuxer {
                 let outputBasename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.baseFilename)"
                 if mpls.useFFmpeg {
                     let outputFilename = "\(outputBasename)-ffmpeg.mkv"
-                    output = tempDir.appendingPathComponent(outputFilename)
+                    output = config.tempDir.appendingPathComponent(outputFilename)
                     let ff = FFmpegMuxer.init(input: clip.m2tsPath, output: output, mode: .videoOnly)
                     try launchProcessAndWaitAndCheck(process: ff.convert())
                 } else {
                     let outputFilename = "\(outputBasename).mkv"
-                    output = tempDir.appendingPathComponent(outputFilename)
+                    output = config.tempDir.appendingPathComponent(outputFilename)
                     let m = MkvmergeMuxer.init(input: clip.m2tsPath, output: output, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, chapterPath: clip.chapterPath)
                     try launchProcessAndWaitAndCheck(process: m.convert())
                 }
@@ -401,7 +432,7 @@ extension Remuxer {
     }
     
     private func generatePrimaryLanguages(with otherLanguages: [String]) -> Set<String> {
-        var preferedLanguages = DefaultConfig.preferedLanguages
+        var preferedLanguages = RemuxerArgument.defaultLanguages
         otherLanguages.forEach { (l) in
             preferedLanguages.insert(l)
         }
@@ -409,7 +440,7 @@ extension Remuxer {
     }
     
     private func generateFilename(mpls: Mpls) -> String {
-        return "\(mpls.fileName.filenameWithoutExtension)-\(mpls.files.map{$0.filenameWithoutExtension}.joined(separator: "+"))"
+        return "\(mpls.fileName.filenameWithoutExtension)-\(mpls.files.map{$0.filenameWithoutExtension}.joined(separator: "+").prefix(50))"
     }
     
     private func generateFilename(clip: MplsClip) -> String {
@@ -417,7 +448,7 @@ extension Remuxer {
     }
     
     private func generateSplitArguments(mpls: Mpls) -> [String] {
-        guard let splits = splits, splits.count > 0 else {
+        guard let splits = config.splits, splits.count > 0 else {
             return []
         }
         let totalChaps = splits.reduce(0, +)
@@ -475,8 +506,8 @@ extension Remuxer {
             print("\(stream.index): \(stream.codecpar.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(streamLanguage)")
             if stream.isGrossAudio, preferedLanguages.contains(streamLanguage) {
                 // add to ffmpeg arguments
-                let tempFlac = tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage)-ffmpeg.flac")
-                let finalFlac = tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage).flac")
+                let tempFlac = config.tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage)-ffmpeg.flac")
+                let finalFlac = config.tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage).flac")
                 ffmpegArguments.append(contentsOf: ["-map", "0:\(stream.index)", tempFlac])
                 flacConverters.append(Flac.init(input: tempFlac, output: finalFlac))
                 
@@ -613,5 +644,17 @@ extension Array where Element: Equatable {
         }
         return r
     }
+    
+}
+
+protocol Cli {
+    
+    associatedtype CliConfig
+    
+    var config: CliConfig { set get }
+    
+    func parse(arguments: [String]) throws
+    
+    func run() throws
     
 }

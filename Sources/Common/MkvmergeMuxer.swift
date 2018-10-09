@@ -21,7 +21,7 @@ public struct MkvmergeMuxer: Converter {
     
     let chapterPath: String?
     
-    let extraArguments: [String]
+    var extraArguments: [String]
     
     public init(input: String, output: String) {
         self.input = input
@@ -45,6 +45,7 @@ public struct MkvmergeMuxer: Converter {
         }
         self.extraArguments = extraArguments
     }
+    
     public var arguments: [String] {
         var arguments = ["-q", "--output", output]
         if audioLanguages.count > 0 {
@@ -61,6 +62,9 @@ public struct MkvmergeMuxer: Converter {
         if chapterPath != nil {
             arguments.append(contentsOf: ["--chapters", chapterPath!])
         }
+        
+        arguments.append(contentsOf: extraArguments)
+        
         return arguments
     }
     

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 #-----------------------------------------
 # Original Script by jamesthebard http://www.jamesthebard.net/blog/?p=125
 # MOD based on BD_Chapters_0.3.py by cunhan(cunhan.cyx#gmail.com)
@@ -542,11 +542,6 @@ if __name__ == '__main__':
     (options, arguments) = p.parse_args()
     
     for arg in arguments:
-        try:
-            main(arg, options, p)
-        except:
-            traceback.print_exc()            
-            print("An exception occured.")
-            print("Maybe you can send the info above to the author for debug.")
-            raw_input("Press Enter to continue")
+        main(arg, options, p)
+
         print('')
