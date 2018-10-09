@@ -110,7 +110,7 @@ public class Remuxer: Cli {
         }
         
         try binder.fill(parseResult: result, into: &config)
-        
+        config.tempDir = config.tempDir.appendingPathComponent("tmp")
         Swift.dump(config)
     }
     
