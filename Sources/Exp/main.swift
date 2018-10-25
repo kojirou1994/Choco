@@ -1,6 +1,31 @@
 import Foundation
 import CLibbluray
 
+extension bd_clip {
+    var clipId: String {
+        var cstr = [clip_id.0, clip_id.1, clip_id.2, clip_id.3, clip_id.4, clip_id.5]
+        return String.init(cString: &cstr)
+    }
+}
+
+let bd = bd_open("/Volumes/M5S_128/SYMPHOGEAR_LIVE_2016", nil)!
+print(bd_get_titles(bd, 0, 0))
+print(bd_get_main_title(bd))
+print(bd_get_current_angle(bd))
+print(bd_select_title(bd, 0))
+print(bd_select_angle(bd, 2))
+print(bd_get_current_angle(bd))
+for angle in 0...1 {
+    let title = bd_get_playlist_info(bd, 0, UInt32(angle))!
+    //    bd_get_title_info(bd, 0, 2)!
+    
+//    print(title.pointee)
+    for i in 0..<title.pointee.clip_count {
+        print(title.pointee.clips![Int(i)].clipId)
+    }
+}
+
+bd_close(bd)
 exit(0)
 /*
 let pcmM2ts = "/Volumes/EXTREME/h264_pcm_pgs.m2ts"

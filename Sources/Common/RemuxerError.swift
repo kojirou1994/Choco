@@ -11,4 +11,5 @@ public enum RemuxerError: Error {
     case t
     case processError(code: Int32)
     case sameFilename
+    case outputExist
 }
