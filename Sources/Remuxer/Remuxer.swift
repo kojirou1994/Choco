@@ -198,7 +198,7 @@ extension Remuxer {
 
         let finalOutputDir = config.outputDir.appendingPathComponent(bdFolderName)
         
-        if FileManager.default.fileExists(atPath: finalOutputDir) {
+        if useMode != .dump, FileManager.default.fileExists(atPath: finalOutputDir) {
             throw RemuxerError.outputExist
         }
         
@@ -380,8 +380,13 @@ extension Remuxer {
                 if mpls.useFFmpeg {
                     let outputFilename = "\(outputBasename)-ffmpeg.mkv"
                     output = config.tempDir.appendingPathComponent(outputFilename)
-                    let ff = FFmpegMuxer.init(input: clip.m2tsPath, output: output, mode: .videoOnly)
-                    try launchProcessAndWaitAndCheck(process: ff.convert())
+                    do {
+                        let ff = FFmpegMuxer.init(input: clip.m2tsPath, output: output, mode: .videoOnly)
+                        try launchProcessAndWaitAndCheck(process: ff.convert())
+                    } catch {
+                        let ff = FFmpegMuxer.init(input: clip.m2tsPath, output: output, mode: .audioOnly)
+                        try launchProcessAndWaitAndCheck(process: ff.convert())
+                    }
                 } else {
                     let outputFilename = "\(outputBasename).mkv"
                     output = config.tempDir.appendingPathComponent(outputFilename)
@@ -421,8 +426,8 @@ extension Remuxer {
                 }
             }).map(Mpls.init)
             if removeDuplicate {
-                let multipleFileMpls = allMpls.filter{ !$0.isSingle }.duplicateMplsRemoved
-                let singleFileMpls = allMpls.filter{ $0.isSingle }.duplicateMplsRemoved
+                let multipleFileMpls = allMpls.filter{ !$0.isSingle }.duplicateRemoved
+                let singleFileMpls = allMpls.filter{ $0.isSingle }.duplicateRemoved
                 var cleanMultipleFileMpls = [Mpls]()
             
                 for multipleMpls in multipleFileMpls {

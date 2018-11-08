@@ -217,7 +217,7 @@ extension Mpls {
 
 extension Array where Element == Mpls {
     
-    public var duplicateMplsRemoved: [Mpls] {
+    public var duplicateRemoved: [Mpls] {
         var result = [Mpls]()
         for current in self {
             if let existIndex = result.firstIndex(of: current) {
