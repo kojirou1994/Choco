@@ -1,18 +1,61 @@
 // swift-tools-version:4.2
-// The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
     name: "Remuxer",
+    products: [
+        .library(
+            name: "SwiftFFmpeg",
+            targets: ["SwiftFFmpeg"]
+        )
+    ],
     dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        .package(path: "../SwiftFFmpeg"),
         .package(url: "https://github.com/kojirou1994/Kwift", .branch("master")),
         .package(url: "https://github.com/apple/swift-package-manager", from: "0.3.0"),
         .package(url: "https://github.com/IBM-Swift/BlueSignals", from: "1.0.0")
     ],
     targets: [
+        .systemLibrary(
+            name: "CLibavcodec",
+            pkgConfig: "libavcodec"
+        ),
+        .systemLibrary(
+            name: "CLibavfilter",
+            pkgConfig: "libavfilter"
+        ),
+        .systemLibrary(
+            name: "CLibavformat",
+            pkgConfig: "libavformat"
+        ),
+        .systemLibrary(
+            name: "CLibavutil",
+            pkgConfig: "libavutil"
+        ),
+        .systemLibrary(
+            name: "CLibswresample",
+            pkgConfig: "libswresample"
+        ),
+        .systemLibrary(
+            name: "CLibswscale",
+            pkgConfig: "libswscale"
+        ),
+        .systemLibrary(
+            name: "CFFmpeg",
+            pkgConfig: "libavformat"
+        ),
+        .target(
+            name: "SwiftFFmpeg",
+            dependencies: ["CFFmpeg"]
+        ),
+        .target(
+            name: "SwiftFFmpeg-Demo",
+            dependencies: ["SwiftFFmpeg"]
+        ),
+        .testTarget(
+            name: "SwiftFFmpegTests",
+            dependencies: ["SwiftFFmpeg"]
+        ),
         .systemLibrary(
             name: "CLibbluray",
             pkgConfig: "libbluray"

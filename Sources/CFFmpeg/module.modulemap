@@ -1,0 +1,15 @@
+module CFFmpeg [system] {
+    header "avcodec.h"
+    link "avcodec"
+    header "swscale.h"
+    link "swscale"
+    header "avfilter.h"
+    link "avfilter"
+    header "avformat.h"
+    link "avformat"
+    header "avutil.h"
+    link "avutil"
+    header "swresample.h"
+    link "swresample"
+    export *
+}

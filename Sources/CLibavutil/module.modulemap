@@ -1,0 +1,5 @@
+module CLibavutil [system] {
+    header "avutil.h"
+    link "avutil"
+    export *
+}

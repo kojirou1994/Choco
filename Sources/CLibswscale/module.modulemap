@@ -1,0 +1,5 @@
+module CLibswscale [system] {
+    header "swscale.h"
+    link "swscale"
+    export *
+}
