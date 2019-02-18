@@ -13,7 +13,7 @@ public final class Flac: Converter {
     }
     
     
-    public static let executable = "flac"
+    public static let executableName: String = "flac"
     
     public let input: String
     

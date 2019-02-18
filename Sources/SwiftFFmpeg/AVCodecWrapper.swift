@@ -107,7 +107,7 @@ public struct AVCodecWrapper {
     public var pixFmts: [AVPixelFormat] {
         var list = [AVPixelFormat]()
         var ptr = codecPtr.pointee.pix_fmts
-        while let p = ptr, p.pointee != .none {
+        while let p = ptr, p.pointee != AV_PIX_FMT_NONE {
             list.append(p.pointee)
             ptr = p.advanced(by: 1)
         }
@@ -129,7 +129,7 @@ public struct AVCodecWrapper {
     public var sampleFmts: [AVSampleFormat] {
         var list = [AVSampleFormat]()
         var ptr = codecPtr.pointee.sample_fmts
-        while let p = ptr, p.pointee != .none {
+        while let p = ptr, p.pointee != AV_SAMPLE_FMT_NONE {
             list.append(p.pointee)
             ptr = p.advanced(by: 1)
         }

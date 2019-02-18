@@ -8,19 +8,13 @@
 import Foundation
 import Kwift
 
-public protocol Converter {
-    
-    static var executable: String {get}
+public protocol Converter: Executable {
     
     var input: String {get}
     
     var output: String {get}
     
     init(input: String, output: String)
-    
-    var arguments: [String] {get}
-    
-    func convert() throws -> Process
     
 }
 
@@ -29,8 +23,7 @@ extension Converter {
     public func convert() throws -> Process {
         try checkPath()
         printTask()
-        let p = try Process.init(executableName: Self.executable, arguments: arguments)
-        return p
+        return try generateProcess()
     }
     
     func checkPath() throws {
@@ -40,7 +33,7 @@ extension Converter {
     }
     
     func printTask() {
-        print("\n\(Self.executable):\n\(input)\n->\n\(output)")
+        print("\n\(Self.executableName):\n\(input)\n->\n\(output)")
     }
     
 }

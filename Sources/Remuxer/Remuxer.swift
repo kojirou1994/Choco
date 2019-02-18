@@ -57,9 +57,12 @@ public class Remuxer: Cli {
     
     var config: RemuxerArgument
     
+    let flacQueue = ParallelProcessQueue.init()
+    
     init() {
         config = RemuxerArgument.init(outputDir: "", tempDir: "", mode: .movie, splits: nil, inputs: [], languages: RemuxerArgument.defaultLanguages, deleteAfterRemux: false, useLibbluray: false)
         av_log_set_level(AV_LOG_QUIET)
+        flacQueue.maxConcurrentCount = 4
     }
     
     func parse(arguments: [String] = Array(CommandLine.arguments.dropLast())) throws {
@@ -179,9 +182,10 @@ public class Remuxer: Cli {
     var runningProcess: Process?
     
     func clear() {
-        try! FileManager.default.removeItem(atPath: config.tempDir)
         runningProcess?.terminate()
         runningProcess = nil
+        flacQueue.terminateAllProcesses()
+        try! FileManager.default.removeItem(atPath: config.tempDir)
     }
     
 }
@@ -284,7 +288,7 @@ extension Remuxer {
         var externalTracks = [(file: String, lang: String)]()
         
         let mkvinfo = try MkvmergeIdentification.init(filePath: file)
-        let modifications = try parse(mkvinfo: mkvinfo)
+        let modifications = try makeTrackModification(mkvinfo: mkvinfo)
         
         for modify in modifications.enumerated() {
             switch modify.element {
@@ -497,7 +501,7 @@ extension Remuxer {
         runningProcess = nil
     }
     
-    private func parse(mkvinfo: MkvmergeIdentification) throws -> [TrackModification] {
+    private func makeTrackModification(mkvinfo: MkvmergeIdentification) throws -> [TrackModification] {
         let context = try AVFormatContextWrapper.init(url: mkvinfo.fileName)
         try context.findStreamInfo()
         guard context.streamCount == mkvinfo.tracks.count else {
@@ -552,15 +556,16 @@ extension Remuxer {
         let ffmpeg = try Process.init(executableName: "ffmpeg", arguments: ffmpegArguments)
         try launchProcessAndWaitAndCheck(process: ffmpeg)
 
-        let flacQueue = OperationQueue.init()
-        flacQueue.maxConcurrentOperationCount = 4
         flacConverters.forEach { (flac) in
-            flacQueue.addOperation {
-                try! self.launchProcessAndWaitAndCheck(process: flac.convert())
+            let process = try! flac.convert()
+            process.terminationHandler = { p in
+                if p.terminationStatus != 0 {
+                    print("error while converting flac \(flac.input)")
+                }
                 try! FileManager.default.removeItem(atPath: flac.input)
             }
         }
-        flacQueue.waitUntilAllOperationsAreFinished()
+        flacQueue.waitUntilAllOProcessesAreFinished()
         
         // check duplicate audio track
         let flacPaths = flacConverters.map({$0.output})
@@ -575,7 +580,7 @@ extension Remuxer {
             // verify duplicate
             var duplicateFiles = [[String]]()
             for md5 in md5Set {
-                let currentCount = flacMD5s.countValue(md5)
+                let currentCount = flacMD5s.count(where: {$0 == md5})
                 precondition(currentCount > 0)
                 if currentCount == 1 {
                     
@@ -648,15 +653,15 @@ enum TrackModification {
 
 extension Array where Element: Equatable {
     
-    func countValue(_ v: Element) -> Int {
-        return self.reduce(0, { (result, current) -> Int in
-            if current == v {
-                return result + 1
-            } else {
-                return result
-            }
-        })
-    }
+//    func countValue(_ v: Element) -> Int {
+//        return self.reduce(0, { (result, current) -> Int in
+//            if current == v {
+//                return result + 1
+//            } else {
+//                return result
+//            }
+//        })
+//    }
     
     func indexes(of v: Element) -> [Index] {
         var r = [Index]()

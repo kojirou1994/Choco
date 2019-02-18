@@ -22,7 +22,7 @@ public struct FFmpegMuxer: Converter {
         return arguments
     }
     
-    public static let executable = "ffmpeg"
+    public static let executableName: String = "ffmpeg"
     
     public let input: String
     

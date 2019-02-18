@@ -54,7 +54,7 @@ public struct MkvmergeIdentification: Decodable {
             /// The number of chapters in a playlist if it is a one
             public var playlistChapters: Int?
             /// The total duration in nanoseconds of all files referenced by the playlist if it is a one
-            public var playlistDuration: Int?
+            public var playlistDuration: UInt64?
             /// An array of file names the playlist contains
             public var playlistFile: [String]?
             /// The total size in bytes of all files referenced by the playlist if it is a one

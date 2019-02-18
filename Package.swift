@@ -1,4 +1,4 @@
-// swift-tools-version:4.2
+// swift-tools-version:5.0
 
 import PackageDescription
 
@@ -61,15 +61,23 @@ let package = Package(
             pkgConfig: "libbluray"
         ),
         .target(
+            name: "MplsReader",
+            dependencies: ["Kwift"]
+        ),
+        .target(
+            name: "MplsReader-Demo",
+            dependencies: ["MplsReader"]
+        ),
+        .target(
             name: "Common",
-            dependencies: ["SwiftFFmpeg", "Kwift", "Utility"]
+            dependencies: ["SwiftFFmpeg", "Kwift", "Utility", "MplsReader"]
         ),
         .target(
             name: "Remuxer",
             dependencies: ["Common", "SwiftFFmpeg", "Kwift", "Utility", "CLibbluray", "Signals"]),
         .target(
             name: "Exp",
-            dependencies: ["SwiftFFmpeg", "Kwift", "CLibbluray"]),
+            dependencies: ["SwiftFFmpeg", "Kwift", "CLibbluray", "Common"]),
         .testTarget(
             name: "RemuxerTests",
             dependencies: ["Remuxer"]),

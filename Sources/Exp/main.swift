@@ -1,5 +1,17 @@
 import Foundation
 import CLibbluray
+import Common
+import MplsReader
+
+let data = try Data.init(contentsOf: .init(fileURLWithPath: "/Users/kojirou/Projects/Remuxer/info.json"))
+let p1 = Mpls.init(try JSONDecoder.init().decode(MkvmergeIdentification.self, from: data))
+let p2 = Mpls.init(try mplsParse(path: "/Users/kojirou/Projects/Remuxer/00999.mpls"))
+
+precondition(p1.files.map {$0.lastPathComponent} == p2.files.map {$0.lastPathComponent})
+precondition(p2.trackLangs == p1.trackLangs)
+precondition(p1.duration == p2.duration)
+p2.split(chapterPath: "/Users/kojirou/Projects/Remuxer/My")
+exit(0)
 
 extension bd_clip {
     var clipId: String {

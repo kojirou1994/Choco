@@ -9,7 +9,7 @@ import Foundation
 
 public struct MkvmergeMuxer: Converter {
     
-    public static let executable = "mkvmerge"    
+    public static let executableName: String = "mkvmerge"    
     
     public let input: String
     

@@ -424,7 +424,7 @@ public final class AVFormatContextWrapper {
     }
 
     public func streamIndex(for mediaType: AVMediaType) -> Int? {
-        if let index = streams.index(where: { $0.codecpar.mediaType == mediaType }) {
+        if let index = streams.firstIndex(where: { $0.codecpar.mediaType == mediaType }) {
             return index
         }
         return nil

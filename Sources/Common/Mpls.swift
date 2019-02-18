@@ -7,12 +7,26 @@
 
 import Foundation
 import SwiftFFmpeg
+import MplsReader
+
+extension MplsPlayItem {
+    var langs: [String] {
+        return [stn.video + stn.audio + stn.pg].joined().map{ $0.attribute.lang }
+    }
+}
 
 public struct Mpls {
     
+    private let rawValue: RawValue
+    
+    private enum RawValue {
+        case mkvtoolnix(MkvmergeIdentification)
+        case mplsReader(MplsPlaylist)
+    }
+    
     public let chapterCount: Int
     
-    public let duration: Int
+    public let duration: Timestamp
     
     public let files: [String]
     
@@ -25,8 +39,32 @@ public struct Mpls {
     public let compressed: Bool
     
     public init(filePath: String) throws {
-        let mkvid = try MkvmergeIdentification.init(filePath: filePath)
-        self.init(mkvid)
+//        let mkvid = try MkvmergeIdentification.init(filePath: filePath)
+//        self.init(mkvid)
+        self.init(try mplsParse(path: filePath))
+    }
+    
+    public init(_ mpls: MplsPlaylist) {
+        self.fileName = mpls.fileName
+        let clips = mpls.playItems.map { mpls.fileName.deletingLastPathComponent.deletingLastPathComponent.appendingPathComponent("STREAM").appendingPathComponent($0.clipId).appendingPathExtension("m2ts") }
+        if mpls.playItems.count == 0 {
+            print("No files?")
+            print("MPLS: \(mpls)")
+            fatalError()
+        } else if case let fileSet = Set(clips),
+            fileSet.count < mpls.playItems.count {
+            compressed = true
+            self.size = 0
+            self.files = fileSet.sorted()
+        } else {
+            compressed = false
+            self.size = 0
+            self.files = clips
+        }
+        self.duration = mpls.duration
+        self.rawValue = .mplsReader(mpls)
+        self.chapterCount = mpls.chapters.count
+        self.trackLangs = mpls.playItems[0].langs
     }
     
     public init(_ info: MkvmergeIdentification) {
@@ -35,7 +73,7 @@ public struct Mpls {
             let durationValue = info.container.properties?.playlistDuration else {
                 fatalError("Invalid MPLS: \(info)")
         }
-        let duration = durationValue / 1_000_000_000
+
         if files.count == 0 {
             print("No files?")
             print("MPLS: \(info)")
@@ -45,43 +83,22 @@ public struct Mpls {
             compressed = true
             self.size = size / files.count
             self.files = fileSet.sorted()
-            self.duration = duration / files.count
+            self.duration = .init(ns: durationValue / UInt64(files.count))
         } else {
             compressed = false
             self.size = size
             self.files = files
-            self.duration = duration
+            self.duration = .init(ns: durationValue)
         }
         trackLangs = info.tracks.map({ return $0.properties.language ?? "und" })
         fileName = info.fileName
         chapterCount = info.container.properties?.playlistChapters ?? 0
+        rawValue = .mkvtoolnix(info)
     }
     
 }
 
 extension Mpls: Comparable, Equatable, CustomStringConvertible {
-    
-    #if os(macOS)
-    static let durationFormatter: DateComponentsFormatter = {
-        let f = DateComponentsFormatter.init()
-        f.unitsStyle = .full
-        f.allowedUnits = [.hour, .minute, .second]
-        return f
-    }()
-    #else
-    class SimpleDurationFormatter {
-        
-        func string(from ti: TimeInterval) -> String? {
-            let v = Int(ti)
-            let hour = v / 3600
-            let minute = (v % 3600) / 60
-            let second = v % 60
-            return "\(hour):\(minute):\(second)"
-        }
-        
-    }
-    static let durationFormatter = SimpleDurationFormatter.init()
-    #endif
     
     public var description: String {
         return """
@@ -90,7 +107,7 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
         \(files.map {" - " + $0.filename}.joined(separator: "\n"))
         chapterCount: \(chapterCount)
         size: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-        duration: \(Mpls.durationFormatter.string(from: TimeInterval(duration)) ?? "Unknown")
+        duration: \(duration.timestamp)
         trackLangs: \(trackLangs)
         compressed: \(compressed)
         """
@@ -206,11 +223,21 @@ extension Mpls {
     }
     
     private func generateChapterFile(chapterPath: String) throws {
-        let script = #file.deletingLastPathComponent.appendingPathComponent("../../BD_Chapters_MOD.py")
-//        "./BD_Chapters_MOD.py"
-        let p = try Process.init(executableName: "python", arguments: [script, fileName, "-o", chapterPath])
-        p.launchUntilExit()
-        try p.checkTerminationStatus()
+        switch rawValue {
+        case .mkvtoolnix(_):
+            let script = #file.deletingLastPathComponent.appendingPathComponent("../../BD_Chapters_MOD.py")
+            let p = try Process.init(executableName: "python", arguments: [script, fileName, "-o", chapterPath])
+            p.launchUntilExit()
+            try p.checkTerminationStatus()
+        case .mplsReader(let mpls):
+            let chapters = mpls.split()
+            precondition(files.count == chapters.count)
+            for (file, chap) in zip(files, chapters) {
+                let output = chapterPath.appendingPathComponent("\(fileName.filenameWithoutExtension)_\(file.filenameWithoutExtension)M2TS_chapter.txt")
+                try chap.exportOgm().write(toFile: output, atomically: true, encoding: .utf8)
+            }
+        }
+        
     }
     
 }
