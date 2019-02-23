@@ -11,18 +11,28 @@ import MplsReader
 
 extension MplsPlayItem {
     var langs: [String] {
-        return [stn.video + stn.audio + stn.pg].joined().map{ $0.attribute.lang }
+//        return [stn.video + stn.audio + stn.pg].joined().map{ $0.attribute.lang }
+        var result = [String]()
+        result.append(contentsOf: stn.video.map {$0.attribute.lang})
+        for audio in stn.audio {
+            result.append(audio.attribute.lang)
+            if audio.codec == .trueHD {
+                result.append(audio.attribute.lang)
+            }
+        }
+        result.append(contentsOf: stn.pg.map {$0.attribute.lang})
+        return result
     }
 }
 
 public struct Mpls {
     
-    private let rawValue: RawValue
+//    private let rawValue: RawValue
     
-    private enum RawValue {
-        case mkvtoolnix(MkvmergeIdentification)
-        case mplsReader(MplsPlaylist)
-    }
+//    private enum RawValue {
+//        case mkvtoolnix(MkvmergeIdentification)
+//        case mplsReader(MplsPlaylist)
+//    }
     
     public let chapterCount: Int
     
@@ -39,11 +49,10 @@ public struct Mpls {
     public let compressed: Bool
     
     public init(filePath: String) throws {
-//        let mkvid = try MkvmergeIdentification.init(filePath: filePath)
-//        self.init(mkvid)
-        self.init(try mplsParse(path: filePath))
+        let mkvid = try MkvmergeIdentification.init(filePath: filePath)
+        self.init(mkvid)
     }
-    
+    /*
     public init(_ mpls: MplsPlaylist) {
         self.fileName = mpls.fileName
         let clips = mpls.playItems.map { mpls.fileName.deletingLastPathComponent.deletingLastPathComponent.appendingPathComponent("STREAM").appendingPathComponent($0.clipId).appendingPathExtension("m2ts") }
@@ -54,18 +63,26 @@ public struct Mpls {
         } else if case let fileSet = Set(clips),
             fileSet.count < mpls.playItems.count {
             compressed = true
-            self.size = 0
             self.files = fileSet.sorted()
+            self.duration = .init(ns: 0)
         } else {
             compressed = false
-            self.size = 0
             self.files = clips
+            self.duration = mpls.duration
         }
-        self.duration = mpls.duration
+        self.size = self.files.reduce(0) { (result, file) -> Int in
+            if let size = try? FileManager.default.attributesOfItem(atPath: file)[.size] as? Int {
+                return result + size
+            } else {
+                print("Failed to get size of \(file)")
+                return result
+            }
+        }
         self.rawValue = .mplsReader(mpls)
         self.chapterCount = mpls.chapters.count
         self.trackLangs = mpls.playItems[0].langs
     }
+     */
     
     public init(_ info: MkvmergeIdentification) {
         guard let size = info.container.properties?.playlistSize,
@@ -83,7 +100,8 @@ public struct Mpls {
             compressed = true
             self.size = size / files.count
             self.files = fileSet.sorted()
-            self.duration = .init(ns: durationValue / UInt64(files.count))
+            self.duration = .init(ns: 0)
+//                .init(ns: durationValue / UInt64(files.count))
         } else {
             compressed = false
             self.size = size
@@ -93,7 +111,7 @@ public struct Mpls {
         trackLangs = info.tracks.map({ return $0.properties.language ?? "und" })
         fileName = info.fileName
         chapterCount = info.container.properties?.playlistChapters ?? 0
-        rawValue = .mkvtoolnix(info)
+//        rawValue = .mkvtoolnix(info)
     }
     
 }
@@ -107,7 +125,7 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
         \(files.map {" - " + $0.filename}.joined(separator: "\n"))
         chapterCount: \(chapterCount)
         size: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-        duration: \(duration.timestamp)
+        duration: \(duration.description)
         trackLangs: \(trackLangs)
         compressed: \(compressed)
         """
@@ -223,21 +241,23 @@ extension Mpls {
     }
     
     private func generateChapterFile(chapterPath: String) throws {
-        switch rawValue {
-        case .mkvtoolnix(_):
-            let script = #file.deletingLastPathComponent.appendingPathComponent("../../BD_Chapters_MOD.py")
-            let p = try Process.init(executableName: "python", arguments: [script, fileName, "-o", chapterPath])
-            p.launchUntilExit()
-            try p.checkTerminationStatus()
-        case .mplsReader(let mpls):
-            let chapters = mpls.split()
+        let mpls = try mplsParse(path: fileName)
+        let chapters = mpls.split()
+        if !compressed {
             precondition(files.count == chapters.count)
-            for (file, chap) in zip(files, chapters) {
-                let output = chapterPath.appendingPathComponent("\(fileName.filenameWithoutExtension)_\(file.filenameWithoutExtension)M2TS_chapter.txt")
+        }
+        for (file, chap) in zip(files, chapters) {
+            let output = chapterPath.appendingPathComponent("\(fileName.filenameWithoutExtension)_\(file.filenameWithoutExtension)M2TS_chapter.txt")
+            if chap.nodes.count > 0 {
                 try chap.exportOgm().write(toFile: output, atomically: true, encoding: .utf8)
             }
         }
-        
+        /*
+        let script = #file.deletingLastPathComponent.appendingPathComponent("../../BD_Chapters_MOD.py")
+        let p = try Process.init(executableName: "python", arguments: [script, fileName, "-o", chapterPath])
+        p.launchUntilExit()
+        try p.checkTerminationStatus()
+        */
     }
     
 }

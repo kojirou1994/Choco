@@ -3,14 +3,20 @@ import CLibbluray
 import Common
 import MplsReader
 
-let data = try Data.init(contentsOf: .init(fileURLWithPath: "/Users/kojirou/Projects/Remuxer/info.json"))
-let p1 = Mpls.init(try JSONDecoder.init().decode(MkvmergeIdentification.self, from: data))
-let p2 = Mpls.init(try mplsParse(path: "/Users/kojirou/Projects/Remuxer/00999.mpls"))
+//let data = try Data.init(contentsOf: .init(fileURLWithPath: "/Users/kojirou/Projects/Remuxer/info.json"))
+//let p1 = Mpls.init(try JSONDecoder.init().decode(MkvmergeIdentification.self, from: data))
 
-precondition(p1.files.map {$0.lastPathComponent} == p2.files.map {$0.lastPathComponent})
-precondition(p2.trackLangs == p1.trackLangs)
-precondition(p1.duration == p2.duration)
-p2.split(chapterPath: "/Users/kojirou/Projects/Remuxer/My")
+////p2.split(chapterPath: "/Users/kojirou/Projects/Remuxer/My")
+//try CommandLine.arguments[1...].forEach { (input) in
+//    let p1 = try Mpls.init(MkvmergeIdentification.init(filePath: input))
+//    let p2 = Mpls.init(try mplsParse(path: input))
+//    precondition(p1.files.map {$0.lastPathComponent} == p2.files.map {$0.lastPathComponent})
+//    precondition(p2.trackLangs.count == p1.trackLangs.count)
+//    precondition(p1.duration == p2.duration)
+//}
+let p1 = try Mpls.init(filePath: "/Volumes/GLOWAY/Downloads/PLAYLIST/00001.mpls")
+let p2 = try Mpls.init(filePath: "/Volumes/GLOWAY/Downloads/PLAYLIST/00012.mpls")
+precondition(p1 == p2)
 exit(0)
 
 extension bd_clip {

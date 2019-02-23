@@ -140,16 +140,19 @@ public func mplsParse(path: String, verbose: Bool = false) throws -> MplsPlaylis
         reader.skip(5)
         
         var video = [MplsStream]()
+        video.reserveCapacity(Int(numPrimaryVideo))
         for _ in 0..<numPrimaryVideo {
             video.append(try parseStream(handle: reader))
         }
         
         var audio = [MplsStream]()
+        audio.reserveCapacity(Int(numPrimaryAudio))
         for _ in 0..<numPrimaryAudio {
             audio.append(try parseStream(handle: reader))
         }
         
         var pg = [MplsStream]()
+        pg.reserveCapacity(Int(numPg))
         for _ in 0..<numPg {
             pg.append(try parseStream(handle: reader))
         }
@@ -268,6 +271,18 @@ func parseStream(handle: DataHandle) throws  -> MplsStream {
     let codec = try Codec.init(value: handle.readByte())
 
     let attribute: StreamAttribute
+    
+    func fixLanguage(_ str: String) -> String {
+        switch str {
+        case "deu":
+            return "ger"
+        case "zho":
+            return "chi"
+        default:
+            return str
+        }
+    }
+    
     if codec.isVideo {
         let combined = handle.readByte()
         let format = combined >> 4
@@ -278,14 +293,14 @@ func parseStream(handle: DataHandle) throws  -> MplsStream {
         let format = combined >> 4
         let rate = combined & 0b00001111
         let language = String.init(decoding: handle.read(3), as: UTF8.self)
-        attribute = try.audio(.init(format: .init(value: format), rate: .init(value: rate), language: language))
+        attribute = try.audio(.init(format: .init(value: format), rate: .init(value: rate), language: fixLanguage(language)))
     } else if codec.isGraphics {
         let language = String.init(decoding: handle.read(3), as: UTF8.self)
-        attribute = .pgs(.init(language: language))
+        attribute = .pgs(.init(language: fixLanguage(language)))
     } else if codec.isText {
         let charCode = handle.readByte()
         let language = String.init(decoding: handle.read(3), as: UTF8.self)
-        attribute = try .textsubtitle(.init(charCode: .init(value: charCode), language: language))
+        attribute = try .textsubtitle(.init(charCode: .init(value: charCode), language: fixLanguage(language)))
     } else {
         fatalError()
     }

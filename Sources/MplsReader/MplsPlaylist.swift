@@ -24,7 +24,7 @@ public struct MplsPlaylist: CustomStringConvertible {
     public let duration: Timestamp
     
     public var description: String {
-        return "duration: \(duration.timestamp)"
+        return "duration: \(duration.description)"
     }
 }
 
@@ -74,6 +74,11 @@ extension MplsPlaylist {
                 }
             }
             addChapter()
+            if currentPlayItemIndex < playItems.count-1 {
+                (Int(currentPlayItemIndex+1)..<playItems.count).forEach { (_) in
+                    result.append(Chapter.init(nodes: []))
+                }
+            }
             return result
         }
     }

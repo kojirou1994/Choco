@@ -24,10 +24,10 @@ public struct MplsPlayItem: CustomStringConvertible {
     public var description: String {
         return """
         \(clipId).m2ts
-        inTime: \(inTime.timestamp)
-        outTime: \(outTime.timestamp)
-        relativeInTime: \(relativeInTime.timestamp)
-        duration: \(duration.timestamp)
+        inTime: \(inTime.description)
+        outTime: \(outTime.description)
+        relativeInTime: \(relativeInTime.description)
+        duration: \(duration.description)
         \(multiAngle)
         """
     }

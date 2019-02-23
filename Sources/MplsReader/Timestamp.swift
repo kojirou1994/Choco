@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Timestamp {
+public struct Timestamp: LosslessStringConvertible {
     
     /// time in ns
     public private(set) var value: UInt64
@@ -23,21 +23,22 @@ public struct Timestamp {
     ///
     ///
     /// - Parameter string: format: 00:00:00.000
-    public init?(string: String) {
-        guard string.count == 12,
-            let _ = string.range(of: ###"\d\d:\d\d:\d\d.\d\d\d"###,
+    public init?(_ description: String) {
+        // TODO: remove regularExpression
+        guard description.count == 12,
+            let _ = description.range(of: ###"\d\d:\d\d:\d\d.\d\d\d"###,
                                  options: String.CompareOptions.regularExpression,
-                                 range: string.startIndex..<string.endIndex, locale: nil) else {
+                                 range: description.startIndex..<description.endIndex, locale: nil) else {
             return nil
         }
-        let hour = UInt64(string[0...1])!
-        let minute = UInt64(string[3...4])!
-        let second = UInt64(string[6...7])!
-        let milesecond = UInt64(string[9...11])!
+        let hour = UInt64(description[0...1])!
+        let minute = UInt64(description[3...4])!
+        let second = UInt64(description[6...7])!
+        let milesecond = UInt64(description[9...11])!
         value = ((hour * 3600 + minute * 60 + second) * 1_000 + milesecond) * 1_000_000
     }
     
-    public var timestamp: String {
+    public var description: String {
         var rest = value / 1_000_000 // ms
         let milesecond = rest % 1_000
         rest = rest / 1_000 // s

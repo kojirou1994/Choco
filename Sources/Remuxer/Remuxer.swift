@@ -7,6 +7,7 @@
 
 import Foundation
 import Common
+import MplsReader
 import Utility
 
 public class Remuxer: Cli {
@@ -192,11 +193,11 @@ public class Remuxer: Cli {
 
 extension Remuxer {
     
-    func dump(blurayPath: String) throws {
+    private func dump(blurayPath: String) throws {
         try remux(blurayPath: blurayPath, useMode: .dump)
     }
 
-    func remux(blurayPath: String, useMode: RemuxerArgument.RemuxMode) throws {
+    private func remux(blurayPath: String, useMode: RemuxerArgument.RemuxMode) throws {
         
         let bdFolderName = getBlurayTitle(path: blurayPath, useLibbluray: config.useLibbluray).safeFilename().trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -419,16 +420,14 @@ extension Remuxer {
         if fm.fileExists(atPath: playlistPath) {
             let mplsPaths = try fm.contentsOfDirectory(atPath: playlistPath)
                 .filter {$0.hasSuffix(".mpls")}
-                .map {playlistPath.appendingPathComponent($0)}
-            let allMpls = mplsPaths.compactMap({ (path) -> MkvmergeIdentification? in
+            let allMpls = mplsPaths.compactMap { (mplsPath) -> Mpls? in
                 do {
-                    let id = try MkvmergeIdentification.init(filePath: path)
-                    return id
+                    return try .init(filePath: playlistPath.appendingPathComponent(mplsPath))
                 } catch {
-                    print("Invalid file: \(path)")
+                    print("Invalid file: \(mplsPath)")
                     return nil
                 }
-            }).map(Mpls.init)
+            }
             if removeDuplicate {
                 let multipleFileMpls = allMpls.filter{ !$0.isSingle }.duplicateRemoved
                 let singleFileMpls = allMpls.filter{ $0.isSingle }.duplicateRemoved
@@ -553,6 +552,7 @@ extension Remuxer {
             return trackModifications
         }
         
+        print("ffmpeg \(ffmpegArguments.joined(separator: " "))")
         let ffmpeg = try Process.init(executableName: "ffmpeg", arguments: ffmpegArguments)
         try launchProcessAndWaitAndCheck(process: ffmpeg)
 
@@ -564,6 +564,7 @@ extension Remuxer {
                 }
                 try! FileManager.default.removeItem(atPath: flac.input)
             }
+            flacQueue.add(process)
         }
         flacQueue.waitUntilAllOProcessesAreFinished()
         

@@ -34,7 +34,7 @@ public struct Chapter {
             } else {
                 let parts = line.split(separator: " ")
                 //                let time = parts[0].split(separator: ":")
-                return .init(title: String(parts[1]), timestamp: Timestamp(string: String(parts[0]))!)
+                return .init(title: String(parts[1]), timestamp: Timestamp(String(parts[0]))!)
             }
         })
     }
@@ -43,7 +43,7 @@ public struct Chapter {
         self.nodes = nodes
     }
     
-    public init(timestamps: [Timestamp]) {
+    public init<C>(timestamps: C) where C: Collection, C.Element == Timestamp {
         self.nodes = timestamps.enumerated().map {Node.init(title: String.init(format: "Chapter %02d", $0.offset+1), timestamp: $0.element)}
     }
     
@@ -80,7 +80,7 @@ public struct Chapter {
         for index in 0..<nodesCount {
             let timestamp = String(lines[index*2])
             let title = String(lines[index*2 + 1])
-            nodes.append(.init(title: String(title[14...]), timestamp: Timestamp(string: String(timestamp[10...]))!))
+            nodes.append(.init(title: String(title[14...]), timestamp: Timestamp(String(timestamp[10...]))!))
         }
     }
     
@@ -88,7 +88,7 @@ public struct Chapter {
         return nodes.enumerated().map { node -> String in
             let index = padding(number: node.offset+1)
             return """
-            CHAPTER\(index)=\(node.element.timestamp.timestamp)
+            CHAPTER\(index)=\(node.element.timestamp.description)
             CHAPTER\(index)NAME=\(node.element.title)
             """
             }.joined(separator: "\n")

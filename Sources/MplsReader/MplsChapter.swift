@@ -27,8 +27,8 @@ public struct MplsChapter: CustomStringConvertible {
     public var description: String {
         return """
         playItemIndex: \(playItemIndex)
-        relativeTimestamp: \(relativeTimestamp.timestamp)
-        absoluteTimestamp: \(absoluteTimestamp.timestamp)
+        relativeTimestamp: \(relativeTimestamp.description)
+        absoluteTimestamp: \(absoluteTimestamp.description)
         """
     }
 }

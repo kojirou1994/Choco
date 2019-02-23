@@ -9,12 +9,6 @@
 import Foundation
 import MplsReader
 
-extension Array where Element == MplsChapter {
-    func export() -> Chapter {
-        return .init(timestamps: map {$0.relativeTimestamp})
-    }
-}
-
 //let result = try mplsParse(path: "/Users/kojirou/Projects/Remuxer/PLAYLIST2/00001.mpls")
 //print(result)
 //result.chapters.forEach {print($0)}
@@ -35,9 +29,15 @@ extension Array where Element == MplsChapter {
 //print("\n\n\n")
 //result.split().forEach({print($0.exportOgm());print("\n\n\n")})
 
-let folder = "/Users/kojirou/Projects/Remuxer/Complex/PLAYLIST"
-try FileManager.default.contentsOfDirectory(atPath: folder).forEach({ (filename) in
-    let path = folder.appendingPathComponent(filename)
-    let result = try! mplsParse(path: path)
-//    result.split().forEach({print($0.exportOgm());print("\n\n\n")})
-})
+//let folder = "/Users/kojirou/Projects/Remuxer/Complex/PLAYLIST"
+//try FileManager.default.contentsOfDirectory(atPath: folder).forEach({ (filename) in
+//    let path = folder.appendingPathComponent(filename)
+//    let result = try! mplsParse(path: path)
+////    result.split().forEach({print($0.exportOgm());print("\n\n\n")})
+//})
+
+for i in 0..<UInt32.max {
+    let t = Timestamp.init(ns: UInt64(i)*1_000_000)
+    let t2 = Timestamp.init(t.description)!
+    precondition(t == t2)
+}
