@@ -6,7 +6,7 @@
 //
 
 import Foundation
-@_exported import Kwift
+@_exported import Executable
 @_exported import SwiftFFmpeg
 
 internal let jsonDecoder = JSONDecoder()

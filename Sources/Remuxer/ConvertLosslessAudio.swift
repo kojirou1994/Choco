@@ -95,6 +95,8 @@ extension AVStreamWrapper {
         }
     }
     
+//    var isGoodLosslessAudio: Bool
+    
     var isLosslessAudio: Bool {
         guard mediaType == AVMEDIA_TYPE_AUDIO else {
             return false

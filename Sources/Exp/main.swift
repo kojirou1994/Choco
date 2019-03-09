@@ -2,49 +2,47 @@ import Foundation
 import CLibbluray
 import Common
 import MplsReader
+import CFFmpeg
+/*
+ mkv codec
+ - "MPEG-4p10/AVC/h.264"
+ - "FLAC"
+ - "DTS-HD Master Audio"
+ - "DTS-HD Master Audio"
+ - "HDMV PGS"
+ */
+struct PP {
+    let i: Int
+}
 
-//let data = try Data.init(contentsOf: .init(fileURLWithPath: "/Users/kojirou/Projects/Remuxer/info.json"))
-//let p1 = Mpls.init(try JSONDecoder.init().decode(MkvmergeIdentification.self, from: data))
+func get() -> UnsafePointer<PP> {
+    let p = PP.init(i: 5)
+    return withUnsafePointer(to: p, {print($0);print($0.pointee);return $0})
+}
 
-////p2.split(chapterPath: "/Users/kojirou/Projects/Remuxer/My")
-//try CommandLine.arguments[1...].forEach { (input) in
-//    let p1 = try Mpls.init(MkvmergeIdentification.init(filePath: input))
-//    let p2 = Mpls.init(try mplsParse(path: input))
-//    precondition(p1.files.map {$0.lastPathComponent} == p2.files.map {$0.lastPathComponent})
-//    precondition(p2.trackLangs.count == p1.trackLangs.count)
-//    precondition(p1.duration == p2.duration)
-//}
-let p1 = try Mpls.init(filePath: "/Volumes/GLOWAY/Downloads/PLAYLIST/00001.mpls")
-let p2 = try Mpls.init(filePath: "/Volumes/GLOWAY/Downloads/PLAYLIST/00012.mpls")
-precondition(p1 == p2)
+let p = UnsafeMutablePointer<PP>.allocate(capacity: 1)
+print(p)
+p.initialize(to: PP.init(i: 5))
+print(p)
+let b = p.pointee
+withUnsafePointer(to: b, {print($0)})
+
 exit(0)
-
-extension bd_clip {
-    var clipId: String {
-        var cstr = [clip_id.0, clip_id.1, clip_id.2, clip_id.3, clip_id.4, clip_id.5]
-        return String.init(cString: &cstr)
+extension MplsPlaylist {
+    var m2tsList: [[String]] {
+        let angleCount = playItems.max(by: {$0.multiAngle.angleCount < $1.multiAngle.angleCount})!.multiAngle.angleCount + 1
+        var result = [[String]]()
+        result.reserveCapacity(angleCount)
+        for index in 0..<angleCount {
+            result.append(playItems.map {$0.clipId(for: index)})
+        }
+        return result
     }
 }
 
-let bd = bd_open("/Volumes/M5S_128/SYMPHOGEAR_LIVE_2016", nil)!
-print(bd_get_titles(bd, 0, 0))
-print(bd_get_main_title(bd))
-print(bd_get_current_angle(bd))
-print(bd_select_title(bd, 0))
-print(bd_select_angle(bd, 2))
-print(bd_get_current_angle(bd))
-for angle in 0...1 {
-    let title = bd_get_playlist_info(bd, 0, UInt32(angle))!
-    //    bd_get_title_info(bd, 0, 2)!
-    
-//    print(title.pointee)
-    for i in 0..<title.pointee.clip_count {
-        print(title.pointee.clips![Int(i)].clipId)
-    }
-}
-
-bd_close(bd)
-exit(0)
+let mpls = try mplsParse(path: "/Users/kojirou/Projects/Remuxer/multi_angle_PLAYLIST/00000.mpls")
+let lists = mpls.m2tsList
+lists.forEach { print($0.joined(separator: "+")) }
 /*
 let pcmM2ts = "/Volumes/EXTREME/h264_pcm_pgs.m2ts"
 let dtsM2ts = "/Volumes/EXTREME/h264_pcm_dts.m2ts"

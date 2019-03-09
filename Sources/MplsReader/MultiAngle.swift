@@ -19,6 +19,15 @@ public enum MultiAngle: CustomStringConvertible {
             return "Multi Angle: \n\(d)"
         }
     }
+    
+    public var angleCount: Int {
+        switch self {
+        case .no:
+            return 0
+        case .yes(let data):
+            return data.angles.count
+        }
+    }
 }
 
 public struct MultiAngleData: CustomStringConvertible {
@@ -28,16 +37,16 @@ public struct MultiAngleData: CustomStringConvertible {
     public let angles: [Angle]
     
     public struct Angle {
-        let clipId: String
-        let clipCodecId: String
-        let stcId: UInt8
+        public let clipId: String
+        public let clipCodecId: String
+        public let stcId: UInt8
     }
     
     public var description: String {
         return """
         isDifferentAudio: \(isDifferentAudio)
         isSeamlessAngleChange: \(isSeamlessAngleChange)
-        angles: \(angles.map {$0.clipId}.joined(separator: " "))
+        angles: \(angles.map {$0.clipId + " " + $0.clipCodecId}.joined(separator: " "))
         """
     }
 }

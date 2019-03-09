@@ -17,6 +17,19 @@ public struct MplsPlayItem: CustomStringConvertible {
     public let stn: MplsPlayItemStn
     public let multiAngle: MultiAngle
     
+    public func clipId(for angleIndex: Int) -> String {
+        switch multiAngle {
+        case .no:
+            return clipId
+        case .yes(let data):
+            if angleIndex == 0 {
+                return clipId
+            } else {
+                return data.angles[angleIndex-1].clipId
+            }
+        }
+    }
+    
     var duration: Timestamp {
         return outTime - inTime
     }

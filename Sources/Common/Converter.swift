@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Kwift
 
 public protocol Converter: Executable {
     

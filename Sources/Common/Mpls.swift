@@ -52,37 +52,6 @@ public struct Mpls {
         let mkvid = try MkvmergeIdentification.init(filePath: filePath)
         self.init(mkvid)
     }
-    /*
-    public init(_ mpls: MplsPlaylist) {
-        self.fileName = mpls.fileName
-        let clips = mpls.playItems.map { mpls.fileName.deletingLastPathComponent.deletingLastPathComponent.appendingPathComponent("STREAM").appendingPathComponent($0.clipId).appendingPathExtension("m2ts") }
-        if mpls.playItems.count == 0 {
-            print("No files?")
-            print("MPLS: \(mpls)")
-            fatalError()
-        } else if case let fileSet = Set(clips),
-            fileSet.count < mpls.playItems.count {
-            compressed = true
-            self.files = fileSet.sorted()
-            self.duration = .init(ns: 0)
-        } else {
-            compressed = false
-            self.files = clips
-            self.duration = mpls.duration
-        }
-        self.size = self.files.reduce(0) { (result, file) -> Int in
-            if let size = try? FileManager.default.attributesOfItem(atPath: file)[.size] as? Int {
-                return result + size
-            } else {
-                print("Failed to get size of \(file)")
-                return result
-            }
-        }
-        self.rawValue = .mplsReader(mpls)
-        self.chapterCount = mpls.chapters.count
-        self.trackLangs = mpls.playItems[0].langs
-    }
-     */
     
     public init(_ info: MkvmergeIdentification) {
         guard let size = info.container.properties?.playlistSize,

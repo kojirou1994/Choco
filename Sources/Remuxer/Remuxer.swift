@@ -8,7 +8,7 @@
 import Foundation
 import Common
 import MplsReader
-import Utility
+import SPMUtility
 
 public class Remuxer: Cli {
 
@@ -61,7 +61,7 @@ public class Remuxer: Cli {
     let flacQueue = ParallelProcessQueue.init()
     
     init() {
-        config = RemuxerArgument.init(outputDir: "", tempDir: "", mode: .movie, splits: nil, inputs: [], languages: RemuxerArgument.defaultLanguages, deleteAfterRemux: false, useLibbluray: false)
+        config = RemuxerArgument.init(outputDir: ".", tempDir: ".", mode: .movie, splits: nil, inputs: [], languages: RemuxerArgument.defaultLanguages, deleteAfterRemux: false, useLibbluray: false)
         av_log_set_level(AV_LOG_QUIET)
         flacQueue.maxConcurrentCount = 4
     }
@@ -207,7 +207,7 @@ extension Remuxer {
             throw RemuxerError.outputExist
         }
         
-        print("Remuxing BD: \(bdFolderName)")
+        print("BD title: \(bdFolderName)")
         
         let mplsList = try scan(blurayPath: blurayPath, removeDuplicate: true)
         
@@ -266,14 +266,6 @@ extension Remuxer {
         try tempFiles.forEach { (tempFile) in
             try remux(file: tempFile, remuxOutputDir: finalOutputDir, deleteAfterRemux: true)
         }
-    }
-    
-    func quickMux(mpls: Mpls, outputDir: String) throws {
-        guard mpls.files.count == 1 else {
-            return
-        }
-        let m2ts = mpls.files[0]
-        #warning("not implemented!")
     }
     
     func remux(file: String, remuxOutputDir: String, deleteAfterRemux: Bool, parseOnly: Bool = false) throws {
@@ -524,8 +516,8 @@ extension Remuxer {
         while index < streams.count {
             let stream = streams[index]
             let streamLanguage = mkvinfo.tracks[index].properties.language ?? "und"
-            print("\(stream.index): \(stream.codecpar.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(streamLanguage)")
-            if stream.isGrossAudio, preferedLanguages.contains(streamLanguage) {
+            print("\(stream.index): \(stream.codecpar.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(streamLanguage) \(stream.codecpar.channelCount)ch")
+            if stream.isLosslessAudio, preferedLanguages.contains(streamLanguage) {
                 // add to ffmpeg arguments
                 let tempFlac = config.tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage)-ffmpeg.flac")
                 let finalFlac = config.tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage).flac")
@@ -686,4 +678,28 @@ protocol Cli {
     
     func run() throws
     
+}
+
+//func run(inputs: [String]) -> [Result<Diag, RemuxerError>] {
+//    return inputs.map { _ -> Result<Diag, RemuxerError> in
+//        return Result<Diag, RemuxerError>.init(catching: { () -> Diag in
+//                return .init()
+//        })
+//    }
+//}
+
+struct Diag {
+    
+}
+
+extension Sequence {
+    func count(where predicate: (Element) throws -> Bool) rethrows -> Int {
+        var count = 0
+        for element in self {
+            if try predicate(element) {
+                count += 1
+            }
+        }
+        return count
+    }
 }
