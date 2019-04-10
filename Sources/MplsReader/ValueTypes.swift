@@ -103,6 +103,19 @@ public enum VideoRate: UInt8, CustomStringConvertible {
         case .reserved2: return "Reserved2"
         }
     }
+    
+    public var doubleValue: Double {
+        switch self {
+        case .k23_976: return 23.976
+        case .k24: return 24
+        case .k25: return 25
+        case .k29_97: return 29.97
+        case .k50: return 50
+        case .k59_94: return 59.94
+        case .reserved1: return 0
+        case .reserved2: return 0
+        }
+    }
 }
 
 public enum VideoFormat: UInt8, CustomStringConvertible {

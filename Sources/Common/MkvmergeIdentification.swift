@@ -224,7 +224,7 @@ public struct MkvmergeIdentification: Decodable {
         public var type: String?
         
         public struct Property: Decodable {
-            public var uid: Int
+            public var uid: UInt
         }
         
         private enum CodingKeys: String, CodingKey {

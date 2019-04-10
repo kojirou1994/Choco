@@ -20,6 +20,22 @@ public struct Timestamp: LosslessStringConvertible {
         value = time * 1000000 / 45
     }
     
+    public static var hour: Timestamp {
+        return .init(ns: 3600_000_000_000)
+    }
+    
+    public static var minute: Timestamp {
+        return .init(ns: 60_000_000_000)
+    }
+    
+    public static var second: Timestamp {
+        return .init(ns: 1_000_000_000)
+    }
+    
+    public static func * (lhs: Timestamp, rhs: UInt64) -> Timestamp {
+        return .init(ns: lhs.value * rhs)
+    }
+    
     ///
     ///
     /// - Parameter string: format: 00:00:00.000

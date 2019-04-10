@@ -24,6 +24,7 @@ public enum MplsReadError: Error {
     case invalidVideoFormat(UInt8)
     case invalidAudioRate(UInt8)
     case invalidVideoRate(UInt8)
+    case invalidSubPathType(UInt8)
 }
 
 //func mplsTimeDecode(value: UInt64) -> UInt64 {
@@ -175,7 +176,8 @@ public func mplsParse(path: String, verbose: Bool = false) throws -> MplsPlaylis
     for _ in 0..<subPathCount {
         _ = reader.read(4).joined(UInt32.self) // length
         reader.skip(1) //reserved
-        let subPathType = SubPathType.init(rawValue: reader.readByte())!
+        let subPathTypeValue = reader.readByte()
+        let subPathType = try SubPathType.init(value: subPathTypeValue)
         // reserved 15 bits + isRepeatSubPath 1 bit
         reader.skip(1)
         let isRepeatSubPath = (reader.readByte() & 0b00000001) == 1

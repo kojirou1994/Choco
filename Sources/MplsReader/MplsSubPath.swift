@@ -16,6 +16,14 @@ enum SubPathType: UInt8 {
     case out_of_mux_synchronous_elementary_streams  = 5
     case out_of_mux_asynchronous_picture_in_picture = 6
     case in_mux_synchronous_picture_in_picture      = 7
+    
+    init(value: UInt8) throws {
+        if let v = SubPathType.init(rawValue: value) {
+            self = v
+        } else {
+            throw MplsReadError.invalidSubPathType(value)
+        }
+    }
 }
 
 struct MplsSubPath {

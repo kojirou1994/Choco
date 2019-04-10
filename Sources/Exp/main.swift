@@ -11,22 +11,25 @@ import CFFmpeg
  - "DTS-HD Master Audio"
  - "HDMV PGS"
  */
-struct PP {
-    let i: Int
-}
-
-func get() -> UnsafePointer<PP> {
-    let p = PP.init(i: 5)
-    return withUnsafePointer(to: p, {print($0);print($0.pointee);return $0})
-}
-
-let p = UnsafeMutablePointer<PP>.allocate(capacity: 1)
-print(p)
-p.initialize(to: PP.init(i: 5))
-print(p)
-let b = p.pointee
-withUnsafePointer(to: b, {print($0)})
-
+//struct PP {
+//    let i: Int
+//}
+//
+//func get() -> UnsafePointer<PP> {
+//    let p = PP.init(i: 5)
+//    return withUnsafePointer(to: p, {print($0);print($0.pointee);return $0})
+//}
+//
+//let p = UnsafeMutablePointer<PP>.allocate(capacity: 1)
+//print(p)
+//p.initialize(to: PP.init(i: 5))
+//print(p)
+//let b = p.pointee
+//withUnsafePointer(to: b, {print($0)})
+//let c = p.pointee
+//withUnsafePointer(to: c, {print($0)})
+print(Timestamp.hour)
+print(Timestamp.minute*10)
 exit(0)
 extension MplsPlaylist {
     var m2tsList: [[String]] {

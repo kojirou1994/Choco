@@ -94,4 +94,8 @@ public struct Chapter {
             }.joined(separator: "\n")
     }
     
+//    public func exportTTXT() -> String {
+//        
+//    }
+    
 }

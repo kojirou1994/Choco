@@ -9,12 +9,13 @@ let package = Package(
             name: "SwiftFFmpeg",
             targets: ["SwiftFFmpeg"]
         ),
-        .executable(name: "BD-Remuxer", targets: ["Remuxer"])
+        .executable(name: "BD-Remuxer", targets: ["Remuxer"]),
+        .executable(name: "MKV2MP4", targets: ["MKV2MP4"])
     ],
     dependencies: [
-        .package(url: "https://github.com/kojirou1994/Kwift", from: "0.1.1"),
-        .package(url: "https://github.com/apple/swift-package-manager", .branch("swift-5.0-branch")),
-        .package(url: "https://github.com/IBM-Swift/BlueSignals", from: "1.0.0")
+        .package(url: "https://github.com/kojirou1994/Kwift.git", .exact("0.1.5")),
+        .package(url: "https://github.com/apple/swift-package-manager.git", .branch("swift-5.0-branch")),
+        .package(url: "https://github.com/IBM-Swift/BlueSignals.git", from: "1.0.0")
     ],
     targets: [
         .systemLibrary(
@@ -76,6 +77,9 @@ let package = Package(
         .target(
             name: "Remuxer",
             dependencies: ["Common", "SwiftFFmpeg", "Kwift", "SPMUtility", "CLibbluray", "Signals"]),
+        .target(
+            name: "MKV2MP4",
+            dependencies: ["Common", "Kwift", "Signals"]),
         .target(
             name: "Exp",
             dependencies: ["SwiftFFmpeg", "Kwift", "CLibbluray", "Common"]),

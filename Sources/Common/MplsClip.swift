@@ -6,9 +6,11 @@
 //
 
 import Foundation
+import MplsReader
 
 public struct MplsClip {
     public let fileName: String
+    public let duration: Timestamp
     public let trackLangs: [String]
     public let m2tsPath: String
     public let chapterPath: String?

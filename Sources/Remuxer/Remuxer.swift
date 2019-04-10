@@ -264,7 +264,22 @@ extension Remuxer {
         }
         
         try tempFiles.forEach { (tempFile) in
-            try remux(file: tempFile, remuxOutputDir: finalOutputDir, deleteAfterRemux: true)
+            let d = (try? MkvmergeIdentification(filePath: tempFile).container.properties?.duration) ?? 0
+            let duration = Timestamp(ns: UInt64(d))
+            let subFolder: String
+            if duration > Timestamp.hour {
+                // big
+                subFolder = ""
+            } else if duration > Timestamp.minute*10 {
+                // > 10 min
+                subFolder = "medium"
+            } else if duration > Timestamp.minute {
+                // > 1 min
+                subFolder = "small"
+            } else {
+                subFolder = "garbage"
+            }
+            try remux(file: tempFile, remuxOutputDir: finalOutputDir.appendingPathComponent(subFolder), deleteAfterRemux: true)
         }
     }
     
@@ -688,10 +703,6 @@ protocol Cli {
 //    }
 //}
 
-struct Diag {
-    
-}
-
 extension Sequence {
     func count(where predicate: (Element) throws -> Bool) rethrows -> Int {
         var count = 0
@@ -701,5 +712,41 @@ extension Sequence {
             }
         }
         return count
+    }
+}
+
+import CLibbluray
+
+struct BDMVTask {
+    let rootPath: String
+    let mode: MplsRemuxMode
+    
+    func start() {
+        
+    }
+    
+    func dumpInfo() {
+        
+    }
+    
+    func getBlurayTitle(useLibbluray: Bool) -> String {
+        guard useLibbluray else {
+            return rootPath.filename
+        }
+        guard let bd = bd_open(rootPath, nil),
+            bd_set_player_setting_str(bd, BLURAY_PLAYER_SETTING_MENU_LANG.rawValue, "jpn") == 1,
+            let meta = bd_get_meta(bd),
+            let name = meta.pointee.di_name else {
+                return rootPath.filename
+        }
+        defer {
+            bd_close(bd)
+        }
+        let discName = String.init(cString: name)
+        if discName.isEmpty {
+            return rootPath.filename
+        } else {
+            return discName
+        }
     }
 }
