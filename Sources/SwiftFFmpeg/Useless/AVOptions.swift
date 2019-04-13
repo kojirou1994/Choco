@@ -213,7 +213,7 @@ extension AVOptionProtocol {
 
     /// av_opt_set_channel_layout
     public func setChannelLayout(
-        _ value: AVChannelLayout, forKey key: String, searchFlags: AVOptionSearchFlag = .children
+        _ value: FFmpegChannelLayout, forKey key: String, searchFlags: AVOptionSearchFlag = .children
     ) throws {
         try throwIfFail(av_opt_set_channel_layout(objPtr, key, Int64(value.rawValue), searchFlags.rawValue))
     }
@@ -280,7 +280,7 @@ extension AVOptionProtocol {
 
     /// av_opt_get_sample_fmt
     public func sampleFmt(forKey key: String, searchFlags: AVOptionSearchFlag = .children) throws -> AVSampleFormat {
-        var outVal = AVSampleFormat.NONE
+        var outVal = AV_SAMPLE_FMT_NONE
         try throwIfFail(av_opt_get_sample_fmt(objPtr, key, searchFlags.rawValue, &outVal))
         return outVal
     }
@@ -311,43 +311,43 @@ extension AVOptionProtocol {
 }
 // MARK: - Extensions
 
-extension AVFormatContextWrapper: AVOptionProtocol {
-
-    public var objPtr: UnsafeMutableRawPointer {
-        let ptr = UnsafeMutablePointer<UnsafePointer<AVClass>>.allocate(capacity: 1)
-        ptr.initialize(to: avClass.clazzPtr)
-        defer { ptr.deallocate() }
-        return UnsafeMutableRawPointer(ptr)
-    }
-}
-
-extension AVCodecContextWrapper: AVOptionProtocol {
-
-    public var objPtr: UnsafeMutableRawPointer {
-        return ctx.priv_data
-    }
-}
-
-extension AVCodecWrapper: AVOptionProtocol {
-
-    public var objPtr: UnsafeMutableRawPointer {
-        let ptr = UnsafeMutablePointer<UnsafePointer<AVClass>>.allocate(capacity: 1)
-        ptr.initialize(to: codecPtr.pointee.priv_class)
-        defer { ptr.deallocate() }
-        return UnsafeMutableRawPointer(ptr)
-    }
-}
-
-extension SwsContext: AVOptionProtocol {
-
-    public var objPtr: UnsafeMutableRawPointer {
-        return UnsafeMutableRawPointer(ctx)
-    }
-}
-
-extension SwrContext: AVOptionProtocol {
-
-    public var objPtr: UnsafeMutableRawPointer {
-        return UnsafeMutableRawPointer(ctx)
-    }
-}
+//extension AVFormatContextWrapper: AVOptionProtocol {
+//
+//    public var objPtr: UnsafeMutableRawPointer {
+//        let ptr = UnsafeMutablePointer<UnsafePointer<AVClass>>.allocate(capacity: 1)
+//        ptr.initialize(to: avClass.clazzPtr)
+//        defer { ptr.deallocate() }
+//        return UnsafeMutableRawPointer(ptr)
+//    }
+//}
+//
+//extension AVCodecContextWrapper: AVOptionProtocol {
+//
+//    public var objPtr: UnsafeMutableRawPointer {
+//        return ctx.priv_data
+//    }
+//}
+//
+//extension AVCodecWrapper: AVOptionProtocol {
+//
+//    public var objPtr: UnsafeMutableRawPointer {
+//        let ptr = UnsafeMutablePointer<UnsafePointer<AVClass>>.allocate(capacity: 1)
+//        ptr.initialize(to: _value.pointee.priv_class)
+//        defer { ptr.deallocate() }
+//        return UnsafeMutableRawPointer(ptr)
+//    }
+//}
+//
+//extension SwsContext: AVOptionProtocol {
+//
+//    public var objPtr: UnsafeMutableRawPointer {
+//        return UnsafeMutableRawPointer(_value)
+//    }
+//}
+//
+//extension SwrContext: AVOptionProtocol {
+//
+//    public var objPtr: UnsafeMutableRawPointer {
+//        return UnsafeMutableRawPointer(_value)
+//    }
+//}

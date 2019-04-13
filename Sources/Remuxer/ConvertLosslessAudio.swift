@@ -14,16 +14,16 @@ func dumpTracks(input: String) throws {
     let context = try AVFormatContextWrapper.init(url: input)
     try context.findStreamInfo()
     context.streams.forEach { (stream) in
-        print("\(stream.index) \(stream.codecpar.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(stream.language)")
+        print("\(stream.index) \(stream.codecParameters.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(stream.language)")
         print(stream.metadata.dictionary)
     }
 }
 */
-extension AVFormatContextWrapper {
+extension FFmpegFormatContext {
     
     var primaryLanguage: String {
         for stream in streams {
-            if stream.mediaType == AVMEDIA_TYPE_AUDIO {
+            if stream.mediaType == .audio {
                 return stream.language
             }
         }
@@ -32,15 +32,16 @@ extension AVFormatContextWrapper {
     
 }
 
-extension AVStreamWrapper {
+extension FFmpegStream {
     
     var language: String {
         return metadata["language"] ?? "und"
     }
     
     var isAC3: Bool {
-        switch codecpar.codecId {
-        case AV_CODEC_ID_AC3, AV_CODEC_ID_EAC3:
+        
+        switch codecParameters.codecId {
+        case FFmpegCodecID.ac3, FFmpegCodecID.eac3:
             return true
         default:
             return false
@@ -48,8 +49,8 @@ extension AVStreamWrapper {
     }
     
     var isTruehd: Bool {
-        switch codecpar.codecId {
-        case AV_CODEC_ID_TRUEHD:
+        switch codecParameters.codecId {
+        case FFmpegCodecID.truehd:
             return true
         default:
             return false
@@ -57,10 +58,10 @@ extension AVStreamWrapper {
     }
     
     var isDtshd: Bool {
-        switch codecpar.codecId {
-        case AV_CODEC_ID_DTS:
-            let codecContext = AVCodecContextWrapper.init(codec: AVCodecWrapper.init(decoderId: codecpar.codecId)!)!
-            try! codecContext.setParameters(codecpar)
+        switch codecParameters.codecId {
+        case FFmpegCodecID.dts:
+            let codecContext = FFmpegCodecContext.init(codec: FFmpegCodec.init(decoderId: codecParameters.codecId)!)!
+            try! codecContext.set(codecParameters)
             if codecContext.profileName == "DTS-HD MA" {
                 return true
             } else {
@@ -72,22 +73,22 @@ extension AVStreamWrapper {
     }
     
     var isGrossAudio: Bool {
-        guard mediaType == AVMEDIA_TYPE_AUDIO else {
+        guard mediaType == .audio else {
             return false
         }
-        switch codecpar.codecId {
-        case AV_CODEC_ID_TRUEHD:
+        switch codecParameters.codecId {
+        case .truehd:
             return true
-        case AV_CODEC_ID_DTS:
-            let codecContext = AVCodecContextWrapper.init(codec: AVCodecWrapper.init(decoderId: codecpar.codecId)!)!
-            try! codecContext.setParameters(codecpar)
+        case .dts:
+            let codecContext = FFmpegCodecContext.init(codec: FFmpegCodec.init(decoderId: codecParameters.codecId)!)!
+            try! codecContext.set(codecParameters)
             if codecContext.profileName == "DTS-HD MA" {
                 return true
             } else {
                 return false
             }
         default:
-            if codecpar.codecId.name.hasPrefix("pcm") {
+            if codecParameters.codecId.name.hasPrefix("pcm") {
                 return true
             } else {
                 return false
@@ -98,22 +99,22 @@ extension AVStreamWrapper {
 //    var isGoodLosslessAudio: Bool
     
     var isLosslessAudio: Bool {
-        guard mediaType == AVMEDIA_TYPE_AUDIO else {
+        guard mediaType == .audio else {
             return false
         }
-        switch codecpar.codecId {
-        case AV_CODEC_ID_FLAC, AV_CODEC_ID_ALAC, AV_CODEC_ID_TRUEHD:
+        switch codecParameters.codecId {
+        case .flac, .alac, .truehd:
             return true
-        case AV_CODEC_ID_DTS:
-            let codecContext = AVCodecContextWrapper.init(codec: AVCodecWrapper.init(decoderId: codecpar.codecId)!)!
-            try! codecContext.setParameters(codecpar)
+        case .dts:
+            let codecContext = FFmpegCodecContext.init(codec: FFmpegCodec.init(decoderId: codecParameters.codecId)!)!
+            try! codecContext.set(codecParameters)
             if codecContext.profileName == "DTS-HD MA" {
                 return true
             } else {
                 return false
             }
         default:
-            if codecpar.codecId.name.hasPrefix("pcm") {
+            if codecParameters.codecId.name.hasPrefix("pcm") {
                 return true
             } else {
                 return false

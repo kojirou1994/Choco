@@ -145,8 +145,8 @@ extension Mpls {
             return true
         }
         // open every file and check
-        let fileContexts = files.map { (file) -> AVFormatContextWrapper in
-            let c = try! AVFormatContextWrapper.init(url: file)
+        let fileContexts = files.map { (file) -> FFmpegFormatContext in
+            let c = try! FFmpegFormatContext.init(url: file)
             try! c.findStreamInfo()
             return c
         }
@@ -158,7 +158,7 @@ extension Mpls {
         return true
     }
     
-    private func formatMatch(l: AVFormatContextWrapper, r: AVFormatContextWrapper) -> Bool {
+    private func formatMatch(l: FFmpegFormatContext, r: FFmpegFormatContext) -> Bool {
         guard l.streamCount == r.streamCount else {
             return false
         }
@@ -171,8 +171,8 @@ extension Mpls {
                 return false
             }
             switch lStream.mediaType {
-            case AVMEDIA_TYPE_AUDIO:
-                if !audioFormatMatch(l: lStream.codecpar, r: rStream.codecpar) {
+            case .audio:
+                if !audioFormatMatch(l: lStream.codecParameters, r: rStream.codecParameters) {
                     return false
                 }
             default:
@@ -182,8 +182,8 @@ extension Mpls {
         return true
     }
     
-    private func audioFormatMatch(l: AVCodecParametersWrapper, r: AVCodecParametersWrapper) -> Bool {
-        return (l.channelCount, l.sampleRate, l.sampleFmt) == (r.channelCount, r.sampleRate, r.sampleFmt)
+    private func audioFormatMatch(l: FFmpegCodecParameters, r: FFmpegCodecParameters) -> Bool {
+        return (l.channelCount, l.sampleRate, l.sampleFormat) == (r.channelCount, r.sampleRate, r.sampleFormat)
     }
     
     public func split(chapterPath: String) -> [MplsClip] {

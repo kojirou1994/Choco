@@ -28,6 +28,8 @@ public struct FFmpegMuxer: Converter {
     
     public let output: String
     
+    public var alternative: [Converter]?
+    
     public let mode: CopyMode
     
     public init(input: String, output: String) {

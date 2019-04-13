@@ -12,6 +12,7 @@ public final class Flac: Converter {
         return [input, "--totally-silent", "-f", "-o", output]
     }
     
+    public var alternative: [Converter]?
     
     public static let executableName: String = "flac"
     

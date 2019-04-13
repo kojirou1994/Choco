@@ -15,7 +15,7 @@ final class AVBufferTests: XCTestCase {
     ]
 
     func test() {
-        let buf1 = AVBufferWrapper(size: 100)!
+        let buf1 = FFmpegBuffer(size: 100)!
         XCTAssertEqual(buf1.size, 100)
         XCTAssertEqual(buf1.refCount, 1)
         XCTAssertEqual(buf1.isWritable(), true)

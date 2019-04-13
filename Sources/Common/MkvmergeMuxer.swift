@@ -15,6 +15,8 @@ public struct MkvmergeMuxer: Converter {
     
     public let output: String
     
+    public var alternative: [Converter]?
+    
     let audioLanguages: Set<String>
     
     let subtitleLanguages: Set<String>

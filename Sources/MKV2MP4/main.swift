@@ -1,7 +1,7 @@
 import Common
 import MplsReader
 import Foundation
-
+import SwiftFFmpeg
 import Signals
 
 var runningProcess: Process?
@@ -16,6 +16,7 @@ enum Mp4Error: Error {
     case unsupportedFps(UInt64)
     case unsupportedCodec(String)
     case processError(String)
+    case unsupportedPixelFormat(FFmpegPixelFormat)
 }
 
 enum MkvTrack {
@@ -82,16 +83,32 @@ func remove(files: [String]) {
 //    
 //}
 
+let invalidPixelFormats: [FFmpegPixelFormat] = [.yuv420p10le, .yuv420p10be]
+
 func toMp4(file: String) throws {
     guard file.hasSuffix(".mkv") else {
         return
     }
+    
+    let context = try FFmpegFormatContext.init(url: file)
+    try context.findStreamInfo()
+//    context.dumpFormat(isOutput: false)
+    for stream in context.streams {
+        if stream.mediaType == .video,
+            invalidPixelFormats.contains(stream.codecParameters.pixelFormat) {
+            throw Mp4Error.unsupportedPixelFormat(stream.codecParameters.pixelFormat)
+        }
+        if stream.mediaType == .video {
+            print(stream.codecParameters.pixelFormat)
+        }
+    }
+    
     let mkvinfo = try MkvmergeIdentification.init(filePath: file)
     
     // multi audio tracks mkv is not supported
-    guard mkvinfo.tracks.filter({$0.type == "audio"}).count < 2 else {
-        return
-    }
+//    guard mkvinfo.tracks.filter({$0.type == "audio"}).count < 2 else {
+//        return
+//    }
     
     let mp4path = file.deletingPathExtension.appendingPathExtension("mp4")
     remove(files: [mp4path])
@@ -129,6 +146,9 @@ func toMp4(file: String) throws {
             trackExtension = "srt"
         case "TrueHD Atmos":
             trackExtension = "truehd"
+            needReencode = true
+        case "DTS-HD Master Audio":
+            trackExtension = "dts"
             needReencode = true
         default:
             throw Mp4Error.unsupportedCodec(track.codec)

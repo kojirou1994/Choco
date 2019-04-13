@@ -1,10 +1,43 @@
 import Foundation
 import SwiftFFmpeg
 
+//let context = try FFmpegFormatContext.init(url: "/Volumes/GLOWAY/Downloads/New.Years.Concert.2019.BluRay.1080p.DTS-HD.MA.5.1.Flac.x264-beAst.mkv")
+//try context.findStreamInfo()
+//context.streams.forEach { (stream) in
+//    switch stream.mediaType {
+//    case .video:
+//        dump(stream.codecpar.pixelFormat)
+//    case .audio:
+//        dump(stream.codecpar.sampleFormat)
+//    default:
+//        break
+//    }
+//}
+//print(FFmpegCodecID.hevc)
+//FFmpegOutputFormat.all.forEach { (o) in
+////    print("\(o.mimeType ?? "") \(o.extensions ?? "") \(o.name) \(o.longName) \(o.audioCodec)")
+//}
+//FFmpegInputFormat.all.forEach { (o) in
+//    print("\(o.mimeType ?? "NoMime") \(o.extensions ?? "NoExt") \(o.name) \(o.longName)")
+//}
+//FFmpegLog.Level.allCases.forEach { (level) in
+//    FFmpegLog.set(level: level)
+//    precondition(FFmpegLog.currentLevel == level)
+//}
+
+FFmpegPictureType.allCases.forEach { (t) in
+    dump(t)
+}
+print(FFmpegChannel.frontLeft)
+
+import CFFmpeg
+/*
+ 
 if CommandLine.argc < 2 {
     print("Usage: \(CommandLine.arguments[0]) <input file>")
     exit(1)
 }
+
 let input = CommandLine.arguments[1]
 
 let fmtCtx = AVFormatContextWrapper()
@@ -61,3 +94,4 @@ while let _ = try? fmtCtx.readFrame(into: pkt) {
 
 print("Done.")
 
+*/

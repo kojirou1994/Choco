@@ -238,7 +238,7 @@ public func mplsParse(path: String, verbose: Bool = false) throws -> MplsPlaylis
                               absoluteTimestamp: absoluteTimestamp, entryEsPid: entryEsPid, skipDuration: skipDuration,
                               relativeTimestamp: absoluteTimestamp - playItem.inTime + playItem.relativeInTime))
     }
-    print(reader.isAtEnd)
+//    print(reader.isAtEnd)
     
     return .init(fileName: path, playlistStartIndex: playlistStartIndex, chapterStartIndex: chapterStartIndex, extensionDataStartIndex: extensionDataStartIndex,
                  playItemCount: playItemCount, subPathCount: subPathCount, chapterCount: chapterCount,

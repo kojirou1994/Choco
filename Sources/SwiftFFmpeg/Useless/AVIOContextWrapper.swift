@@ -53,33 +53,3 @@ public struct AVIOFlag: OptionSet {
 //internal typealias AVIOContext = CFFmpeg.AVIOContext
 
 /// A reference to a data buffer.
-public final class AVIOContextWrapper {
-    internal let ctxPtr: UnsafeMutablePointer<AVIOContext>
-    internal var ctx: AVIOContext { return ctxPtr.pointee }
-
-    private var needClose = true
-
-    internal init(ctxPtr: UnsafeMutablePointer<AVIOContext>) {
-        self.ctxPtr = ctxPtr
-        self.needClose = false
-    }
-
-    /// Create and initialize a `AVIOContext` for accessing the resource indicated by url.
-    ///
-    /// - Parameters:
-    ///   - url: resource to access
-    ///   - flags: flags which control how the resource indicated by url is to be opened
-    /// - Throws: AVError
-    public init(url: String, flags: AVIOFlag) throws {
-        var pb: UnsafeMutablePointer<AVIOContext>?
-        try throwIfFail(avio_open(&pb, url, flags.rawValue))
-        self.ctxPtr = pb!
-    }
-
-    deinit {
-        if needClose {
-            var pb: UnsafeMutablePointer<AVIOContext>? = ctxPtr
-            avio_closep(&pb)
-        }
-    }
-}

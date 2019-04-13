@@ -1,0 +1,7 @@
+//
+//  FuncWrapper.swift
+//  SwiftFFmpeg
+//
+//  Created by Kojirou on 2019/4/13.
+//
+

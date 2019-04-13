@@ -8,14 +8,18 @@
 import CFFmpeg
 
 public final class SwrContext {
-    internal let ctx: OpaquePointer
+    
+    internal let _value: OpaquePointer
 
     /// Allocate SwrContext.
     ///
     /// If you use this function you will need to set the parameters (manually or with swr_alloc_set_opts())
     /// before calling swr_init().
-    public init() {
-        ctx = swr_alloc()
+    public init?() {
+        guard let p = swr_alloc() else {
+            return nil
+        }
+        _value = p
     }
 
     /// Allocate SwrContext if needed and set/reset common parameters.
@@ -28,14 +32,14 @@ public final class SwrContext {
     ///   - dstSampleFmt: output sample format
     ///   - dstSampleRate: output sample rate (frequency in Hz)
     public init(
-        srcChannelLayout: AVChannelLayout,
+        srcChannelLayout: FFmpegChannelLayout,
         srcSampleFmt: AVSampleFormat,
         srcSampleRate: Int,
-        dstChannelLayout: AVChannelLayout,
+        dstChannelLayout: FFmpegChannelLayout,
         dstSampleFmt: AVSampleFormat,
         dstSampleRate: Int
     ) {
-        ctx = swr_alloc_set_opts(
+        _value = swr_alloc_set_opts(
             nil,
             Int64(dstChannelLayout.rawValue),
             dstSampleFmt,
@@ -50,14 +54,14 @@ public final class SwrContext {
 
     /// Check whether an swr context has been initialized or not.
     public var isInitialized: Bool {
-        return swr_is_initialized(ctx) > 0
+        return swr_is_initialized(_value) > 0
     }
 
     /// Initialize context after user parameters have been set.
     ///
     /// - Throws: AVError
     public func initialize() throws {
-        try throwIfFail(swr_init(ctx))
+        try throwIfFail(swr_init(_value))
     }
 
     /// Gets the delay the next input sample will experience relative to the next output sample.
@@ -71,7 +75,7 @@ public final class SwrContext {
     ///     out_sample_rate then an exact rounding-free delay will be eturned
     /// - Returns: the delay in 1 / base units.
     public func getDelay(_ timebase: Int64) -> Int {
-        return Int(swr_get_delay(ctx, timebase))
+        return Int(swr_get_delay(_value, timebase))
     }
 
     /// Convert audio.
@@ -88,12 +92,12 @@ public final class SwrContext {
         dst: UnsafeMutablePointer<UnsafeMutablePointer<UInt8>?>,
         dstCount: Int
     ) -> Int {
-        let ret = swr_convert(ctx, dst, Int32(dstCount), src, Int32(srcCount))
+        let ret = swr_convert(_value, dst, Int32(dstCount), src, Int32(srcCount))
         return Int(ret)
     }
 
     deinit {
-        var ptr: OpaquePointer? = ctx
+        var ptr: OpaquePointer? = _value
         swr_free(&ptr)
     }
 }

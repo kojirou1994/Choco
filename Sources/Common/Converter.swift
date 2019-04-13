@@ -13,6 +13,8 @@ public protocol Converter: Executable {
     
     var output: String {get}
     
+    var alternative: [Converter]? {get}
+    
     init(input: String, output: String)
     
 }
@@ -31,7 +33,7 @@ extension Converter {
         }
     }
     
-    func printTask() {
+    public func printTask() {
         print("\n\(Self.executableName):\n\(input)\n->\n\(output)")
     }
     

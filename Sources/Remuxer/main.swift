@@ -2,9 +2,7 @@ import Signals
 import Foundation
 import Common
 
-let remuxer = Remuxer.init()
-
-try remuxer.parse()
+let remuxer = try Remuxer.init()
 
 Signals.trap(signals: [.quit, .int, .kill, .term, .abrt]) { (_) in
     print("bye-bye")

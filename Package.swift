@@ -14,7 +14,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/kojirou1994/Kwift.git", .exact("0.1.5")),
-        .package(url: "https://github.com/apple/swift-package-manager.git", .branch("swift-5.0-branch")),
+//        .package(url: "https://github.com/apple/swift-package-manager.git", .branch("swift-5.0-branch")),
+        .package(url: "https://github.com/kojirou1994/ArgumentParser.git", .branch("master")),
         .package(url: "https://github.com/IBM-Swift/BlueSignals.git", from: "1.0.0")
     ],
     targets: [
@@ -72,11 +73,11 @@ let package = Package(
         ),
         .target(
             name: "Common",
-            dependencies: ["SwiftFFmpeg", "Kwift", "SPMUtility", "MplsReader"]
+            dependencies: ["SwiftFFmpeg", "Kwift", "MplsReader"]
         ),
         .target(
             name: "Remuxer",
-            dependencies: ["Common", "SwiftFFmpeg", "Kwift", "SPMUtility", "CLibbluray", "Signals"]),
+            dependencies: ["Common", "SwiftFFmpeg", "Kwift", "ArgumentParser", "CLibbluray", "Signals"]),
         .target(
             name: "MKV2MP4",
             dependencies: ["Common", "Kwift", "Signals"]),
