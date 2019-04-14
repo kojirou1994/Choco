@@ -11,6 +11,13 @@ import MplsReader
 import ArgumentParser
 import SwiftFFmpeg
 
+public enum RemuxerError: Error {
+    case t
+    case processError(code: Int32)
+    case sameFilename
+    case outputExist
+}
+
 struct RemuxerArgument {
     
     var outputDir: String
@@ -328,13 +335,9 @@ extension Remuxer {
         }
         arguments.append(contentsOf: ["--track-order", trackOrder.joined(separator: ",")])
         print("Mkvmerge arguments:\n\(arguments.joined(separator: " "))")
-        struct Mkvmerge: Executable {
-            static let executableName: String = "mkvmerge"
-            var arguments: [String]
-        }
         
         print("\nMkvmerge:\n\(file)\n->\n\(outputFilename)")
-        try Mkvmerge(arguments: arguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
+        try MKVmerge(arguments: arguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
         
         externalTracks.forEach { (t) in
             do {
@@ -418,10 +421,7 @@ extension Remuxer {
         }
         
         print("ffmpeg \(ffmpegArguments.joined(separator: " "))")
-        struct FFmpeg: Executable {
-            static let executableName = "ffmpeg"
-            var arguments: [String]
-        }
+
         try FFmpeg(arguments: ffmpegArguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
         
         flacConverters.forEach { (flac) in

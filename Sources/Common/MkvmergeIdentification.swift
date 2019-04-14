@@ -263,16 +263,19 @@ public struct MkvmergeIdentification: Decodable {
 extension MkvmergeIdentification {
     
     public init(filePath: String) throws {
+        #if DEBUG
         print("Reading file: \(filePath)")
-        let mkvmerge = try Process.init(executableName: "mkvmerge", arguments: ["-J", filePath])
+        #endif
+        struct MKVmergeId: Executable {
+            static let executableName = "mkvmerge"
+            
+            let arguments: [String]
+            
+            init(filepath: String) { arguments = ["-J", filepath] }
+        }
+        let mkvmerge = try MKVmergeId(filepath: filePath).runAndCatch(checkNonZeroExitCode: true)
         
-        let pipe = Pipe.init()
-        mkvmerge.standardOutput = pipe
-        mkvmerge.launch()
-        
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        try mkvmerge.checkTerminationStatus()
-        self = try jsonDecoder.decode(MkvmergeIdentification.self, from: data)
+        self = try jsonDecoder.decode(MkvmergeIdentification.self, from: mkvmerge.stdout)
     }
     
     public var primaryLanguage: String {

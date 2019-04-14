@@ -27,13 +27,6 @@ extension MplsPlayItem {
 
 public struct Mpls {
     
-//    private let rawValue: RawValue
-    
-//    private enum RawValue {
-//        case mkvtoolnix(MkvmergeIdentification)
-//        case mplsReader(MplsPlaylist)
-//    }
-    
     public let chapterCount: Int
     
     public let duration: Timestamp

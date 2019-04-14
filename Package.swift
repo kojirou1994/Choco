@@ -13,7 +13,7 @@ let package = Package(
         .executable(name: "MKV2MP4", targets: ["MKV2MP4"])
     ],
     dependencies: [
-        .package(url: "https://github.com/kojirou1994/Kwift.git", .exact("0.1.5")),
+        .package(url: "https://github.com/kojirou1994/Kwift.git", .exact("0.1.6")),
 //        .package(url: "https://github.com/apple/swift-package-manager.git", .branch("swift-5.0-branch")),
         .package(url: "https://github.com/kojirou1994/ArgumentParser.git", .branch("master")),
         .package(url: "https://github.com/IBM-Swift/BlueSignals.git", from: "1.0.0")
@@ -80,7 +80,7 @@ let package = Package(
             dependencies: ["Common", "SwiftFFmpeg", "Kwift", "ArgumentParser", "CLibbluray", "Signals"]),
         .target(
             name: "MKV2MP4",
-            dependencies: ["Common", "Kwift", "Signals"]),
+            dependencies: ["Common", "Kwift", "Signals", "ArgumentParser"]),
         .target(
             name: "Exp",
             dependencies: ["SwiftFFmpeg", "Kwift", "CLibbluray", "Common"]),

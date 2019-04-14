@@ -22,16 +22,16 @@ public protocol Converter: Executable {
 extension Converter {
     
     public func convert() throws -> Process {
-        try checkPath()
+//        try checkPath()
         printTask()
         return try generateProcess()
     }
     
-    func checkPath() throws {
-        if input == output {
-            throw RemuxerError.sameFilename
-        }
-    }
+//    func checkPath() throws {
+//        if input == output {
+//            throw RemuxerError.sameFilename
+//        }
+//    }
     
     public func printTask() {
         print("\n\(Self.executableName):\n\(input)\n->\n\(output)")

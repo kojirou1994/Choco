@@ -3,6 +3,7 @@ import MplsReader
 import Foundation
 import SwiftFFmpeg
 import Signals
+import ArgumentParser
 
 var runningProcess: Process?
 
@@ -48,29 +49,23 @@ enum MkvTrack {
     
     struct Subtitle {
         let lang: String
-    }
-    
-//    var path: String {
-//        switch self {
-//        case .audio(let v):
-//            return v.path
-//        case .video(let v):
-//            return v.path
-//        }
-//    }
-}
-
-extension Process {
-    func runAndCheck() throws {
-        self.standardOutput = FileHandle.nullDevice
-        launch()
-        runningProcess = self
-        waitUntilExit()
-        runningProcess = nil
-        if terminationStatus != 0 {
-            throw Mp4Error.processError(launchPath!)
+        let path: String
+        let type: SubtitleType
+        enum SubtitleType {
+            case ass
+            case srt
+            case pgs
         }
     }
+}
+
+func beforRun(p: Process) {
+    p.standardOutput = FileHandle.nullDevice
+    runningProcess = p
+}
+
+func afterRun(p: Process) {
+    runningProcess = nil
 }
 
 func remove(files: [String]) {
@@ -85,21 +80,31 @@ func remove(files: [String]) {
 
 let invalidPixelFormats: [FFmpegPixelFormat] = [.yuv420p10le, .yuv420p10be]
 
-func toMp4(file: String) throws {
+func toMp4(file: String, extractOnly: Bool) throws {
     guard file.hasSuffix(".mkv") else {
         return
     }
     
-    let context = try FFmpegFormatContext.init(url: file)
-    try context.findStreamInfo()
-//    context.dumpFormat(isOutput: false)
-    for stream in context.streams {
-        if stream.mediaType == .video,
-            invalidPixelFormats.contains(stream.codecParameters.pixelFormat) {
-            throw Mp4Error.unsupportedPixelFormat(stream.codecParameters.pixelFormat)
-        }
-        if stream.mediaType == .video {
-            print(stream.codecParameters.pixelFormat)
+    if file.lastPathComponent.lowercased().contains("vfr") {
+        print("Skipping \(file), probably vfr.")
+        return
+    }
+    
+    do {
+        let context = try FFmpegFormatContext.init(url: file)
+        try context.findStreamInfo()
+        //    context.dumpFormat(isOutput: false)
+        for stream in context.streams {
+            let codecParameters = stream.codecParameters
+            print(codecParameters.codecId)
+            if stream.mediaType == .video,
+                codecParameters.codecId == .h264,
+                invalidPixelFormats.contains(codecParameters.pixelFormat) {
+                throw Mp4Error.unsupportedPixelFormat(stream.codecParameters.pixelFormat)
+            }
+            if stream.mediaType == .video {
+                print(codecParameters.pixelFormat)
+            }
         }
     }
     
@@ -175,22 +180,41 @@ func toMp4(file: String) throws {
             default:
                 throw Mp4Error.unsupportedFps(fpsValue)
             }
-            print(fps)
+//            print(fps)
             tracks.append(.video(.init(fps: fps, path: outputTrackName)))
         case "audio":
             tracks.append(.audio(.init(lang: track.properties.language ?? "und", path: outputTrackName, needReencode: needReencode)))
         case "subtitles":
-            let extractedTrack = MkvTrack.subtitle(.init(lang: track.properties.language ?? "und"))
+            let type: MkvTrack.Subtitle.SubtitleType
+            switch track.codec {
+            case "HDMV PGS":
+                type = .pgs
+            case "SubStationAlpha":
+                type = .ass
+            case "SubRip/SRT":
+                type = .srt
+            default:
+                print("Invalid subtitle codec: \(track.codec)")
+                throw Mp4Error.unsupportedCodec(track.codec)
+            }
+            let extractedTrack = MkvTrack.subtitle(.init(lang: track.properties.language ?? "und", path: outputTrackName, type: type))
         default:
             fatalError(track.type)
         }
-        
-        
         
         arguments.append("\(track.id):\(outputTrackName)")
     }
 //    print(arguments.joined(separator: " "))
 //    dump(tracks)
+    
+    arguments.append(contentsOf: ["chapters", "-s", chapterpPath])
+    
+    // MARK: - mkvextract
+    print("Extracting tracks...")
+    try MKVextract(arguments: arguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforRun(p:), afterRun: afterRun(p:))
+    if extractOnly {
+        return
+    }
     defer {
         remove(files: tracks.flatMap({ (track) -> [String] in
             switch track {
@@ -201,15 +225,10 @@ func toMp4(file: String) throws {
         }))
         remove(files: [tempfile, chapterpPath])
     }
-    arguments.append(contentsOf: ["chapters", "-s", chapterpPath])
-    
-    // MARK: - mkvextract
-    try Process.init(executableName: "mkvextract", arguments: arguments).runAndCheck()
     try tracks.forEach { (track) in
         if case let MkvTrack.audio(a) = track, a.needReencode {
-            try Process.init(executableName: "ffmpeg",
-                             arguments: ["-v", "quiet", "-nostdin",
-                                       "-y", "-i", a.path, "-c:a", "alac", a.encodedPath]).runAndCheck()
+            try FFmpeg(arguments: ["-v", "quiet", "-nostdin",
+                                   "-y", "-i", a.path, "-c:a", "alac", a.encodedPath]).runAndWait(checkNonZeroExitCode: true, beforeRun: beforRun(p:), afterRun: afterRun(p:))
         }
     }
     var boxArg = ["-tmp", "."]
@@ -229,8 +248,7 @@ func toMp4(file: String) throws {
     }
     
     boxArg.append(tempfile)
-    try Process.init(executableName: "MP4Box",
-                     arguments: boxArg).runAndCheck()
+    try MP4Box(arguments: boxArg).runAndWait(checkNonZeroExitCode: true, beforeRun: beforRun(p:), afterRun: afterRun(p:))
     var remuxerArg: [String]
     if FileManager.default.fileExists(atPath: chapterpPath) {
         remuxerArg = ["--chapter", chapterpPath]
@@ -238,32 +256,53 @@ func toMp4(file: String) throws {
         remuxerArg = []
     }
     remuxerArg.append(contentsOf: ["-i", "\(tempfile)?1:handler=", "-o", mp4path])
-    try Process.init(executableName: "remuxer",
-                     arguments: remuxerArg).runAndCheck()
+    try LsmashRemuxer(arguments: remuxerArg).runAndWait(checkNonZeroExitCode: true, beforeRun: beforRun(p:), afterRun: afterRun(p:))
 }
 
-func addTask(file: String) {
+func addTask(file: String, extractOnly: Bool) {
     do {
-        try toMp4(file: file)
+        try toMp4(file: file, extractOnly: extractOnly)
     } catch {
         print("Failed file: \(file)")
         print("Error info: \(error)")
     }
 }
 
-CommandLine.arguments[1...].forEach { (input) in
+struct Argument {
+    var extractOnly = false
+    var help = false
+    var inputs = [String]()
+}
+
+var argument = Argument()
+let help = Option(name: "--help", anotherName: "-H", requireValue: false, description: "show help info") { (_) in
+    argument.help = true
+}
+let extractOnly = Option(name: "--extract-only", requireValue: false, description: "extractOnly") { (_) in
+    argument.extractOnly = true
+}
+let parser = ArgumentParser(usage: "MKV2MP4 [OPTION] inputs", options: [extractOnly, help]) { (v) in
+    argument.inputs.append(v)
+}
+try parser.parse(arguments: CommandLine.arguments.dropFirst())
+if argument.help {
+    parser.showHelp(to: &stderrOutputStream)
+    exit(0)
+}
+
+argument.inputs.forEach { (input) in
     var isDirectory: ObjCBool = false
     if FileManager.default.fileExists(atPath: input, isDirectory: &isDirectory) {
         if isDirectory.boolValue {
             if let enumerator = FileManager.default.enumerator(atPath: input) {
                 for case let path as String in enumerator {
-                    addTask(file: input.appendingPathComponent(path))
+                    addTask(file: input.appendingPathComponent(path), extractOnly: argument.extractOnly)
                 }
             } else {
                 print("Can't open folder: \(input)")
             }
         } else {
-            addTask(file: input)
+            addTask(file: input, extractOnly: argument.extractOnly)
         }
     } else {
         print("File doesn't exist: \(input)")

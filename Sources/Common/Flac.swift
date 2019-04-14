@@ -12,7 +12,7 @@ public final class Flac: Converter {
         return [input, "--totally-silent", "-f", "-o", output]
     }
     
-    public var alternative: [Converter]?
+    public var alternative: [Converter]? { return nil }
     
     public static let executableName: String = "flac"
     
@@ -30,14 +30,15 @@ public final class Flac: Converter {
 public struct FlacMD5 {
     
     public static func calculate(inputs: [String]) throws -> [String] {
-        let p = try Process.init(executableName: "metaflac", arguments: ["--no-filename", "--show-md5sum"] + inputs)
-        let pipe = Pipe.init()
-        p.standardOutput = pipe
-        p.launch()
-        
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        try p.checkTerminationStatus()
-        return Array(String.init(data: data, encoding: .utf8)!.components(separatedBy: .newlines).dropLast())
+        struct ShowMD5: Executable {
+            static let executableName = "metaflac"
+            
+            let arguments: [String]
+            
+            init(inputs: [String]) { arguments = ["--no-filename", "--show-md5sum"] + inputs }
+        }
+        let md5 = try ShowMD5(inputs: inputs).runAndCatch(checkNonZeroExitCode: true)
+        return Array(String.init(decoding: md5.stdout, as: UTF8.self).components(separatedBy: .newlines).dropLast())
     }
     
 }
