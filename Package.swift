@@ -9,7 +9,7 @@ let package = Package(
             name: "SwiftFFmpeg",
             targets: ["SwiftFFmpeg"]
         ),
-        .executable(name: "BD-Remuxer", targets: ["Remuxer"]),
+        .executable(name: "BD-Remuxer", targets: ["BD-Remuxer"]),
         .executable(name: "MKV2MP4", targets: ["MKV2MP4"])
     ],
     dependencies: [
@@ -76,7 +76,7 @@ let package = Package(
             dependencies: ["SwiftFFmpeg", "Kwift", "MplsReader"]
         ),
         .target(
-            name: "Remuxer",
+            name: "BD-Remuxer",
             dependencies: ["Common", "SwiftFFmpeg", "Kwift", "ArgumentParser", "CLibbluray", "Signals"]),
         .target(
             name: "MKV2MP4",
