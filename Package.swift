@@ -89,6 +89,6 @@ let package = Package(
             dependencies: ["Kwift", "Common"]),
         .testTarget(
             name: "RemuxerTests",
-            dependencies: ["Remuxer"]),
+            dependencies: ["BD-Remuxer"]),
     ]
 )
