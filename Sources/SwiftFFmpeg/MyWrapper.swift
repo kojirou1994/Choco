@@ -80,13 +80,11 @@ public class FFmpegBuffer: CPointerWrapper {
     
 }
 
-public class FFmpegCodec: CPointerWrapper {
-    
-    typealias Pointer = AVCodec
+public final class FFmpegCodec: CPointerWrapper {
     
     var _value: UnsafeMutablePointer<AVCodec>
     
-    required init(_ value: UnsafeMutablePointer<Pointer>) {
+    init(_ value: UnsafeMutablePointer<Pointer>) {
         _value = value
     }
     
@@ -214,73 +212,6 @@ public class FFmpegCodec: CPointerWrapper {
     }
 }
 
-
-public class FFmpegInputFormat: CPointerWrapper {
-
-    var _value: UnsafeMutablePointer<AVInputFormat>
-    
-    required init(_ value: UnsafeMutablePointer<AVInputFormat>) {
-        _value = value
-    }
-    
-    /// Find `AVInputFormat` based on the short name of the input format.
-    ///
-    /// - Parameter name: name of the input format
-    public init?(name: String) {
-        guard let p = av_find_input_format(name) else {
-            return nil
-        }
-        _value = p
-    }
-    
-    /// A comma separated list of short names for the format.
-    public var name: String {
-        return String(cString: _value.pointee.name)
-    }
-    
-    /// Descriptive name for the format, meant to be more human-readable than name.
-    public var longName: String {
-        return String(cString: _value.pointee.long_name)
-    }
-    
-    /// Can use flags: `AVFmt.noFile`, `AVFmt.needNumber`, `AVFmt.showIDs`, `AVFmt.genericIndex`,
-    /// `AVFmt.tsDiscont`, `AVFmt.noBinSearch`, `AVFmt.noGenSearch`, `AVFmt.noByteSeek`,
-    /// `AVFmt.seekToPTS`.
-    public var flags: AVFmt {
-        get { return AVFmt(rawValue: _value.pointee.flags) }
-//        set { _value.pointee.flags = newValue.rawValue }
-    }
-    
-    /// If extensions are defined, then no probe is done. You should usually not use extension format guessing because
-    /// it is not reliable enough.
-    public var extensions: String? {
-        if let strBytes = _value.pointee.extensions {
-            return String(cString: strBytes)
-        }
-        return nil
-    }
-    
-    /// Comma-separated list of mime types.
-    ///
-    /// It is used check for matching mime types while probing.
-    public var mimeType: String? {
-        if let strBytes = _value.pointee.mime_type {
-            return String(cString: strBytes)
-        }
-        return nil
-    }
-    
-    /// Get all registered demuxers.
-    public static let all: [FFmpegInputFormat] = {
-        var list = [FFmpegInputFormat]()
-        var state: UnsafeMutableRawPointer?
-        while let fmt = av_demuxer_iterate(&state) {
-            list.append(.init(.init(mutating: fmt)))
-        }
-        return list
-    }()
-}
-
 public final class FFmpegIOContext: CPointerWrapper {
     
     var _value: UnsafeMutablePointer<AVIOContext>
@@ -315,7 +246,6 @@ public final class FFmpegIOContext: CPointerWrapper {
 public final class FFmpegPacket: CPointerWrapper {
     
     var _value: UnsafeMutablePointer<AVPacket>
-    //    internal var packet: AVPacket { return _value.pointee }
     
     init(_ value: UnsafeMutablePointer<AVPacket>) {
         _value = value
@@ -328,14 +258,13 @@ public final class FFmpegPacket: CPointerWrapper {
     public init?() {
         guard let p = av_packet_alloc() else {
             return nil
-            //            fatalError("av_packet_alloc")
         }
         _value = p
     }
     
     /// A reference to the reference-counted buffer where the packet data is stored.
     /// May be `nil`, then the packet data is not reference-counted.
-    public var buf: FFmpegBuffer? {
+    public var buffer: FFmpegBuffer? {
         get {
             if let bufPtr = _value.pointee.buf {
                 return FFmpegBuffer(bufPtr)
@@ -390,7 +319,7 @@ public final class FFmpegPacket: CPointerWrapper {
     }
     
     /// Byte position in stream, -1 if unknown.
-    public var pos: Int64 {
+    public var position: Int64 {
         get { return _value.pointee.pos }
         set { _value.pointee.pos = newValue }
     }
@@ -414,11 +343,9 @@ public final class FFmpegPacket: CPointerWrapper {
         av_packet_unref(_value)
     }
     
-    /// Create a new packet that references the same data as src.
-    ///
-    /// This is a shortcut for `av_packet_alloc() + av_packet_ref()`.
-    ///
-    /// - Returns: newly created AVPacket on success, NULL on error.
+    public func moveRef(from packet: FFmpegPacket) {
+        av_packet_move_ref(_value, packet._value)
+    }
     public func clone() -> FFmpegPacket? {
         if let ptr = av_packet_clone(_value) {
             return FFmpegPacket(ptr)
@@ -469,6 +396,13 @@ public final class FFmpegFrame: CPointerWrapper {
             return nil
         }
         _value = p
+    }
+    
+    public var extendedData: UnsafeMutableBufferPointer<UnsafeMutablePointer<UInt8>?> {
+        get {
+            let count = pixFmt != .none ? 4 : channelCount
+            return UnsafeMutableBufferPointer(start: _value.pointee.extended_data, count: Int(count))
+        }
     }
     
     /// Pointer to the picture/channel planes.
@@ -704,8 +638,8 @@ public final class FFmpegFrame: CPointerWrapper {
 extension FFmpegFrame {
     
     /// Pixel format.
-    public var pixFmt: AVPixelFormat {
-        get { return AVPixelFormat(_value.pointee.format) }
+    public var pixFmt: FFmpegPixelFormat {
+        get { return .init(value: _value.pointee.format) }
         //        set { _value.pointee.format = newValue.rawValue }
     }
     
@@ -878,33 +812,28 @@ public final class FFmpegCodecContext: CPointerWrapper {
         try throwIfFail(avcodec_parameters_to_context(_value, parameter._value))
     }
     
-    //    public func openCodec(options: [String: String]? = nil) throws {
-    //        var pm: OpaquePointer?
-    //        defer { av_dict_free(&pm) }
-    //        if let options = options {
-    //            for (k, v) in options {
-    //                av_dict_set(&pm, k, v, 0)
-    //            }
-    //        }
-    //
-    //        try throwIfFail(avcodec_open2(_value, codec, &pm))
-    //
-    //        dumpUnrecognizedOptions(pm)
-    //    }
-    
-    public func sendPacket(_ packet: FFmpegPacket?) throws {
-        try throwIfFail(avcodec_send_packet(_value, packet?._value))
+    public func openCodec(options: [String: String] = [:]) throws {
+        var dic = FFmpegDictionary.init(dictionary: options)
+        var metadata = dic.metadata
+        try throwIfFail(avcodec_open2(_value, codec._value, &metadata))
+
+        dumpUnrecognizedOptions(metadata)
+//        dic.free()
     }
     
-    public func receiveFrame(_ frame: FFmpegFrame) throws {
+    public func send(packet: FFmpegPacket) throws {
+        try throwIfFail(avcodec_send_packet(_value, packet._value))
+    }
+    
+    public func receive(frame: FFmpegFrame) throws {
         try throwIfFail(avcodec_receive_frame(_value, frame._value))
     }
     
-    public func sendFrame(_ frame: FFmpegFrame?) throws {
-        try throwIfFail(avcodec_send_frame(_value, frame?._value))
+    public func send(frame: FFmpegFrame) throws {
+        try throwIfFail(avcodec_send_frame(_value, frame._value))
     }
     
-    public func receivePacket(_ packet: FFmpegPacket) throws {
+    public func receive(packet: FFmpegPacket) throws {
         try throwIfFail(avcodec_receive_packet(_value, packet._value))
     }
     
@@ -1106,76 +1035,6 @@ public final class FFmpegCodecParserContext {
     }
 }
 
-public final class FFmpegOutputFormat: CPointerWrapper {
-    
-    var _value: UnsafeMutablePointer<AVOutputFormat>
-    
-    init(_ value: UnsafeMutablePointer<AVOutputFormat>) {
-        _value = value
-    }
-    
-    /// A comma separated list of short names for the format.
-    public var name: String {
-        return String(cString: _value.pointee.name)
-    }
-    
-    /// Descriptive name for the format, meant to be more human-readable than name.
-    public var longName: String {
-        return String(cString: _value.pointee.long_name)
-    }
-    
-    /// If extensions are defined, then no probe is done. You should usually not use extension format guessing because
-    /// it is not reliable enough.
-    public var extensions: String? {
-        if let strBytes = _value.pointee.extensions {
-            return String(cString: strBytes)
-        }
-        return nil
-    }
-    
-    /// Comma-separated list of mime types.
-    ///
-    /// It is used check for matching mime types while probing.
-    public var mimeType: String? {
-        if let strBytes = _value.pointee.mime_type {
-            return String(cString: strBytes)
-        }
-        return nil
-    }
-    
-    /// default audio codec
-    public var audioCodec: FFmpegCodecID {
-        return .init(rawValue: _value.pointee.audio_codec)
-    }
-    
-    /// default video codec
-    public var videoCodec: FFmpegCodecID {
-        return .init(rawValue: _value.pointee.video_codec)
-    }
-    
-    /// default subtitle codec
-    public var subtitleCodec: FFmpegCodecID {
-        return .init(rawValue: _value.pointee.subtitle_codec)
-    }
-    
-    /// Can use flags: `AVFmt.noFile`, `AVFmt.needNumber`, `AVFmt.globalHeader`, `AVFmt.noTimestamps`,
-    /// `AVFmt.variableFPS`, `AVFmt.noDimensions`, `AVFmt.noStreams`, `AVFmt.allowFlush`,
-    /// `AVFmt.tsNonstrict`, `AVFmt.tsNegative`.
-    public var flags: AVFmt {
-        get { return AVFmt(rawValue: _value.pointee.flags) }
-        set { _value.pointee.flags = newValue.rawValue }
-    }
-    
-    /// Get all registered muxers.
-    public static var all: [FFmpegOutputFormat] {
-        var list = [FFmpegOutputFormat]()
-        var state: UnsafeMutableRawPointer?
-        while let fmt = av_muxer_iterate(&state) {
-            list.append(FFmpegOutputFormat(UnsafeMutablePointer(mutating: fmt)))
-        }
-        return list
-    }
-}
 
 /// Format I/O context.
 public final class FFmpegFormatContext: CPointerWrapper {
@@ -1204,7 +1063,7 @@ public final class FFmpegFormatContext: CPointerWrapper {
     }
     
     /// The input container format.
-    public var iformat: FFmpegInputFormat? {
+    public var inputFormat: FFmpegInputFormat? {
         get {
             if let fmtPtr = _value.pointee.iformat {
                 return FFmpegInputFormat(fmtPtr)
@@ -1253,7 +1112,7 @@ public final class FFmpegFormatContext: CPointerWrapper {
     public var streams: [FFmpegStream] {
         var list = [FFmpegStream]()
         for i in 0..<Int(streamCount) {
-            let stream = _value.pointee.streams.advanced(by: i).pointee!
+            let stream = _value.pointee.streams[i]!
             list.append(FFmpegStream(stream))
         }
         return list
@@ -1297,8 +1156,13 @@ public final class FFmpegFormatContext: CPointerWrapper {
     }
     
     /// Metadata that applies to the whole file.
-    public var metadata: [String : String] {
-        return FFmpegDictionary.parse(metadata: _value.pointee.metadata)
+    public var metadata: FFmpegDictionary {
+        get {
+            return FFmpegDictionary(metadata: _value.pointee.metadata)
+        }
+        set {
+            _value.pointee.metadata = newValue.metadata
+        }
     }
     
     /// Custom interrupt callbacks for the I/O layer.
@@ -1432,36 +1296,15 @@ extension FFmpegFormatContext {
     public func seekFrame(streamIndex: Int, timestamp: Int64, flags: Int) throws {
         try throwIfFail(av_seek_frame(_value, Int32(streamIndex), timestamp, Int32(flags)))
     }
-    
-    /// Discard all internally buffered data. This can be useful when dealing with
-    /// discontinuities in the byte stream. Generally works only with formats that
-    /// can resync. This includes headerless formats like MPEG-TS/TS but should also
-    /// work with NUT, Ogg and in a limited way AVI for example.
-    ///
-    /// The set of streams, the detected duration, stream parameters and codecs do
-    /// not change when calling this function. If you want a complete reset, it's
-    /// better to open a new AVFormatContext.
-    ///
-    /// This does not flush the AVIOContext (s->pb). If necessary, call
-    /// avio_flush(s->pb) before calling this function.
-    ///
-    /// - Throws: AVError
+
     public func flush() throws {
         try throwIfFail(avformat_flush(_value))
     }
     
-    /// Start playing a network-based stream (e.g. RTSP stream) at the current position.
-    ///
-    /// - Throws: AVError
     public func readPlay() throws {
         try throwIfFail(av_read_play(_value))
     }
     
-    /// Pause a network-based stream (e.g. RTSP stream).
-    ///
-    /// Use av_read_play() to resume it.
-    ///
-    /// - Throws: AVError
     public func readPause() throws {
         try throwIfFail(av_read_pause(_value))
     }
@@ -1551,103 +1394,6 @@ extension FFmpegFormatContext {
     }
 }
 
-public final class FFmpegCodecParameters: CPointerWrapper {
-    
-    typealias Pointer = AVCodecParameters
-    
-    internal var _value: UnsafeMutablePointer<AVCodecParameters>
-    
-    internal init(_ value: UnsafeMutablePointer<AVCodecParameters>) {
-        self._value = value
-    }
-    
-    /// General type of the encoded data.
-    public var mediaType: FFmpegMediaType {
-        return .init(rawValue: _value.pointee.codec_type)
-    }
-    
-    /// Specific type of the encoded data (the codec used).
-    public var codecId: FFmpegCodecID {
-        return .init(rawValue: _value.pointee.codec_id) 
-    }
-    
-    /// Additional information about the codec (corresponds to the AVI FOURCC).
-    public var codecTag: UInt32 {
-        get { return _value.pointee.codec_tag }
-        //        set { _value.pointee.codec_tag = newValue }
-    }
-    
-    /// The average bitrate of the encoded data (in bits per second).
-    public var bitRate: Int64 {
-        return _value.pointee.bit_rate
-    }
-}
-
-// MARK: - Video
-
-extension FFmpegCodecParameters {
-    
-    
-    /// - video: the pixel format, the value corresponds to enum AVPixelFormat. - audio: the sample format, the value corresponds to enum AVSampleFormat.
-    public var pixelFormat: FFmpegPixelFormat {
-        return .init(value: _value.pointee.format)
-    }
-    
-    /// The width of the video frame in pixels.
-    public var width: Int32 {
-        return _value.pointee.width
-    }
-    
-    /// The height of the video frame in pixels.
-    public var height: Int32 {
-        return _value.pointee.height
-    }
-    
-    /// The aspect ratio (width / height) which a single pixel should have when displayed.
-    ///
-    /// When the aspect ratio is unknown / undefined, the numerator should be
-    /// set to 0 (the denominator may have any value).
-    public var sampleAspectRatio: AVRational {
-        return _value.pointee.sample_aspect_ratio
-    }
-    
-    /// Number of delayed frames.
-    public var videoDelay: Int32 {
-        return _value.pointee.video_delay
-    }
-}
-
-// MARK: - Audio
-
-extension FFmpegCodecParameters {
-    
-    /// Sample format.
-    public var sampleFormat: FFmpegSampleFormat {
-        return .init(rawValue: _value.pointee.format)
-    }
-    
-    /// The channel layout bitmask. May be 0 if the channel layout is
-    /// unknown or unspecified, otherwise the number of bits set must be equal to
-    /// the channels field.
-    public var channelLayout: FFmpegChannelLayout {
-        return FFmpegChannelLayout(rawValue: _value.pointee.channel_layout)
-    }
-    
-    /// The number of audio channels.
-    public var channelCount: Int32 {
-        return _value.pointee.channels
-    }
-    
-    /// The number of audio samples per second.
-    public var sampleRate: Int32 {
-        return _value.pointee.sample_rate
-    }
-    
-    /// Audio frame size, if known. Required by some formats to be static.
-    public var frameSize: Int32 {
-        return _value.pointee.frame_size
-    }
-}
 
 /// Stream structure.
 public final class FFmpegStream: CPointerWrapper {
@@ -1710,7 +1456,7 @@ public final class FFmpegStream: CPointerWrapper {
     }
     
     public var mediaType: FFmpegMediaType {
-        return codecParameters.mediaType
+        return codecParameters.codecType
     }
     
     public func set(codecParameters: FFmpegCodecParameters) throws {

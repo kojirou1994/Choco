@@ -10,7 +10,7 @@ import CFFmpeg
 
 public struct FFmpegDictionary {
     
-    private var metadata: OpaquePointer?
+    internal var metadata: OpaquePointer?
     
     internal init(metadata: OpaquePointer?) {
         self.metadata = metadata
@@ -51,5 +51,9 @@ public struct FFmpegDictionary {
         set {
             av_dict_set(&metadata, key, newValue, 0)
         }
+    }
+    
+    public mutating func free() {
+        av_dict_free(&metadata)
     }
 }

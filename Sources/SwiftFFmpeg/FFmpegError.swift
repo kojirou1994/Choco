@@ -43,9 +43,11 @@ public struct FFmpegError: Error, Equatable, CustomStringConvertible/*, Expressi
 }
 
 extension FFmpegError {
+    public static let EAGAIN = FFmpegError(code: AVERROR(Foundation.EAGAIN))
+    public static let EOF = FFmpegError(code: AVERROR_EOF)
     /*
      /// Resource temporarily unavailable
-     public static let EAGAIN = FFmpegError(code: AVERROR(Foundation.EAGAIN))
+     
      /// Invalid argument
      public static let EINVAL = FFmpegError(code: AVERROR(Foundation.EINVAL))
      /// Cannot allocate memory
@@ -65,7 +67,7 @@ extension FFmpegError {
      /// Encoder not found
      public static let ENCODER_NOT_FOUND = FFmpegError(code: AVERROR_ENCODER_NOT_FOUND)
      /// End of file
-     public static let EOF = FFmpegError(code: AVERROR_EOF)
+     
      /// Immediate exit was requested; the called function should not be restarted
      public static let EXIT = FFmpegError(code: AVERROR_EXIT)
      /// Generic error in an external library

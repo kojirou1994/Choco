@@ -12,10 +12,11 @@ import ArgumentParser
 import SwiftFFmpeg
 
 public enum RemuxerError: Error {
-    case t
-    case processError(code: Int32)
+    case errorReadingFile
+    case noPlaylists
     case sameFilename
     case outputExist
+    case noOutputFile(String)
 }
 
 struct RemuxerArgument {
@@ -143,8 +144,7 @@ public class Remuxer {
                 outputs.append(contentsOf: parts)
             } else {
                 print("Can't find output file(s).")
-                #warning("change error")
-                throw NSError()
+                throw RemuxerError.noOutputFile(converter.output)
             }
         } catch {
             if let alter = converter.alternative {
@@ -373,7 +373,7 @@ extension Remuxer {
         try context.findStreamInfo()
         guard context.streamCount == mkvinfo.tracks.count else {
             print("ffmpeg and mkvmerge track count mismatch!")
-            throw RemuxerError.t
+            throw RemuxerError.errorReadingFile
         }
         
         let preferedLanguages = config.generatePrimaryLanguages(with: [mkvinfo.primaryLanguage])
@@ -634,8 +634,7 @@ struct BDMVTask {
             let mplsPaths = try fm.contentsOfDirectory(atPath: playlistPath)
                 .filter {$0.hasSuffix(".mpls")}
             if mplsPaths.isEmpty {
-                #warning("change error")
-                throw NSError()
+                throw RemuxerError.noPlaylists
             }
             let allMpls = mplsPaths.compactMap { (mplsPath) -> Mpls? in
                 do {
@@ -665,8 +664,7 @@ struct BDMVTask {
             }
         } else {
             print("No PLAYLIST Folder!")
-            #warning("change error")
-            throw NSError()
+            throw RemuxerError.noPlaylists
         }
     }
     

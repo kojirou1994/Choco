@@ -20,16 +20,84 @@ import SwiftFFmpeg
 //FFmpegInputFormat.all.forEach { (o) in
 //    print("\(o.mimeType ?? "NoMime") \(o.extensions ?? "NoExt") \(o.name) \(o.longName)")
 //}
-//FFmpegLog.Level.allCases.forEach { (level) in
-//    FFmpegLog.set(level: level)
-//    precondition(FFmpegLog.currentLevel == level)
+
+//FFmpegPictureType.allCases.forEach { (t) in
+//    dump(t)
 //}
+//print(FFmpegChannel.frontLeft)
 
-FFmpegPictureType.allCases.forEach { (t) in
-    dump(t)
+FFmpegLog.set(level: .info)
+
+func demuxAudio(input: String) throws {
+    let audioOutput = input.appending(".ac3")
+    let inF = try FFmpegFormatContext.init(url: input)
+    try inF.findStreamInfo()
+    inF.dumpFormat(isOutput: false)
+    let audioStream = inF.streams[1]
+    let decoder = FFmpegCodec.init(decoderId: audioStream.codecParameters.codecId)!
+    print("decoder: \(decoder)")
+    let codecContext = FFmpegCodecContext.init(codec: decoder)!
+    try codecContext.set(audioStream.codecParameters)
+    try codecContext.openCodec(options: ["refcounted_frames": "1"])
+    let audioIndex = 1
+    guard let audioOutputFile = fopen(audioOutput, "wb") else {
+        fatalError("Could not open \(audioOutput)")
+    }
+    defer {
+        fclose(audioOutputFile)
+    }
+    
+    let frame = FFmpegFrame.init()!
+    let pkt = FFmpegPacket.init()!
+    
+    while let _ = try? inF.readFrame(into: pkt) {
+        if pkt.streamIndex == audioIndex {
+            try codecContext.send(packet: pkt)
+            
+            while true {
+                do {
+                    try codecContext.receive(frame: frame)
+                } catch let err as FFmpegError where err == .EAGAIN || err == .EOF {
+                    break
+                }
+                
+                let unpaddedLineSize = Int(frame.sampleCount) * frame.sampleFmt.bytesPerSample
+                fwrite(frame.extendedData[0], 1, unpaddedLineSize, audioOutputFile)
+                
+                print("audio frame: \(codecContext.frameNumber)")
+                
+                frame.unref()
+            }
+        }
+    }
+    try codecContext.send(packet: pkt)
+    
+    while true {
+        do {
+            try codecContext.receive(frame: frame)
+        } catch let err as FFmpegError/* where err == .tryAgain || err == .eof */{
+            break
+        }
+        
+        let unpaddedLineSize = Int(frame.sampleCount) * frame.sampleFmt.bytesPerSample
+        fwrite(frame.extendedData[0], 1, unpaddedLineSize, audioOutputFile)
+        
+        print("audio frame: \(codecContext.frameNumber)")
+        
+        frame.unref()
+    }
+    print("Demuxing succeeded.")
 }
-print(FFmpegChannel.frontLeft)
 
+let file = "/Volumes/GLOWAY/哎不哎都行.mp4"
+try demuxAudio(input: file)
+//FFmpegLog.set(level: .quite)
+//let context = try FFmpegFormatContext.init(url: file)
+//try context.findStreamInfo()
+//context.streams.forEach { (stream) in
+//    let codecParameters = stream.codecParameters
+//    print(codecParameters)
+//}
 import CFFmpeg
 /*
  

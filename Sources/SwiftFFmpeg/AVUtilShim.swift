@@ -7,27 +7,31 @@
 
 import Foundation
 
-func MKTAG(_ a: Int32, _ b: Int32, _ c: Int32, _ d: Int32) -> Int32 {
+@usableFromInline
+internal func MKTAG(_ a: Int32, _ b: Int32, _ c: Int32, _ d: Int32) -> Int32 {
     return ((a) | ((b) << 8) | ((c) << 16) | ((d) << 24))
 }
 
-public func FFERRTAG(_ a: Int32, _ b: Int32, _ c: Int32, _ d: Int32) -> Int32 {
+@usableFromInline
+internal func FFERRTAG(_ a: Int32, _ b: Int32, _ c: Int32, _ d: Int32) -> Int32 {
     return -MKTAG(a, b, c, d)
 }
 
 extension Character {
     
-    var unicodeValue: Int32 {
+    @usableFromInline var unicodeValue: Int32 {
         return Int32(unicodeScalars.first!.value)
     }
     
 }
 
-public func FFERRTAG(_ a: Int32, _ b: Character, _ c: Character, _ d: Character) -> Int32 {
+@usableFromInline
+internal func FFERRTAG(_ a: Int32, _ b: Character, _ c: Character, _ d: Character) -> Int32 {
     return FFERRTAG(a, b.unicodeValue, c.unicodeValue, d.unicodeValue)
 }
 
-public func FFERRTAG(_ a: Character, _ b: Character, _ c: Character, _ d: Character) -> Int32 {
+@usableFromInline
+internal func FFERRTAG(_ a: Character, _ b: Character, _ c: Character, _ d: Character) -> Int32 {
     return FFERRTAG(a.unicodeValue, b.unicodeValue, c.unicodeValue, d.unicodeValue)
 }
 
