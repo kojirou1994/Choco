@@ -90,7 +90,8 @@ func demuxAudio(input: String) throws {
 }
 
 let file = "/Volumes/GLOWAY/哎不哎都行.mp4"
-try demuxAudio(input: file)
+let file2 = "/Volumes/GLOWAY/01_en.mp4"
+//try demuxAudio(input: file)
 //FFmpegLog.set(level: .quite)
 //let context = try FFmpegFormatContext.init(url: file)
 //try context.findStreamInfo()
@@ -98,68 +99,122 @@ try demuxAudio(input: file)
 //    let codecParameters = stream.codecParameters
 //    print(codecParameters)
 //}
+//let f = try FFmpegFormatContext.init(url: file)
+//f.inputFormat?.debug()
+
+//print(FFmpegCodec.init(decoderId: .alac)!)
+//print(FFmpegCodec.init(encoderId: .alac)!)
 import CFFmpeg
-/*
- 
-if CommandLine.argc < 2 {
-    print("Usage: \(CommandLine.arguments[0]) <input file>")
-    exit(1)
-}
+import Kwift
 
-let input = CommandLine.arguments[1]
+var dic: FFmpegDictionary?
 
-let fmtCtx = AVFormatContextWrapper()
-try fmtCtx.openInput(input)
-try fmtCtx.findStreamInfo()
-
-fmtCtx.dumpFormat(isOutput: false)
-
-guard let stream = fmtCtx.videoStream else {
-    fatalError("No video stream")
-}
-guard let codec = AVCodecWrapper.init(decoderId: stream.codecpar.codecId) else {
-    fatalError("Codec not found")
-}
-guard let codecCtx = AVCodecContextWrapper(codec: codec) else {
-    fatalError("Could not allocate video codec context.")
-}
-try codecCtx.setParameters(stream.codecpar)
-try codecCtx.openCodec()
-
-let pkt = AVPacketWrapper()
-let frame = AVFrameWrapper()
-
-while let _ = try? fmtCtx.readFrame(into: pkt) {
-    defer { pkt.unref() }
-
-    if pkt.streamIndex != stream.index {
-        continue
+func metadata(input: String) throws {
+    let fmt = try FFmpegFormatContext.init(url: input)
+    fmt.metadata.dictionary.forEach { (v) in
+        print("\(v.key)=\(v.value)")
     }
+    dic = fmt.metadata
+}
 
-    try codecCtx.sendPacket(pkt)
+//try metadata(input: file)
+//try metadata(input: file2)
 
+func remuxing(input: String) throws {
+    let ofmt: FFmpegOutputFormat
+    let ifmtCtx: FFmpegFormatContext
+    let ofmtCtx: FFmpegFormatContext
+    
+    let outFilename = input.appending("_remux.mp4")
+    var streamIndex: Int32 = 0
+    var streamMappingSize: Int32 = 0
+    ifmtCtx = try .init(url: input)
+    try ifmtCtx.findStreamInfo()
+    ifmtCtx.dumpFormat(isOutput: false)
+    ofmtCtx = try .outputContext(outputFormat: nil, formatName: nil, filename: outFilename)
+    streamMappingSize = Int32(Int(ifmtCtx.streamCount))
+    var streamMapping = [Int32].init(repeating: 0, count: Int(streamMappingSize))
+    ofmt = ofmtCtx.outputFormat!
+    for i in 0..<Int(ifmtCtx.streamCount) {
+        let inStream = ifmtCtx.stream(at: i)
+        let codecpar = inStream.codecParameters
+        
+        switch codecpar.codecType {
+        case .video, .audio, .subtitle:
+            break
+        default:
+            streamMapping[i] = -1
+            continue
+        }
+        
+        streamMapping[i] = streamIndex
+        streamIndex += 1
+        
+        let outStream = FFmpegStream.init(formatContext: ofmtCtx, codec: nil)!
+        try outStream.set(codecParameters: codecpar)
+        outStream.codecParameters.codecTag = 0
+    }
+    print("dump output info\n==================")
+    ofmtCtx.dumpFormat(isOutput: true)
+    
+    if !ofmt.flags.contains(.noFile) {
+        try ofmtCtx.openOutput(filename: outFilename)
+    }
+    
+    try ofmtCtx.writeHeader()
+    
+    let pkt = FFmpegPacket.init()!
+    
     while true {
         do {
-            try codecCtx.receiveFrame(frame)
-        } catch let err as AVError where err == .EAGAIN || err == .EOF {
+            try ifmtCtx.readFrame(into: pkt)
+        } catch {
+            print(error)
             break
         }
-
-        let str = String(
-            format: "Frame %3d (type=%@, size=%5d bytes) pts %4lld key_frame %d [DTS %3lld]",
-            codecCtx.frameNumber,
-            frame.pictType.description,
-            frame.pktSize,
-            frame.pts,
-            frame.isKeyFrame,
-            frame.codedPictureNumber
-        )
-        print(str)
-
-        frame.unref()
+        
+        let inStream = ifmtCtx.stream(at: Int(pkt.streamIndex))
+        if pkt.streamIndex >= streamMappingSize ||
+            streamMapping[Int(pkt.streamIndex)] < 0 {
+            pkt.unref()
+            continue
+        }
+        
+        pkt.streamIndex = streamMapping[Int(pkt.streamIndex)]
+        let outStream = ofmtCtx.stream(at: Int(pkt.streamIndex))
+        ifmtCtx.logPacket(packet: pkt, tag: "in")
+        
+        /// copy packet
+        pkt.pts = FFmpegRescale.rescale_q_rnd(pkt.pts, inStream.timebase, outStream.timebase, [.nearInf, .passMinmax])
+        pkt.dts = FFmpegRescale.rescale_q_rnd(pkt.dts, inStream.timebase, outStream.timebase, [.nearInf, .passMinmax])
+        pkt.duration = FFmpegRescale.rescale_q(pkt.duration, inStream.timebase, outStream.timebase)
+        pkt.position = -1
+        
+        
+        ofmtCtx.logPacket(packet: pkt, tag: "out")
+        
+        do {
+            try ofmtCtx.interleavedWriteFrame(pkt: pkt)
+        } catch {
+            print("Error muxing packet: \(error)")
+            break
+        }
+        pkt.unref()
+        
     }
+    
+    try ofmtCtx.writeTrailer()
 }
 
-print("Done.")
-
-*/
+extension FFmpegFormatContext {
+    
+    func logPacket(packet: FFmpegPacket, tag: String) {
+        let timeBase = stream(at: Int(packet.streamIndex)).timebase
+        print("\(tag): pts:\(FFmpegTimestamp.ts2str(timestamp: packet.pts)), ptsTime: \(FFmpegTimestamp.av_ts2timestr(timestamp: packet.pts, timebase: timeBase)), dts: \(FFmpegTimestamp.ts2str(timestamp: packet.dts)), dtsTime: \(FFmpegTimestamp.av_ts2timestr(timestamp: packet.dts, timebase: timeBase)), duration: \(FFmpegTimestamp.ts2str(timestamp: packet.duration)), durationTime: \(FFmpegTimestamp.av_ts2timestr(timestamp: packet.duration, timebase: timeBase)), streamIndex: \(packet.streamIndex)")
+    }
+    
+}
+try remuxing(input: file)
+//print(AV_CODEC_CAP_INTRA_ONLY.binaryString)
+//print(AV_CODEC_CAP_LOSSLESS.binaryString)
+//print(AV_CODEC_CAP_HARDWARE.binaryString)

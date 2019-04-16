@@ -158,16 +158,23 @@ public class Remuxer {
         }
     }
     
-    func run() throws {
-        
+    func run() {
+        if config.inputs.isEmpty {
+            print("No inputs!")
+            return
+        }
 //        var failedTasks: [String] = []
         let fm = FileManager.default
         
         switch config.mode {
         case .dumpBDMV:
-            try config.inputs.forEach({ (bdmvPath) in
+            config.inputs.forEach({ (bdmvPath) in
                 let task = BDMVTask(rootPath: bdmvPath, mode: .direct, configuration: config)
-                try task.dumpInfo()
+                do {
+                    try task.dumpInfo()
+                } catch {
+                    print("Error: \(error)")
+                }
             })
         case .episodes, .movie:
             let mode: MplsRemuxMode
@@ -224,18 +231,19 @@ public class Remuxer {
         case .file:
             var failed: [String] = []
             try? FileManager.default.createDirectory(atPath: config.tempDir, withIntermediateDirectories: true, attributes: nil)
-            try config.inputs.forEach({ (file) in
+            config.inputs.forEach({ (file) in
                 var isDir: ObjCBool = false
                 if FileManager.default.fileExists(atPath: file, isDirectory: &isDir) {
                     if isDir.boolValue {
                         // input is a directory, remux all contents
                         let outputDir = config.outputDir.appendingPathComponent(file.filename)
                         try? FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true, attributes: nil)
-                        let contents = try FileManager.default.contentsOfDirectory(atPath: file)
+                        let contents = try! FileManager.default.contentsOfDirectory(atPath: file)
                         contents.forEach({ (fileInDir) in
                             do {
                                 try remux(file: fileInDir, remuxOutputDir: outputDir, deleteAfterRemux: false)
                             } catch {
+                                print(error)
                                 failed.append(fileInDir)
                             }
                         })
@@ -243,6 +251,7 @@ public class Remuxer {
                         do {
                             try remux(file: file, remuxOutputDir: config.outputDir, deleteAfterRemux: false)
                         } catch {
+                            print(error)
                             failed.append(file)
                         }
                     }
@@ -269,14 +278,6 @@ public class Remuxer {
 }
 
 extension Remuxer {
-    
-    private func dump(blurayPath: String) throws {
-        fatalError()
-    }
-
-    private func remux(blurayPath: String, useMode: RemuxerArgument.RemuxMode) throws {
-        fatalError()
-    }
     
     func remux(file: String, remuxOutputDir: String, deleteAfterRemux: Bool,
                parseOnly: Bool = false, mkvinfo: MkvmergeIdentification? = nil) throws {
@@ -548,14 +549,6 @@ struct BDMVTask {
     
     func parse() throws -> [Converter] {
         
-//        let bdFolderName = getBlurayTitle()
-        
-//        let finalOutputDir = config.outputDir.appendingPathComponent(bdFolderName)
-        
-        
-        
-//        print("BD title: \(bdFolderName)")
-        
         let mplsList = try scan(removeDuplicate: true)
 
         // TODO: check conflict
@@ -647,18 +640,30 @@ struct BDMVTask {
             if removeDuplicate {
                 let multipleFileMpls = allMpls.filter{ !$0.isSingle }.duplicateRemoved
                 let singleFileMpls = allMpls.filter{ $0.isSingle }.duplicateRemoved
-                var cleanMultipleFileMpls = [Mpls]()
+//                var cleanMultipleFileMpls = [Mpls]()
                 
+//                for multipleMpls in multipleFileMpls {
+//                    if multipleMpls.files.filter({ (file) -> Bool in
+//                        return !singleFileMpls.contains(where: { (mpls) -> Bool in
+//                            return mpls.files[0] == file
+//                        })
+//                    }).count > 0 {
+//                        cleanMultipleFileMpls.append(multipleMpls)
+//                    }
+//                }
+//                return (cleanMultipleFileMpls + singleFileMpls).sorted()
+                
+                var cleanSingleFileMpls = singleFileMpls
                 for multipleMpls in multipleFileMpls {
-                    if multipleMpls.files.filter({ (file) -> Bool in
-                        return !singleFileMpls.contains(where: { (mpls) -> Bool in
+                    if multipleMpls.files.allSatisfy({ file in
+                        return cleanSingleFileMpls.contains(where: { (mpls) -> Bool in
                             return mpls.files[0] == file
                         })
-                    }).count > 0 {
-                        cleanMultipleFileMpls.append(multipleMpls)
+                    }) {
+                        cleanSingleFileMpls.removeAll(where: {multipleMpls.files.contains($0.files[0])})
                     }
                 }
-                return (cleanMultipleFileMpls + singleFileMpls).sorted()
+                return (multipleFileMpls + cleanSingleFileMpls).sorted()
             } else {
                 return allMpls
             }

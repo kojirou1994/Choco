@@ -13,3 +13,20 @@ internal func dumpUnrecognizedOptions(_ dict: OpaquePointer?) {
         tag = next
     }
 }
+
+@usableFromInline
+internal func readArray<P, T>(pointer: UnsafePointer<P>?, stop: (P) -> Bool, transform: (P) -> T) -> [T] {
+    guard let p = pointer else {
+        return []
+    }
+    var result = [T]()
+    for i in 0..<Int.max {
+        let v = p[i]
+        if stop(v) {
+            break
+        } else {
+            result.append(transform(v))
+        }
+    }
+    return result
+}

@@ -29,7 +29,7 @@ public final class FFmpegCodecParameters: CPointerWrapper {
     /// Additional information about the codec (corresponds to the AVI FOURCC).
     public var codecTag: UInt32 {
         get { return _value.pointee.codec_tag }
-        //        set { _value.pointee.codec_tag = newValue }
+        set { _value.pointee.codec_tag = newValue }
     }
     
     public var bitRate: Int64 {

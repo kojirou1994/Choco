@@ -10,7 +10,7 @@ import CFFmpeg
 
 public final class FFmpegInputFormat: CPointerWrapper, CustomStringConvertible {
     
-    var _value: UnsafeMutablePointer<AVInputFormat>
+    let _value: UnsafeMutablePointer<AVInputFormat>
     
     init(_ value: UnsafeMutablePointer<AVInputFormat>) {
         _value = value
@@ -104,4 +104,16 @@ public final class FFmpegInputFormat: CPointerWrapper, CustomStringConvertible {
         }
         return result
     }()
+    
+    public static var enumrateRegisteredDemuxers: AnySequence<FFmpegInputFormat> {
+        var state: UnsafeMutableRawPointer?
+        return .init(AnyIterator<FFmpegInputFormat>.init({ () -> FFmpegInputFormat? in
+            if let p = av_demuxer_iterate(&state) {
+                return FFmpegInputFormat(.init(mutating: p))
+            } else {
+                state = nil
+                return nil
+            }
+        }))
+    }
 }

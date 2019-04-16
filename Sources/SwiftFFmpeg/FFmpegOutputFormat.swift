@@ -104,10 +104,22 @@ public final class FFmpegOutputFormat: CPointerWrapper, CustomStringConvertible 
     public static var registeredMuxers: [FFmpegOutputFormat] {
         var result = [FFmpegOutputFormat]()
         var state: UnsafeMutableRawPointer?
-        while let fmt = av_muxer_iterate(&state) {
-            result.append(.init(.init(mutating: fmt)))
+        while let p = av_muxer_iterate(&state) {
+            result.append(.init(.init(mutating: p)))
         }
         return result
+    }
+    
+    public static var enumrateRegisteredMuxers: AnySequence<FFmpegOutputFormat> {
+        var state: UnsafeMutableRawPointer?
+        return .init(AnyIterator<FFmpegOutputFormat>.init({ () -> FFmpegOutputFormat? in
+            if let p = av_muxer_iterate(&state) {
+                return FFmpegOutputFormat(.init(mutating: p))
+            } else {
+                state = nil
+                return nil
+            }
+        }))
     }
     
 }

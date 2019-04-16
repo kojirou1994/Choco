@@ -10,7 +10,7 @@ import CFFmpeg
 
 protocol CPointerWrapper: AnyObject {
     associatedtype Pointer
-    var _value: UnsafeMutablePointer<Pointer> { get set }
+    var _value: UnsafeMutablePointer<Pointer> { get }
     
     init(_ value: UnsafeMutablePointer<Pointer>)
 }
@@ -82,9 +82,9 @@ public class FFmpegBuffer: CPointerWrapper {
 
 public final class FFmpegCodec: CPointerWrapper {
     
-    var _value: UnsafeMutablePointer<AVCodec>
+    let _value: UnsafeMutablePointer<AVCodec>
     
-    init(_ value: UnsafeMutablePointer<Pointer>) {
+    init(_ value: UnsafeMutablePointer<AVCodec>) {
         _value = value
     }
     
@@ -131,69 +131,44 @@ public final class FFmpegCodec: CPointerWrapper {
     }
     
     /// The codec's id.
-    public var id: AVCodecID {
-        return _value.pointee.id
+    public var id: FFmpegCodecID {
+        return .init(rawValue: _value.pointee.id)
     }
     
     /// Codec capabilities.
-    public var capabilities: AVCodecCap {
-        return AVCodecCap(rawValue: _value.pointee.capabilities)
+    public var capabilities: Capability {
+        return .init(rawValue: _value.pointee.capabilities)
     }
     
     /// Returns an array of the framerates supported by the codec.
     public var supportedFramerates: [AVRational] {
-        var list = [AVRational]()
-        var ptr = _value.pointee.supported_framerates
-        let zero = AVRational(num: 0, den: 0)
-        while let p = ptr, p.pointee != zero {
-            list.append(p.pointee)
-            ptr = p.advanced(by: 1)
-        }
-        return list
+        return readArray(pointer: _value.pointee.supported_framerates, stop: { ($0.den, $0.num) == (0, 0) },
+                         transform: { $0 })
     }
     
     /// Returns an array of the pixel formats supported by the codec.
-    public var pixFmts: [AVPixelFormat] {
-        var list = [AVPixelFormat]()
-        var ptr = _value.pointee.pix_fmts
-        while let p = ptr, p.pointee != AV_PIX_FMT_NONE {
-            list.append(p.pointee)
-            ptr = p.advanced(by: 1)
-        }
-        return list
+    public var pixelFormats: [FFmpegPixelFormat] {
+        return readArray(pointer: _value.pointee.pix_fmts, stop: { $0.rawValue == -1 },
+                         transform: { FFmpegPixelFormat.init(rawValue: $0) })
     }
     
     /// Returns an array of the audio samplerates supported by the codec.
-    public var supportedSampleRates: [Int] {
-        var list = [Int]()
-        var ptr = _value.pointee.supported_samplerates
-        while let p = ptr, p.pointee != 0 {
-            list.append(Int(p.pointee))
-            ptr = p.advanced(by: 1)
-        }
-        return list
+    public var supportedSampleRates: [Int32] {
+        return readArray(pointer: _value.pointee.supported_samplerates, stop: { $0 == 0 }, transform: {$0})
     }
+    
+    
     
     /// Returns an array of the sample formats supported by the codec.
-    public var sampleFmts: [AVSampleFormat] {
-        var list = [AVSampleFormat]()
-        var ptr = _value.pointee.sample_fmts
-        while let p = ptr, p.pointee != AV_SAMPLE_FMT_NONE {
-            list.append(p.pointee)
-            ptr = p.advanced(by: 1)
-        }
-        return list
+    public var sampleFormats: [FFmpegSampleFormat] {
+        return readArray(pointer: _value.pointee.sample_fmts, stop: { $0.rawValue == -1 }, transform: {FFmpegSampleFormat.init(rawValue: $0)})
     }
     
-    /// Returns an array of the channel layouts supported by the codec.
+    
+    /// array of support channel layouts, or NULL if unknown. array is terminated by 0
     public var channelLayouts: [FFmpegChannelLayout] {
-        var list = [FFmpegChannelLayout]()
-        var ptr = _value.pointee.channel_layouts
-        while let p = ptr, p.pointee != 0 {
-            list.append(FFmpegChannelLayout(rawValue: p.pointee))
-            ptr = p.advanced(by: 1)
-        }
-        return list
+        return readArray(pointer: _value.pointee.channel_layouts, stop: { $0 == 0 },
+                         transform: { FFmpegChannelLayout(rawValue: $0) })
     }
     
     /// Maximum value for lowres supported by the decoder.
@@ -209,6 +184,26 @@ public final class FFmpegCodec: CPointerWrapper {
     /// Returns a Boolean value indicating whether the codec is encoder.
     public var isEncoder: Bool {
         return av_codec_is_encoder(_value) != 0
+    }
+}
+
+extension FFmpegCodec: CustomStringConvertible {
+    public var description: String {
+        return """
+        name: \(name)
+        longName: \(longName)
+        mediaType: \(mediaType)
+        id: \(id)
+        capabilities: \(capabilities)
+        supportedFramerates: \(supportedFramerates)
+        pixelFormats: \(pixelFormats)
+        supportedSampleRates: \(supportedSampleRates)
+        sampleFormats: \(sampleFormats)
+        channelLayouts: \(channelLayouts)
+        maxLowres: \(maxLowres)
+        isDecoder: \(isDecoder)
+        isEncoder: \(isEncoder)
+        """
     }
 }
 
@@ -280,7 +275,7 @@ public final class FFmpegPacket: CPointerWrapper {
     /// Can be `noPTS` if it is not stored in the file.
     public var pts: Int64 {
         get { return _value.pointee.pts }
-        //        set { _value.pointee.pts = newValue }
+        set { _value.pointee.pts = newValue }
     }
     
     /// Decompression timestamp in `AVStream.timebase` units; the time at which the packet is decompressed.
@@ -288,7 +283,7 @@ public final class FFmpegPacket: CPointerWrapper {
     /// Can be `noPTS` if it is not stored in the file.
     public var dts: Int64 {
         get { return _value.pointee.dts }
-        //        set { _value.pointee.dts = newValue }
+        set { _value.pointee.dts = newValue }
     }
     
     public var data: UnsafeMutablePointer<UInt8>? {
@@ -303,7 +298,7 @@ public final class FFmpegPacket: CPointerWrapper {
     
     public var streamIndex: Int32 {
         get { return _value.pointee.stream_index }
-        //        set { _value.pointee.stream_index = newValue }
+        set { _value.pointee.stream_index = newValue }
     }
     
     public var flags: AVPacketFlag {
@@ -1011,7 +1006,7 @@ public final class FFmpegCodecParserContext {
     
     public init(codecContext: FFmpegCodecContext) {
         self.codecContext = codecContext
-        self._value = av_parser_init(Int32(codecContext.codec.id.rawValue))
+        self._value = av_parser_init(Int32(codecContext.codec.id.rawValue.rawValue))
     }
     
     public func parse(
@@ -1036,363 +1031,7 @@ public final class FFmpegCodecParserContext {
 }
 
 
-/// Format I/O context.
-public final class FFmpegFormatContext: CPointerWrapper {
-    var _value: UnsafeMutablePointer<AVFormatContext>
-    
-    init(_ value: UnsafeMutablePointer<AVFormatContext>) {
-        _value = value
-        isOpen = false
-    }
-    
-    private var isOpen: Bool
-    private var ioContext: FFmpegIOContext?
-    
-    /// Allocate an `AVFormatContext`.
-    public init?() {
-        _value = avformat_alloc_context()
-        isOpen = false
-    }
-    
-    /// Input or output URL.
-    public var url: String? {
-        if let strBytes = _value.pointee.url {
-            return String(cString: strBytes)
-        }
-        return nil
-    }
-    
-    /// The input container format.
-    public var inputFormat: FFmpegInputFormat? {
-        get {
-            if let fmtPtr = _value.pointee.iformat {
-                return FFmpegInputFormat(fmtPtr)
-            }
-            return nil
-        }
-        set { _value.pointee.iformat = newValue?._value }
-    }
-    
-    /// The output container format.
-    public var oformat: FFmpegOutputFormat? {
-        get {
-            if let fmtPtr = _value.pointee.oformat {
-                return FFmpegOutputFormat(fmtPtr)
-            }
-            return nil
-        }
-        set { _value.pointee.oformat = newValue?._value }
-    }
-    
-    /// I/O context.
-    ///
-    /// - demuxing: either set by the user before avformat_open_input() (then the user must close it manually)
-    ///   or set by avformat_open_input().
-    /// - muxing: set by the user before avformat_write_header(). The caller must take care of closing / freeing
-    ///   the IO context.
-    internal var pb: FFmpegIOContext? {
-        get {
-            if let ctxPtr = _value.pointee.pb {
-                return FFmpegIOContext(ctxPtr)
-            }
-            return nil
-        }
-        set {
-            ioContext = newValue
-            return _value.pointee.pb = newValue?._value
-        }
-    }
-    
-    /// Number of streams.
-    public var streamCount: UInt32 {
-        return _value.pointee.nb_streams
-    }
-    
-    /// A list of all streams in the file.
-    public var streams: [FFmpegStream] {
-        var list = [FFmpegStream]()
-        for i in 0..<Int(streamCount) {
-            let stream = _value.pointee.streams[i]!
-            list.append(FFmpegStream(stream))
-        }
-        return list
-    }
-    
-    public var videoStream: FFmpegStream? {
-        return streams.first { $0.mediaType == .video }
-    }
-    
-    public var audioStream: FFmpegStream? {
-        return streams.first { $0.mediaType == .audio }
-    }
-    
-    public var subtitleStream: FFmpegStream? {
-        return streams.first { $0.mediaType == .subtitle }
-    }
-    
-    /// Position of the first frame of the component, in AV_TIME_BASE fractional seconds.
-    /// Never set this value directly: It is deduced from the AVStream values.
-    ///
-    /// Demuxing only, set by libavformat.
-    public var startTime: Int64 {
-        return _value.pointee.start_time
-    }
-    
-    /// Duration of the stream, in AV_TIME_BASE fractional seconds. Only set this value if you know
-    /// none of the individual stream durations and also do not set any of them.
-    /// This is deduced from the AVStream values if not set.
-    ///
-    /// Demuxing only, set by libavformat.
-    public var duration: Int64 {
-        return _value.pointee.duration
-    }
-    
-    /// Flags modifying the (de)muxer behaviour. A combination of AVFMT_FLAG_*.
-    ///
-    /// Set by the user before `openInput` / `writeHeader`.
-    public var flags: AVFmtFlag {
-        get { return AVFmtFlag(rawValue: _value.pointee.flags) }
-        set { _value.pointee.flags = newValue.rawValue }
-    }
-    
-    /// Metadata that applies to the whole file.
-    public var metadata: FFmpegDictionary {
-        get {
-            return FFmpegDictionary(metadata: _value.pointee.metadata)
-        }
-        set {
-            _value.pointee.metadata = newValue.metadata
-        }
-    }
-    
-    /// Custom interrupt callbacks for the I/O layer.
-    ///
-    /// - demuxing: set by the user before avformat_open_input().
-    /// - muxing: set by the user before avformat_write_header() (mainly useful for AVFMT_NOFILE formats).
-    ///   The callback should also be passed to avio_open2() if it's used to open the file.
-    public var interruptCallback: AVIOInterruptCB {
-        get { return _value.pointee.interrupt_callback }
-        set { _value.pointee.interrupt_callback = newValue }
-    }
-    
-    //    public func streamIndex(for mediaType: AVMediaTypeWrapper) -> Int? {
-    //        if let index = streams.firstIndex(where: { $0.codecpar.mediaType == mediaType }) {
-    //            return index
-    //        }
-    //        return nil
-    //    }
-    
-    /// Print detailed information about the input or output format, such as duration, bitrate, streams, container,
-    /// programs, metadata, side data, codec and time base.
-    ///
-    /// - Parameters isOutput: Select whether the specified context is an input(0) or output(1).
-    public func dumpFormat(isOutput: Bool) {
-        av_dump_format(_value, 0, url, isOutput ? 1 : 0)
-    }
-    
-    deinit {
-        if isOpen {
-            var ps: UnsafeMutablePointer<AVFormatContext>? = _value
-            avformat_close_input(&ps)
-        } else {
-            avformat_free_context(_value)
-        }
-    }
-}
 
-// MARK: - Demuxing
-
-extension FFmpegFormatContext {
-    
-    /// Open an input stream and read the header. The codecs are not opened.
-    ///
-    /// - Parameters:
-    ///   - url: URL of the stream to open.
-    ///   - format: If non-nil, this parameter forces a specific input format. Otherwise the format is autodetected.
-    ///   - options: A dictionary filled with `AVFormatContext` and demuxer-private options.
-    /// - Throws: AVError
-    public convenience init(url: String, format: FFmpegInputFormat? = nil, options: [String: String]? = nil) throws {
-        var pm: OpaquePointer?
-        defer { av_dict_free(&pm) }
-        if let options = options {
-            for (k, v) in options {
-                av_dict_set(&pm, k, v, 0)
-            }
-        }
-        
-        var ctxPtr: UnsafeMutablePointer<AVFormatContext>?
-        try throwIfFail(avformat_open_input(&ctxPtr, url, format?._value, &pm))
-        self.init(ctxPtr!)
-        self.isOpen = true
-        
-        dumpUnrecognizedOptions(pm)
-    }
-    
-    /// Open an input stream and read the header.
-    ///
-    /// - Parameter url: URL of the stream to open.
-    public func openInput(_ url: String) throws {
-        var ps: UnsafeMutablePointer<AVFormatContext>? = _value
-        try throwIfFail(avformat_open_input(&ps, url, nil, nil))
-        isOpen = true
-    }
-    
-    /// Read packets of a media file to get stream information.
-    public func findStreamInfo() throws {
-        try throwIfFail(avformat_find_stream_info(_value, nil))
-    }
-    
-    /// Find the "best" stream in the file.
-    ///
-    /// - Parameter type: stream type: video, audio, subtitles, etc.
-    /// - Returns: stream number
-    /// - Throws: AVError
-    public func findBestStream(type: FFmpegMediaType) throws -> Int {
-        let ret = av_find_best_stream(_value, type.rawValue, -1, -1, nil, 0)
-        try throwIfFail(ret)
-        return Int(ret)
-    }
-    
-    /// Guess the sample aspect ratio of a frame, based on both the stream and the frame aspect ratio.
-    ///
-    /// Since the frame aspect ratio is set by the codec but the stream aspect ratio is set by the demuxer,
-    /// these two may not be equal. This function tries to return the value that you should use if you would
-    /// like to display the frame.
-    ///
-    /// Basic logic is to use the stream aspect ratio if it is set to something sane otherwise use the frame
-    /// aspect ratio. This way a container setting, which is usually easy to modify can override the coded value
-    /// in the frames.
-    ///
-    /// - Parameters:
-    ///   - stream: the stream which the frame is part of
-    ///   - frame: the frame with the aspect ratio to be determined
-    /// - Returns: the guessed (valid) sample_aspect_ratio, 0/1 if no idea
-    public func guessSampleAspectRatio(stream: FFmpegStream?, frame: FFmpegFrame?) -> AVRational {
-        return av_guess_sample_aspect_ratio(_value, stream?._value, frame?._value)
-    }
-    
-    /// Return the next frame of a stream.
-    ///
-    /// This function returns what is stored in the file, and does not validate that what is there are valid frames
-    /// for the decoder. It will split what is stored in the file into frames and return one for each call. It will
-    /// not omit invalid data between valid frames so as to give the decoder the maximum information possible for
-    /// decoding.
-    ///
-    /// - Parameter packet: packet
-    /// - Throws: AVError
-    public func readFrame(into packet: FFmpegPacket) throws {
-        try throwIfFail(av_read_frame(_value, packet._value))
-    }
-    
-    /// Seek to the keyframe at timestamp.
-    /// 'timestamp' in 'stream_index'.
-    ///
-    /// - Parameters:
-    ///   - streamIndex: If stream_index is (-1), a default stream is selected, and timestamp is automatically
-    ///     converted from AV_TIME_BASE units to the stream specific time_base.
-    ///   - timestamp: Timestamp in AVStream.time_base units or, if no stream is specified, in AV_TIME_BASE units.
-    ///   - flags: flags which select direction and seeking mode
-    /// - Throws: AVError
-    public func seekFrame(streamIndex: Int, timestamp: Int64, flags: Int) throws {
-        try throwIfFail(av_seek_frame(_value, Int32(streamIndex), timestamp, Int32(flags)))
-    }
-
-    public func flush() throws {
-        try throwIfFail(avformat_flush(_value))
-    }
-    
-    public func readPlay() throws {
-        try throwIfFail(av_read_play(_value))
-    }
-    
-    public func readPause() throws {
-        try throwIfFail(av_read_pause(_value))
-    }
-}
-
-// MARK: - Muxing
-
-extension FFmpegFormatContext {
-    
-    /// Allocate an `AVFormatContext` for an output format.
-    ///
-    /// - Parameters:
-    ///   - format: format to use for allocating the context, if `nil` formatName and filename are used instead
-    ///   - formatName: the name of output format to use for allocating the context, if `nil` filename is used instead
-    ///   - filename: the name of the filename to use for allocating the context, may be `nil`
-    /// - Throws: AVError
-    public convenience init(format: FFmpegOutputFormat?, formatName: String? = nil, filename: String? = nil) throws {
-        var ctxPtr: UnsafeMutablePointer<AVFormatContext>?
-        try throwIfFail(avformat_alloc_output_context2(&ctxPtr, format?._value, formatName, filename))
-        self.init(ctxPtr!)
-    }
-    
-    /// Create and initialize a AVIOContext for accessing the resource indicated by url.
-    ///
-    /// - Parameters:
-    ///   - url: resource to access
-    ///   - flags: flags which control how the resource indicated by url is to be opened
-    /// - Throws: AVError
-    public func openIO(url: String, flags: AVIOFlag) throws {
-        pb = try FFmpegIOContext(url: url, flags: flags)
-    }
-    
-    /// Add a new stream to a media file.
-    ///
-    /// - Parameter codec: If non-nil, the AVCodecContext corresponding to the new stream will be initialized to use
-    ///   this codec. This is needed for e.g. codec-specific defaults to be set, so codec should be provided if it is
-    ///   known.
-    /// - Returns: newly created stream or `nil` on error.
-    public func addStream(codec: FFmpegCodec? = nil) -> FFmpegStream? {
-        if let streamPtr = avformat_new_stream(_value, codec?._value) {
-            return FFmpegStream(streamPtr)
-        }
-        return nil
-    }
-    
-    /// Allocate the stream private data and write the stream header to an output media file.
-    ///
-    /// - Parameter options: An AVDictionary filled with AVFormatContext and muxer-private options.
-    /// - Throws: AVError
-    public func writeHeader(options: [String: String]? = nil) throws {
-        var pm: OpaquePointer?
-        defer { av_dict_free(&pm) }
-        if let options = options {
-            for (k, v) in options {
-                av_dict_set(&pm, k, v, 0)
-            }
-        }
-        
-        try throwIfFail(avformat_write_header(_value, &pm))
-        
-        dumpUnrecognizedOptions(pm)
-    }
-    
-    /// Write a packet to an output media file.
-    ///
-    /// - Parameter pkt: The packet containing the data to be written.
-    /// - Throws: AVError
-    public func writeFrame(pkt: FFmpegPacket?) throws {
-        try throwIfFail(av_write_frame(_value, pkt?._value))
-    }
-    
-    /// Write a packet to an output media file ensuring correct interleaving.
-    ///
-    /// - Parameter pkt: The packet containing the data to be written.
-    /// - Throws: AVError
-    public func interleavedWriteFrame(pkt: FFmpegPacket?) throws {
-        try throwIfFail(av_interleaved_write_frame(_value, pkt?._value))
-    }
-    
-    /// Write the stream trailer to an output media file and free the file private data.
-    ///
-    /// May only be called after a successful call to `writeHeader(options:)`.
-    ///
-    /// - Throws: AVError
-    public func writeTrailer() throws {
-        try throwIfFail(av_write_trailer(_value))
-    }
-}
 
 
 /// Stream structure.
@@ -1402,6 +1041,14 @@ public final class FFmpegStream: CPointerWrapper {
     
     internal init(_ value: UnsafeMutablePointer<AVStream>) {
         _value = value
+    }
+    
+    #warning("change to FFmpegFormatContext extension like addStream(codec: FFmpegCodec?)")
+    public init?(formatContext: FFmpegFormatContext, codec: FFmpegCodec?) {
+        guard let p = avformat_new_stream(formatContext._value, codec?._value) else {
+            return nil
+        }
+        _value = p
     }
     
     public var id: Int32 {

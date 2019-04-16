@@ -10,4 +10,4 @@ Signals.trap(signals: [.quit, .int, .kill, .term, .abrt]) { (_) in
     exit(0)
 }
 
-try remuxer.run()
+remuxer.run()
