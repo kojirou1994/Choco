@@ -12,7 +12,6 @@ public struct FFmpegRegister {
     }
     
     private static func test() {
-        
     }
 }
 
@@ -25,12 +24,12 @@ public struct FFmpegRescale {
         return av_rescale_rnd(a, b, c, rnd.avRounding)
     }
     
-    public static func rescale_q(_ a: Int64, _ bq: AVRational, _ cq: AVRational) -> Int64 {
-        return av_rescale_q(a, bq, cq)
+    public static func rescale_q(_ a: Int64, _ bq: FFmpegRational, _ cq: FFmpegRational) -> Int64 {
+        return av_rescale_q(a, bq.rawValue, cq.rawValue)
     }
     
-    public static func rescale_q_rnd(_ a: Int64, _ bq: AVRational, _ cq: AVRational, _ rnd: FFmpegRounding) -> Int64 {
-        return av_rescale_q_rnd(a, bq, cq, rnd.avRounding)
+    public static func rescale_q_rnd(_ a: Int64, _ bq: FFmpegRational, _ cq: FFmpegRational, _ rnd: FFmpegRounding) -> Int64 {
+        return av_rescale_q_rnd(a, bq.rawValue, cq.rawValue, rnd.avRounding)
     }
 }
 
@@ -42,9 +41,9 @@ public struct FFmpegTimestamp {
         return String.init(cString: &buffer)
     }
     
-    public static func av_ts2timestr(timestamp: Int64, timebase: AVRational) -> String {
+    public static func av_ts2timestr(timestamp: Int64, timebase: FFmpegRational) -> String {
         var buffer = [CChar].init(repeating: 0, count: 32)
-        var timebase = timebase
+        var timebase = timebase.rawValue
         av_ts_make_time_string(&buffer, timestamp, &timebase)
         return String.init(cString: &buffer)
     }

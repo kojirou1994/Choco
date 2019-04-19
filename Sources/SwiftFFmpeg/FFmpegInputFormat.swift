@@ -16,9 +16,9 @@ public final class FFmpegInputFormat: CPointerWrapper, CustomStringConvertible {
         _value = value
     }
     
-    public init?(shortName: String) {
+    public init(shortName: String) throws {
         guard let p = av_find_input_format(shortName) else {
-            return nil
+            throw FFmpegAllocateError("av_find_input_format")
         }
         _value = p
     }

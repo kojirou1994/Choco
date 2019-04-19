@@ -91,7 +91,7 @@ func toMp4(file: String, extractOnly: Bool) throws {
     }
     
     do {
-        let context = try FFmpegFormatContext.init(url: file)
+        let context = try FFmpegInputFormatContext.init(url: file)
         try context.findStreamInfo()
         //    context.dumpFormat(isOutput: false)
         for stream in context.streams {

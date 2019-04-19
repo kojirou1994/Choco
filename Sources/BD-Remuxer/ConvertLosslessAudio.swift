@@ -60,8 +60,8 @@ extension FFmpegStream {
     var isDtshd: Bool {
         switch codecParameters.codecId {
         case FFmpegCodecID.dts:
-            let codecContext = FFmpegCodecContext.init(codec: FFmpegCodec.init(decoderId: codecParameters.codecId)!)!
-            try! codecContext.set(codecParameters)
+            let codecContext = try! FFmpegCodecContext.init(codec: FFmpegCodec.init(decoderId: codecParameters.codecId))
+            try! codecContext.set(parameter: codecParameters)
             if codecContext.profileName == "DTS-HD MA" {
                 return true
             } else {
@@ -80,8 +80,8 @@ extension FFmpegStream {
         case .truehd:
             return true
         case .dts:
-            let codecContext = FFmpegCodecContext.init(codec: FFmpegCodec.init(decoderId: codecParameters.codecId)!)!
-            try! codecContext.set(codecParameters)
+            let codecContext = try! FFmpegCodecContext.init(codec: FFmpegCodec.init(decoderId: codecParameters.codecId))
+            try! codecContext.set(parameter: codecParameters)
             if codecContext.profileName == "DTS-HD MA" {
                 return true
             } else {
@@ -106,8 +106,8 @@ extension FFmpegStream {
         case .flac, .alac, .truehd:
             return true
         case .dts:
-            let codecContext = FFmpegCodecContext.init(codec: FFmpegCodec.init(decoderId: codecParameters.codecId)!)!
-            try! codecContext.set(codecParameters)
+            let codecContext = try! FFmpegCodecContext.init(codec: FFmpegCodec.init(decoderId: codecParameters.codecId))
+            try! codecContext.set(parameter: codecParameters)
             if codecContext.profileName == "DTS-HD MA" {
                 return true
             } else {

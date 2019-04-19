@@ -17,6 +17,9 @@ public struct FFmpegLog {
         return .init(rawValue: av_log_get_level())
     }
     
+//    public static func setCallback(callback: @escaping (UnsafeMutableRawPointer?, Int32, UnsafePointer<Int8>?, CVaListPointer) -> Void) {
+//    }
+    
     public enum Level: CaseIterable {
         case quite, panic, fatal, error, warning, info, verbose, debug, trace, maxOffset
         

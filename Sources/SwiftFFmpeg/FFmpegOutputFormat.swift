@@ -10,9 +10,9 @@ import CFFmpeg
 
 public final class FFmpegOutputFormat: CPointerWrapper, CustomStringConvertible {
     
-    var _value: UnsafeMutablePointer<AVOutputFormat>
+    internal let _value: UnsafeMutablePointer<AVOutputFormat>
     
-    init(_ value: UnsafeMutablePointer<AVOutputFormat>) {
+    internal init(_ value: UnsafeMutablePointer<AVOutputFormat>) {
         _value = value
     }
     

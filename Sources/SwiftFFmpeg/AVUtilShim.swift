@@ -20,7 +20,7 @@ internal func FFERRTAG(_ a: Int32, _ b: Int32, _ c: Int32, _ d: Int32) -> Int32 
 extension Character {
     
     @usableFromInline var unicodeValue: Int32 {
-        return Int32(unicodeScalars.first!.value)
+        return Int32.init(truncatingIfNeeded: asciiValue!)
     }
     
 }

@@ -61,7 +61,7 @@ public final class SwrContext {
     ///
     /// - Throws: AVError
     public func initialize() throws {
-        try throwIfFail(swr_init(_value))
+        try throwFFmpegError(swr_init(_value))
     }
 
     /// Gets the delay the next input sample will experience relative to the next output sample.

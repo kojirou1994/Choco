@@ -15,6 +15,14 @@ public let AV_INPUT_BUFFER_PADDING_SIZE = Int(CFFmpeg.AV_INPUT_BUFFER_PADDING_SI
 
 public let AV_ERROR_MAX_STRING_SIZE = Int(CFFmpeg.AV_ERROR_MAX_STRING_SIZE)
 
+public struct FFmpegAllocateError: Error {
+    public let method: String
+    
+    internal init(_ method: String) {
+        self.method = method
+    }
+}
+
 public struct FFmpegError: Error, Equatable, CustomStringConvertible/*, ExpressibleByIntegerLiteral*/ {
     
     //    public typealias IntegerLiteralType = Int32
@@ -108,7 +116,8 @@ extension FFmpegError {
      */
 }
 
-internal func throwIfFail(_ code: Int32) throws {
+@usableFromInline
+internal func throwFFmpegError(_ code: Int32) throws {
     if code < 0 {
         throw FFmpegError(code: code)
     }

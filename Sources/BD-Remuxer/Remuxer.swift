@@ -370,7 +370,7 @@ extension Remuxer {
     }
     
     private func makeTrackModification(mkvinfo: MkvmergeIdentification) throws -> [TrackModification] {
-        let context = try FFmpegFormatContext.init(url: mkvinfo.fileName)
+        let context = try FFmpegInputFormatContext.init(url: mkvinfo.fileName)
         try context.findStreamInfo()
         guard context.streamCount == mkvinfo.tracks.count else {
             print("ffmpeg and mkvmerge track count mismatch!")
@@ -603,13 +603,13 @@ struct BDMVTask {
         var title: String = rootPath.lastPathComponent
         if configuration.useLibbluray,
             let bd = bd_open(rootPath, nil),
-        bd_set_player_setting_str(bd, BLURAY_PLAYER_SETTING_MENU_LANG.rawValue, "jpn") == 1,
-        let meta = bd_get_meta(bd),
-        let name = meta.pointee.di_name {
-            let discName = String.init(cString: name)
-            if !discName.isEmpty, discName.prefix(3).lowercased() == title.prefix(3).lowercased() {
-                title = discName
-            }
+            bd_set_player_setting_str(bd, BLURAY_PLAYER_SETTING_MENU_LANG.rawValue, "jpn") == 1,
+            let meta = bd_get_meta(bd),
+            let name = meta.pointee.di_name {
+                let discName = String.init(cString: name)
+                if !discName.isEmpty, discName.prefix(3).lowercased() == title.prefix(3).lowercased() {
+                    title = discName
+                }
             bd_close(bd)
         }
 

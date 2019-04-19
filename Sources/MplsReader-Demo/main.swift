@@ -9,8 +9,8 @@
 import Foundation
 import MplsReader
 
-//let result = try mplsParse(path: "/Users/kojirou/Projects/Remuxer/PLAYLIST2/00001.mpls")
-//print(result)
+let result = try mplsParse(path: "/Users/kojirou/Projects/Remuxer/UHD.mpls")
+print(result)
 //result.chapters.forEach {print($0)}
 //var chapters = result.chapters.filter {$0.playItemIndex == 1}
 //let start = chapters[0].relativeTimestamp
@@ -36,8 +36,8 @@ import MplsReader
 ////    result.split().forEach({print($0.exportOgm());print("\n\n\n")})
 //})
 
-for i in 0..<UInt32.max {
-    let t = Timestamp.init(ns: UInt64(i)*1_000_000)
-    let t2 = Timestamp.init(t.description)!
-    precondition(t == t2)
-}
+//for i in 0..<UInt32.max {
+//    let t = Timestamp.init(ns: UInt64(i)*1_000_000)
+//    let t2 = Timestamp.init(t.description)!
+//    precondition(t == t2)
+//}

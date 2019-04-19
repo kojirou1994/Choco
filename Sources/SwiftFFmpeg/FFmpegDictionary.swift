@@ -27,13 +27,17 @@ public struct FFmpegDictionary {
     }
     
     public init(dictionary: [String : String]) {
-        var p: OpaquePointer?
-        
-        for (k, v) in dictionary {
-            av_dict_set(&p, k, v, 0)
+        if dictionary.isEmpty {
+            metadata = nil
+        } else {
+            var p: OpaquePointer?
+            
+            for (k, v) in dictionary {
+                av_dict_set(&p, k, v, 0)
+            }
+            
+            metadata = p
         }
-        
-        self.metadata = p
     }
     
     public var dictionary: [String: String] {
@@ -51,6 +55,18 @@ public struct FFmpegDictionary {
         set {
             av_dict_set(&metadata, key, newValue, 0)
         }
+    }
+    
+    public static func enumerate(dic: OpaquePointer?, cb: (_ key: String, _ value: String) -> Void) {
+        var previousEntry: UnsafeMutablePointer<AVDictionaryEntry>?
+        while let nextEntry = av_dict_get(dic, "", previousEntry, AV_DICT_IGNORE_SUFFIX) {
+            cb(String(cString: nextEntry.pointee.key), String(cString: nextEntry.pointee.value))
+            previousEntry = nextEntry
+        }
+    }
+    
+    public func enumerate(cb: (_ key: String, _ value: String) -> Void) {
+        FFmpegDictionary.enumerate(dic: metadata, cb: cb)
     }
     
     public mutating func free() {

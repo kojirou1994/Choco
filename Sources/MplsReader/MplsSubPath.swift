@@ -17,11 +17,15 @@ enum SubPathType: UInt8 {
     case out_of_mux_asynchronous_picture_in_picture = 6
     case in_mux_synchronous_picture_in_picture      = 7
     
+    case extended = 0xff
+    
     init(value: UInt8) throws {
         if let v = SubPathType.init(rawValue: value) {
             self = v
         } else {
-            throw MplsReadError.invalidSubPathType(value)
+            print("Unknown SubPathType: \(value), set it to extended")
+            self = .extended
+//            throw MplsReadError.invalidSubPathType(value)
         }
     }
 }

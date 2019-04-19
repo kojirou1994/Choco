@@ -50,7 +50,7 @@ public struct FFmpegChannelLayout: Equatable, CustomStringConvertible {
     /// - Returns: index of channel in channel_layout on success, nil on error.
     public func index(for channel: FFmpegChannel) throws -> Int {
         let i = av_get_channel_layout_channel_index(rawValue, channel.rawValue)
-        try throwIfFail(i)
+        try throwFFmpegError(i)
         return Int(i)
     }
     

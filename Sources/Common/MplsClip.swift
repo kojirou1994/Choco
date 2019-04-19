@@ -15,6 +15,15 @@ public struct MplsClip {
     public let m2tsPath: String
     public let chapterPath: String?
     public let index: Int?
+    
+    public init(fileName: String, duration: Timestamp, trackLangs: [String], m2tsPath: String, chapterPath: String?, index: Int?) {
+        self.fileName = fileName
+        self.duration = duration
+        self.trackLangs = trackLangs
+        self.m2tsPath = m2tsPath
+        self.chapterPath = chapterPath
+        self.index = index
+    }
 }
 
 extension MplsClip: CustomStringConvertible {
@@ -25,14 +34,4 @@ extension MplsClip: CustomStringConvertible {
     
 }
 
-extension MplsClip {
-    
-    public var baseFilename: String {
-        if let index = index {
-            return "\(index)-\(m2tsPath.filenameWithoutExtension)"
-        } else {
-            return m2tsPath.filenameWithoutExtension
-        }
-    }
-    
-}
+

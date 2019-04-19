@@ -96,8 +96,8 @@ extension FFmpegCodecParameters {
         return _value.pointee.height
     }
     
-    public var sampleAspectRatio: AVRational {
-        return _value.pointee.sample_aspect_ratio
+    public var sampleAspectRatio: FFmpegRational {
+        return .init(rawValue: _value.pointee.sample_aspect_ratio)
     }
     
     public var fieldOrder: FFmpegFieldOrder {
