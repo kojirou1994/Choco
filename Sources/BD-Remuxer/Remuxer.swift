@@ -631,7 +631,7 @@ struct BDMVTask {
                 do {
                     return try .init(filePath: playlistPath.appendingPathComponent(mplsPath))
                 } catch {
-                    print("Invalid file: \(mplsPath)")
+                    print("Invalid file: \(mplsPath), error: \(error)")
                     return nil
                 }
             }
