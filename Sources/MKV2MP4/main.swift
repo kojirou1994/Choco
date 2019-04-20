@@ -161,7 +161,7 @@ func toMp4(file: String, extractOnly: Bool) throws {
         let outputTrackName = "\(file.deletingPathExtension).\(track.id).\(track.properties.language ?? "und").\(trackExtension)"
         
         switch track.type {
-        case "video":
+        case .video:
             let fpsValue = 1_000_000_000_000/UInt64(track.properties.defaultDuration!)
             let fps: VideoRate
             switch fpsValue {
@@ -182,9 +182,9 @@ func toMp4(file: String, extractOnly: Bool) throws {
             }
 //            print(fps)
             tracks.append(.video(.init(fps: fps, path: outputTrackName)))
-        case "audio":
+        case .audio:
             tracks.append(.audio(.init(lang: track.properties.language ?? "und", path: outputTrackName, needReencode: needReencode)))
-        case "subtitles":
+        case .subtitles:
             let type: MkvTrack.Subtitle.SubtitleType
             switch track.codec {
             case "HDMV PGS":
@@ -198,8 +198,6 @@ func toMp4(file: String, extractOnly: Bool) throws {
                 throw Mp4Error.unsupportedCodec(track.codec)
             }
             let extractedTrack = MkvTrack.subtitle(.init(lang: track.properties.language ?? "und", path: outputTrackName, type: type))
-        default:
-            fatalError(track.type)
         }
         
         arguments.append("\(track.id):\(outputTrackName)")

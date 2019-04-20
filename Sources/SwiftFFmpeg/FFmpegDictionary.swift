@@ -8,7 +8,7 @@
 import Foundation
 import CFFmpeg
 
-public struct FFmpegDictionary {
+public struct FFmpegDictionary: CustomStringConvertible {
     
     internal var metadata: OpaquePointer?
     
@@ -42,6 +42,10 @@ public struct FFmpegDictionary {
     
     public var dictionary: [String: String] {
         return FFmpegDictionary.parse(metadata: metadata)
+    }
+    
+    public var description: String {
+        return dictionary.description
     }
     
     public subscript(key: String) -> String? {

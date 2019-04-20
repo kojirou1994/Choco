@@ -7,15 +7,14 @@
 
 import Foundation
 
-
 extension String {
     
     public var filenameWithoutExtension: String {
         return deletingPathExtension.lastPathComponent
     }
     
-    public var filename: String {
-        return lastPathComponent
-    }
+//    public var filename: String {
+//        return lastPathComponent
+//    }
     
 }

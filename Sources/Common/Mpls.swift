@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftFFmpeg
 import MplsReader
 
 extension MplsPlayItem {
@@ -82,9 +81,9 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
     
     public var description: String {
         return """
-        fileName: \(fileName.filename)
+        fileName: \(fileName.lastPathComponent)
         files:
-        \(files.map {" - " + $0.filename}.joined(separator: "\n"))
+        \(files.map {" - " + $0.lastPathComponent}.joined(separator: "\n"))
         chapterCount: \(chapterCount)
         size: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
         duration: \(duration.description)

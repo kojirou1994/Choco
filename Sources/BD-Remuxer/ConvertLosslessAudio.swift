@@ -7,7 +7,7 @@
 
 import Foundation
 import Common
-import SwiftFFmpeg
+//import SwiftFFmpeg
 
 /*
 func dumpTracks(input: String) throws {
@@ -19,6 +19,7 @@ func dumpTracks(input: String) throws {
     }
 }
 */
+/*
 extension FFmpegFormatContext {
     
     var primaryLanguage: String {
@@ -122,4 +123,39 @@ extension FFmpegStream {
         }
     }
     
+}
+*/
+
+extension MkvmergeIdentification.Track {
+    var isLosslessAudio: Bool {
+        guard type == .audio else {
+            return false
+        }
+        switch codec {
+        case "FLAC", "ALAC" , "DTS-HD Master Audio", "PCM", "TrueHD Atmos", "TrueHD":
+            return true
+        default:
+            print("Not lossless: \(codec)")
+            return false
+        }
+    }
+    
+    var isAC3: Bool {
+        
+        switch codec {
+        case "E-AC-3", "AC-3":
+            return true
+        default:
+            return false
+        }
+    }
+    
+    var isTruehd: Bool {
+        switch codec {
+        case "TrueHD Atmos", "TrueHD":
+            return true
+        default:
+            return false
+        }
+    }
 }

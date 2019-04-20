@@ -7,7 +7,7 @@
 
 import Foundation
 import Common
-import SwiftFFmpeg
+//import SwiftFFmpeg
 import MplsReader
 
 extension Array where Element: Equatable {
@@ -78,6 +78,7 @@ extension Mpls {
         return files.count == 1
     }
     
+    /*
     public var remuxMode: MplsRemuxMode {
         if isSingle {
             return .direct
@@ -135,7 +136,7 @@ extension Mpls {
     private func audioFormatMatch(l: FFmpegCodecParameters, r: FFmpegCodecParameters) -> Bool {
         return (l.channelCount, l.sampleRate, l.sampleFormat) == (r.channelCount, r.sampleRate, r.sampleFormat)
     }
-    
+    */
     public func split(chapterPath: String) -> [MplsClip] {
         
         do {

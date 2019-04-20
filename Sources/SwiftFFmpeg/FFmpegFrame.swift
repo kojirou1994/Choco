@@ -104,11 +104,12 @@ public final class FFmpegFrame: CPointerWrapper {
     public func unref() {
         av_frame_unref(_value)
     }
-    public func clone() -> FFmpegFrame? {
-        if let ptr = av_frame_clone(_value) {
-            return FFmpegFrame(ptr)
+    
+    public func clone() throws -> FFmpegFrame {
+        guard let p = av_frame_clone(_value) else {
+            throw FFmpegAllocateError("av_frame_clone")
         }
-        return nil
+        return FFmpegFrame(p)
     }
 
     public func getBuffer(align: Int32 = 0) throws {

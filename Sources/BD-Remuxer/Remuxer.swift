@@ -9,7 +9,7 @@ import Foundation
 import Common
 import MplsReader
 import ArgumentParser
-import SwiftFFmpeg
+//import SwiftFFmpeg
 
 public enum RemuxerError: Error {
     case errorReadingFile
@@ -115,7 +115,7 @@ public class Remuxer {
         }
         try parser.parse(arguments: CommandLine.arguments.dropFirst())
         config.tempDir = config.tempDir.appendingPathComponent("tmp")
-        FFmpegLog.set(level: .quite)
+//        FFmpegLog.set(level: .quite)
         flacQueue.maxConcurrentCount = 4
         self.config = config
         Swift.dump(config)
@@ -236,7 +236,7 @@ public class Remuxer {
                 if FileManager.default.fileExists(atPath: file, isDirectory: &isDir) {
                     if isDir.boolValue {
                         // input is a directory, remux all contents
-                        let outputDir = config.outputDir.appendingPathComponent(file.filename)
+                        let outputDir = config.outputDir.appendingPathComponent(file.lastPathComponent)
                         try? FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true, attributes: nil)
                         let contents = try! FileManager.default.contentsOfDirectory(atPath: file)
                         contents.forEach({ (fileInDir) in
@@ -303,7 +303,7 @@ extension Remuxer {
                 switch type {
                 case .audio:
                     audioRemoveTracks.append(modify.offset)
-                case .subtitle:
+                case .subtitles:
                     subtitleRemoveTracks.append(modify.offset)
                 default:
                     break
@@ -312,7 +312,7 @@ extension Remuxer {
                 switch type {
                 case .audio:
                     audioRemoveTracks.append(modify.offset)
-                case .subtitle:
+                case .subtitles:
                     subtitleRemoveTracks.append(modify.offset)
                 default:
                     break
@@ -370,18 +370,19 @@ extension Remuxer {
     }
     
     private func makeTrackModification(mkvinfo: MkvmergeIdentification) throws -> [TrackModification] {
-        let context = try FFmpegInputFormatContext.init(url: mkvinfo.fileName)
-        try context.findStreamInfo()
-        guard context.streamCount == mkvinfo.tracks.count else {
-            print("ffmpeg and mkvmerge track count mismatch!")
-            throw RemuxerError.errorReadingFile
-        }
+//        let context = try FFmpegInputFormatContext.init(url: mkvinfo.fileName)
+//        try context.findStreamInfo()
+//        guard context.streamCount == mkvinfo.tracks.count else {
+//            print("ffmpeg and mkvmerge track count mismatch!")
+//            throw RemuxerError.errorReadingFile
+//        }
         
         let preferedLanguages = config.generatePrimaryLanguages(with: [mkvinfo.primaryLanguage])
-        let streams = context.streams
+//        let streams = context.streams
+        let tracks = mkvinfo.tracks
         var flacConverters = [Flac]()
         var ffmpegArguments = ["-v", "quiet", "-nostdin", "-y", "-i", mkvinfo.fileName, "-vn"]
-        var trackModifications = [TrackModification].init(repeating: .copy(type: .unknown), count: streams.count)
+        var trackModifications = [TrackModification].init(repeating: .copy(type: .video), count: tracks.count)
         
         defer {
             display(modiifcations: trackModifications)
@@ -390,26 +391,26 @@ extension Remuxer {
         // check track one by one
         print("Checking tracks codec")
         var index = 0
-        while index < streams.count {
-            let stream = streams[index]
-            let streamLanguage = mkvinfo.tracks[index].properties.language ?? "und"
-            print("\(stream.index): \(stream.codecParameters.codecId.name) \(stream.isLosslessAudio ? "lossless" : "lossy") \(streamLanguage) \(stream.codecParameters.channelCount)ch")
-            if stream.isLosslessAudio, preferedLanguages.contains(streamLanguage) {
+        while index < tracks.count {
+            let track = tracks[index]
+            let trackLanguage = track.properties.language ?? "und"
+            print("\(index): \(track.codec) \(track.isLosslessAudio ? "lossless" : "lossy") \(trackLanguage) \(track.properties.audioChannels ?? 0)ch")
+            if track.isLosslessAudio, preferedLanguages.contains(trackLanguage) {
                 // add to ffmpeg arguments
-                let tempFlac = config.tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage)-ffmpeg.flac")
-                let finalFlac = config.tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(stream.index)-\(streamLanguage).flac")
-                ffmpegArguments.append(contentsOf: ["-map", "0:\(stream.index)", tempFlac])
+                let tempFlac = config.tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(index)-\(trackLanguage)-ffmpeg.flac")
+                let finalFlac = config.tempDir.appendingPathComponent("\(mkvinfo.fileName.filenameWithoutExtension)-\(index)-\(trackLanguage).flac")
+                ffmpegArguments.append(contentsOf: ["-map", "0:\(index)", tempFlac])
                 flacConverters.append(Flac.init(input: tempFlac, output: finalFlac))
                 
-                trackModifications[index] = .replace(type: .audio, file: finalFlac, lang: streamLanguage)
-            } else if preferedLanguages.contains(streamLanguage) {
-                trackModifications[index] = .copy(type: stream.mediaType)
+                trackModifications[index] = .replace(type: .audio, file: finalFlac, lang: trackLanguage)
+            } else if preferedLanguages.contains(trackLanguage) {
+                trackModifications[index] = .copy(type: track.type)
             } else {
-                trackModifications[index] = .remove(type: stream.mediaType)
+                trackModifications[index] = .remove(type: track.type)
             }
-            if stream.isTruehd, index+1<streams.count,
-                case let nextStream = streams[index+1],
-                nextStream.isAC3 {
+            if track.isTruehd, index+1<tracks.count,
+                case let nextTrack = tracks[index+1],
+                nextTrack.isAC3 {
                 // Remove TRUEHD embed-in AC-3 track
                 trackModifications[index+1] = .remove(type: .audio)
                 index += 1
@@ -491,9 +492,9 @@ extension Remuxer {
 
 enum TrackModification {
     
-    case copy(type: FFmpegMediaType)
-    case replace(type: FFmpegMediaType, file: String, lang: String)
-    case remove(type: FFmpegMediaType)
+    case copy(type: MkvmergeIdentification.Track.TrackType)
+    case replace(type: MkvmergeIdentification.Track.TrackType, file: String, lang: String)
+    case remove(type: MkvmergeIdentification.Track.TrackType)
     
     mutating func remove() {
         switch self {
@@ -508,7 +509,7 @@ enum TrackModification {
         
     }
     
-    var type: FFmpegMediaType {
+    var type: MkvmergeIdentification.Track.TrackType {
         switch self {
         case .replace(type: let type, file: _, lang: _):
             return type
@@ -520,9 +521,6 @@ enum TrackModification {
     }
     
 }
-
-
-
 
 import CLibbluray
 

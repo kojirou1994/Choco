@@ -2,8 +2,6 @@
 #include <stddef.h>
 
 #include <libavutil/avutil.h>
-#include <libavutil/common.h>
-#include <libavutil/error.h>
 #include <libavutil/opt.h>
 #include <libavutil/timestamp.h>
 #include <libavutil/pixdesc.h>

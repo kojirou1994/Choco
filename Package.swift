@@ -73,14 +73,14 @@ let package = Package(
         ),
         .target(
             name: "Common",
-            dependencies: ["SwiftFFmpeg", "Kwift", "MplsReader"]
+            dependencies: ["Kwift", "MplsReader"]
         ),
         .target(
             name: "BD-Remuxer",
-            dependencies: ["Common", "SwiftFFmpeg", "Kwift", "ArgumentParser", "CLibbluray", "Signals"]),
+            dependencies: ["Common", "Kwift", "ArgumentParser", "CLibbluray", "Signals"]),
         .target(
             name: "MKV2MP4",
-            dependencies: ["Common", "Kwift", "Signals", "ArgumentParser"]),
+            dependencies: ["Common", "SwiftFFmpeg", "Kwift", "Signals", "ArgumentParser"]),
         .target(
             name: "Exp",
             dependencies: ["SwiftFFmpeg", "Kwift", "CLibbluray", "Common"]),

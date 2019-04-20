@@ -128,7 +128,14 @@ public struct MkvmergeIdentification: Decodable {
     public struct Track: Decodable {
         public var codec: String
         public var id: Int
-        public var type: String
+        public var type: TrackType
+        
+        public enum TrackType: String, Decodable {
+            case video
+            case audio
+            case subtitles
+        }
+        
         public var properties: Properties
         
         public struct Properties: Decodable {
