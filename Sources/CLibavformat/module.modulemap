@@ -1,5 +1,0 @@
-module CLibavformat [system] {
-    header "avformat.h"
-    link "avformat"
-    export *
-}

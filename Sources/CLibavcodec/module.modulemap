@@ -1,5 +1,0 @@
-module CLibavcodec [system] {
-    header "avcodec.h"
-    link "avcodec"
-    export *
-}

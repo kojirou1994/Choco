@@ -9,8 +9,19 @@
 import Foundation
 import MplsReader
 
-let result = try mplsParse(path: "/Users/kojirou/Projects/Remuxer/UHD.mpls")
-print(result)
+public func time(closure: () -> Void) {
+    let start = Date()
+    closure()
+    print(Date().timeIntervalSince(start))
+}
+
+time {
+    _ = try! mplsParse(path: "/Users/kojirou/Projects/Remuxer/BIG")
+}
+
+//let result = try mplsParse(path: "/Users/kojirou/Projects/Remuxer/BIG")
+//print(result)
+//pause()
 //result.chapters.forEach {print($0)}
 //var chapters = result.chapters.filter {$0.playItemIndex == 1}
 //let start = chapters[0].relativeTimestamp

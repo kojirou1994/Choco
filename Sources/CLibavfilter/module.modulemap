@@ -1,5 +1,0 @@
-module CLibavfilter [system] {
-    header "avfilter.h"
-    link "avfilter"
-    export *
-}
