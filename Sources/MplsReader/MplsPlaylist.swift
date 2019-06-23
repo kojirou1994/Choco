@@ -30,6 +30,10 @@ public struct MplsPlaylist: CustomStringConvertible {
 
 extension MplsPlaylist {
     
+    public func convert() -> Chapter {
+        return .init(timestamps: chapters.map {$0.relativeTimestamp})
+    }
+    
     public func split() -> [Chapter] {
         if playItems.count == 0 {
             // invalid playlist

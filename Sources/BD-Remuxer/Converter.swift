@@ -7,17 +7,17 @@
 
 import Foundation
 
-public protocol Converter: Executable {
-    
-    var input: String {get}
-    
-    var output: String {get}
-    
-    var alternative: [Converter]? {get}
-    
-    init(input: String, output: String)
-    
-}
+//public protocol Converter: Executable {
+//    
+//    var input: String {get}
+//    
+//    var output: String {get}
+//    
+////    var alternative: [Converter]? {get}
+//    
+//    init(input: String, output: String)
+//    
+//}
 
 extension Converter {
     

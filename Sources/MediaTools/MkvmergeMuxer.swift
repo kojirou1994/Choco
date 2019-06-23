@@ -11,7 +11,7 @@ public struct MkvmergeMuxer: Converter {
     
     public static let executableName: String = "mkvmerge"    
     
-    public let input: String
+    public let input: [String]
     
     public let output: String
     
@@ -25,17 +25,20 @@ public struct MkvmergeMuxer: Converter {
     
     var extraArguments: [String]
     
+    let cleanInputChapter: Bool
+    
     public init(input: String, output: String) {
-        self.input = input
+        self.input = [input]
         self.output = output
         self.audioLanguages = []
         self.subtitleLanguages = []
         self.chapterPath = nil
         self.extraArguments = []
+        self.cleanInputChapter = false
     }
     
-    public init(input: String, output: String, audioLanguages: Set<String>,
-         subtitleLanguages: Set<String>, chapterPath: String? = nil, extraArguments: [String] = []) {
+    public init(input: [String], output: String, audioLanguages: Set<String>,
+                subtitleLanguages: Set<String>, chapterPath: String? = nil, extraArguments: [String] = [], cleanInputChapter: Bool = false) {
         self.input = input
         self.output = output
         self.audioLanguages = audioLanguages
@@ -46,6 +49,7 @@ public struct MkvmergeMuxer: Converter {
             self.chapterPath = nil
         }
         self.extraArguments = extraArguments
+        self.cleanInputChapter = cleanInputChapter
     }
     
     public var arguments: [String] {
@@ -59,7 +63,19 @@ public struct MkvmergeMuxer: Converter {
             arguments.append(subtitleLanguages.joined(separator: ","))
         }
         
-        arguments.append(input)
+        if cleanInputChapter {
+            arguments.append("--no-chapters")
+        }
+        arguments.append(input[0])
+        if input.count > 1 {
+            input[1...].forEach { (i) in
+                if cleanInputChapter {
+                    arguments.append("--no-chapters")
+                }
+                arguments.append("+")
+                arguments.append(i)
+            }
+        }
         
         if chapterPath != nil {
             arguments.append(contentsOf: ["--chapters", chapterPath!])

@@ -94,6 +94,10 @@ public struct Chapter {
             }.joined(separator: "\n")
     }
     
+    public var isValid: Bool {
+        return nodes.count > 1
+    }
+    
 //    public func exportTTXT() -> String {
 //        
 //    }

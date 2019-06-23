@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Common
 //import SwiftFFmpeg
 import MplsReader
 
@@ -169,7 +168,7 @@ extension Mpls {
         let mpls = try mplsParse(path: fileName)
         let chapters = mpls.split()
         if !compressed {
-            precondition(files.count == chapters.count)
+            precondition(files.count <= chapters.count)
         }
         for (file, chap) in zip(files, chapters) {
             let output = chapterPath.appendingPathComponent("\(fileName.filenameWithoutExtension)_\(file.filenameWithoutExtension)M2TS_chapter.txt")

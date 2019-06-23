@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Executable
 
 public struct MkvmergeIdentification: Decodable {
     /// an array describing the attachments found if any
@@ -271,6 +272,8 @@ public struct MkvmergeIdentification: Decodable {
     
 }
 
+internal let jsonDecoder = JSONDecoder()
+
 extension MkvmergeIdentification {
     
     public init(filePath: String) throws {
@@ -289,8 +292,11 @@ extension MkvmergeIdentification {
         self = try jsonDecoder.decode(MkvmergeIdentification.self, from: mkvmerge.stdout)
     }
     
-    public var primaryLanguage: String {
-        return tracks.first(where: {($0.properties.language ?? "und") != "und" })?.properties.language ?? "und"
+    public var primaryLanguages: [String] {
+        var result = [String]()
+        result.append(tracks.first {$0.type == .video}?.properties.language ?? "und")
+        result.append(tracks.first {$0.type == .audio}?.properties.language ?? "und")
+        return result
     }
     
 }

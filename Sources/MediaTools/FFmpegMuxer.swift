@@ -11,6 +11,7 @@ public struct FFmpegMuxer: Converter {
     
     public var arguments: [String] {
         let arguments: [String]
+        let input = self.input[0]
         switch mode {
         case .audioOnly:
             arguments = ["-v", "quiet", "-nostdin", "-y", "-i", input, "-c", "copy", "-vn", "-sn", output]
@@ -24,22 +25,22 @@ public struct FFmpegMuxer: Converter {
     
     public static let executableName = "ffmpeg"
     
-    public let input: String
+    public let input: [String]
     
     public let output: String
     
-    public var alternative: [Converter]?
+//    public var alternative: [Converter]?
     
     public let mode: CopyMode
     
     public init(input: String, output: String) {
-        self.input = input
+        self.input = [input]
         self.output = output
         self.mode = .copyAll
     }
     
     public init(input: String, output: String, mode: CopyMode) {
-        self.input = input
+        self.input = [input]
         self.output = output
         self.mode = mode
     }
