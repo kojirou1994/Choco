@@ -1,11 +1,4 @@
-//
-//  Timestamp.swift
-//  MplsReader
-//
-//  Created by Kojirou on 2019/2/15.
-//
-
-import Foundation
+import SwiftEnhancement
 
 public struct Timestamp: LosslessStringConvertible {
     

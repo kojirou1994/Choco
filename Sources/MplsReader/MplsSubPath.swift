@@ -1,10 +1,3 @@
-//
-//  MplsSubPath.swift
-//  BD_Chapters_MOD
-//
-//  Created by Kojirou on 2019/2/6.
-//
-
 import Foundation
 
 enum SubPathType: UInt8 {

@@ -1,12 +1,6 @@
-//
-//  MkvmergeIdentification.swift
-//  Common
-//
-//  Created by Kojirou on 2018/9/22.
-//
-
-import Foundation
-import Executable
+@_exported import Foundation
+@_exported import Executable
+@_exported import MediaUtility
 
 public struct MkvmergeIdentification: Decodable {
     /// an array describing the attachments found if any
@@ -130,17 +124,6 @@ public struct MkvmergeIdentification: Decodable {
         public var codec: String
         public var id: Int
         public var type: TrackType
-        
-        public enum TrackType: String, Decodable, CustomStringConvertible {
-            case video
-            case audio
-            case subtitles
-            
-            public var description: String {
-                return rawValue
-            }
-        }
-        
         public var properties: Properties
         
         public struct Properties: Decodable {
@@ -280,14 +263,7 @@ extension MkvmergeIdentification {
         #if DEBUG
         print("Reading file: \(filePath)")
         #endif
-        struct MKVmergeId: Executable {
-            static let executableName = "mkvmerge"
-            
-            let arguments: [String]
-            
-            init(filepath: String) { arguments = ["-J", filepath] }
-        }
-        let mkvmerge = try MKVmergeId(filepath: filePath).runAndCatch(checkNonZeroExitCode: true)
+        let mkvmerge = try AnyExecutable(executableName: "mkvmerge", arguments: ["-J", filePath]).runAndCatch(checkNonZeroExitCode: true)
         
         self = try jsonDecoder.decode(MkvmergeIdentification.self, from: mkvmerge.stdout)
     }

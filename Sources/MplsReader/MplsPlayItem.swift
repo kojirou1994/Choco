@@ -1,10 +1,3 @@
-//
-//  MplsPlayItem.swift
-//  BD_Chapters_MOD
-//
-//  Created by Kojirou on 2019/2/5.
-//
-
 import Foundation
 
 public struct MplsPlayItem: CustomStringConvertible {

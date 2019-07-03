@@ -16,8 +16,9 @@ public func time(closure: () -> Void) {
 }
 
 time {
-    let mpls = try! mplsParse(path: "/Volumes/TOSHIBA_3T_9/BD/00800.mpls")
+    let mpls = try! mplsParse(path: "/Volumes/TOSHIBA_3T_9/BD/00000.mpls")
     print(mpls.convert().exportOgm())
+    dump(mpls)
 }
 
 //let result = try mplsParse(path: "/Users/kojirou/Projects/Remuxer/BIG")

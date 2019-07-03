@@ -371,7 +371,7 @@ extension Remuxer {
         print("Mkvmerge arguments:\n\(arguments.joined(separator: " "))")
         
         print("\nMkvmerge:\n\(file)\n->\n\(outputFilename)")
-        try MKVmerge(arguments: arguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
+        try MKVmerge(arguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
         
         externalTracks.forEach { (t) in
             do {
@@ -461,7 +461,7 @@ extension Remuxer {
         
         print("ffmpeg \(ffmpegArguments.joined(separator: " "))")
 
-        try FFmpeg(arguments: ffmpegArguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
+        try FFmpeg(ffmpegArguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
         
         flacConverters.forEach { (flac) in
             let process = try! flac.convert()
@@ -529,9 +529,9 @@ extension Remuxer {
 
 enum TrackModification {
     
-    case copy(type: MkvmergeIdentification.Track.TrackType)
-    case replace(type: MkvmergeIdentification.Track.TrackType, file: String, lang: String, trackName: String)
-    case remove(type: MkvmergeIdentification.Track.TrackType)
+    case copy(type: TrackType)
+    case replace(type: TrackType, file: String, lang: String, trackName: String)
+    case remove(type: TrackType)
     
     mutating func remove() {
         switch self {
@@ -546,7 +546,7 @@ enum TrackModification {
         
     }
     
-    var type: MkvmergeIdentification.Track.TrackType {
+    var type: TrackType {
         switch self {
         case .replace(type: let type, file: _, lang: _, trackName: _):
             return type

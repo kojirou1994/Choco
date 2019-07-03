@@ -1,10 +1,3 @@
-//
-//  Chapter.swift
-//  MplsReader
-//
-//  Created by Kojirou on 2019/2/16.
-//
-
 import Foundation
 
 public struct Chapter {
@@ -22,10 +15,6 @@ public struct Chapter {
     
     public var nodes: [Node]
     
-    /// self use
-    ///
-    /// - Parameter file: <#file description#>
-    /// - Throws: <#throws value description#>
     public init(file: String) throws {
         let content = try String.init(contentsOfFile: file)
         nodes = content.split(separator: "\n").compactMap({ (line) -> Node? in
@@ -47,9 +36,7 @@ public struct Chapter {
         self.nodes = timestamps.enumerated().map {Node.init(title: String.init(format: "Chapter %02d", $0.offset+1), timestamp: $0.element)}
     }
     
-    public init<C>(mplsChapters: C) where C: Collection, C.Element == MplsChapter {
-        self.init(timestamps: mplsChapters.map {$0.relativeTimestamp})
-    }
+
     
     private func padding(number: Int) -> String {
         if number < 10 {

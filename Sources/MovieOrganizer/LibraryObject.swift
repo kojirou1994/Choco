@@ -28,7 +28,7 @@ struct LibraryObject {
     }
     
     enum LibraryImportError: Error {
-        case unsuportted(type: MkvmergeIdentification.Track.TrackType, codec: String)
+        case unsuportted(type: TrackType, codec: String)
     }
     
     struct MediaFile {

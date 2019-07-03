@@ -1,12 +1,3 @@
-//
-//  MkvmergeMuxer.swift
-//  Common
-//
-//  Created by Kojirou on 2018/9/22.
-//
-
-import Foundation
-
 public struct MkvmergeMuxer: Converter {
     
     public static let executableName: String = "mkvmerge"    
@@ -14,8 +5,6 @@ public struct MkvmergeMuxer: Converter {
     public let input: [String]
     
     public let output: String
-    
-    public var alternative: [Converter]?
     
     let audioLanguages: Set<String>
     

@@ -1,14 +1,29 @@
-//
-//  FFmpegMuxer.swift
-//  Common
-//
-//  Created by Kojirou on 2018/9/22.
-//
-
-import Foundation
-
 public struct FFmpegMuxer: Converter {
     
+    public static let executableName = "ffmpeg"
+    
+    public let input: [String]
+    
+    public let output: String
+    
+    public let mode: CopyMode
+    
+    public enum CopyMode {
+        case copyAll, videoOnly, audioOnly
+    }
+    
+    public init(input: String, output: String) {
+        self.input = [input]
+        self.output = output
+        self.mode = .copyAll
+    }
+    
+    public init(input: String, output: String, mode: CopyMode) {
+        self.input = [input]
+        self.output = output
+        self.mode = mode
+    }
+        
     public var arguments: [String] {
         let arguments: [String]
         let input = self.input[0]
@@ -22,31 +37,4 @@ public struct FFmpegMuxer: Converter {
         }
         return arguments
     }
-    
-    public static let executableName = "ffmpeg"
-    
-    public let input: [String]
-    
-    public let output: String
-    
-//    public var alternative: [Converter]?
-    
-    public let mode: CopyMode
-    
-    public init(input: String, output: String) {
-        self.input = [input]
-        self.output = output
-        self.mode = .copyAll
-    }
-    
-    public init(input: String, output: String, mode: CopyMode) {
-        self.input = [input]
-        self.output = output
-        self.mode = mode
-    }
-    
-    public enum CopyMode {
-        case copyAll, videoOnly, audioOnly
-    }
-    
 }

@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .executable(name: "BD-Remuxer", targets: ["BD-Remuxer"]),
 //        .executable(name: "MKV2MP4", targets: ["MKV2MP4"])
+        .library(name: "MplsReader", targets: ["MplsReader"]),
         .library(name: "MediaTools", targets: ["MediaTools"])
     ],
     dependencies: [
@@ -19,9 +20,14 @@ let package = Package(
             name: "CLibbluray",
             pkgConfig: "libbluray"
         ),
+        .target(name: "MediaUtility"),
         .target(
             name: "MplsReader",
-            dependencies: ["Kwift"]
+            dependencies: ["Kwift", "MediaUtility"]
+        ),
+        .target(
+            name: "MediaTools",
+            dependencies: ["Executable", "MediaUtility"]
         ),
         .target(
             name: "MovieDatabase",
@@ -34,10 +40,6 @@ let package = Package(
         .target(
             name: "MplsReader-Demo",
             dependencies: ["MplsReader"]
-        ),
-        .target(
-            name: "MediaTools",
-            dependencies: ["Executable"]
         ),
         .target(
             name: "BD-Remuxer",

@@ -1,23 +1,15 @@
-//
-//  Flac.swift
-//  MusicTagger
-//
-//  Created by Kojirou on 2019/2/1.
-//
-
-import Foundation
-import Executable
-
 public struct FlacConverter: Converter {
     
     public static let executableName: String = "flac"
     
-    /// 0...8
-    
     public var input: [String]
+    
     public var output: String
+    
     public var level: Int8 = 5
+    
     public var silent: Bool = false
+    
     public var forceOverwrite: Bool = false
     
     public init(input: String, output: String) {
