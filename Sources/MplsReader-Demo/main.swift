@@ -9,48 +9,17 @@
 import Foundation
 import MplsReader
 
-public func time(closure: () -> Void) {
-    let start = Date()
-    closure()
-    print(Date().timeIntervalSince(start))
-}
-
-time {
-    let mpls = try! mplsParse(path: "/Volumes/TOSHIBA_3T_9/BD/00000.mpls")
-    print(mpls.convert().exportOgm())
-    dump(mpls)
-}
-
-//let result = try mplsParse(path: "/Users/kojirou/Projects/Remuxer/BIG")
-//print(result)
-//pause()
-//result.chapters.forEach {print($0)}
-//var chapters = result.chapters.filter {$0.playItemIndex == 1}
-//let start = chapters[0].relativeTimestamp
-//for i in 0..<chapters.count {
-//    var temp = chapters[i]
-//    temp.relativeTimestamp -= start
-//    chapters[i] = temp
-//}
-//result.playItems.forEach {print($0)}
-////dump(result.chapters)
-//let t = result.chapters.first!.relativeTimestamp
-//let t2 = Timestamp.init(string: t.timestamp)!
-//precondition(t == t2)
-////print(result.chapters.export().exportOgm())
-////print(chapters.export().exportOgg())
-//print("\n\n\n")
-//result.split().forEach({print($0.exportOgm());print("\n\n\n")})
-
-//let folder = "/Users/kojirou/Projects/Remuxer/Complex/PLAYLIST"
-//try FileManager.default.contentsOfDirectory(atPath: folder).forEach({ (filename) in
-//    let path = folder.appendingPathComponent(filename)
-//    let result = try! mplsParse(path: path)
-////    result.split().forEach({print($0.exportOgm());print("\n\n\n")})
-//})
-
-//for i in 0..<UInt32.max {
-//    let t = Timestamp.init(ns: UInt64(i)*1_000_000)
-//    let t2 = Timestamp.init(t.description)!
-//    precondition(t == t2)
-//}
+import MediaTools
+let test = NewMkvmerge.init(
+    global: .init(quiet: true, webm: false, title: "", defaultLanguage: nil),
+    output: "output.mkv",
+    inputs: [
+        .init(file: "input.mkv", append: false,
+              options: [
+                .attachments(.none),
+                .videoTracks(.disabledLANGS(["chi"])),
+                .trackName(tid: 7, name: "")
+        ]),
+//        .init(file: <#T##String#>, append: <#T##Bool#>, options: <#T##[NewMkvmerge.Input.InputOption]#>)
+])
+print(test.arguments)

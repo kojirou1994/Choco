@@ -7,16 +7,17 @@
 
 import Foundation
 import MplsReader
+import Path
 
 public struct MplsClip {
-    public let fileName: String
+    public let fileName: Path
     public let duration: Timestamp
     public let trackLangs: [String]
-    public let m2tsPath: String
+    public let m2tsPath: Path
     public let chapterPath: String?
     public let index: Int?
     
-    public init(fileName: String, duration: Timestamp, trackLangs: [String], m2tsPath: String, chapterPath: String?, index: Int?) {
+    public init(fileName: Path, duration: Timestamp, trackLangs: [String], m2tsPath: Path, chapterPath: String?, index: Int?) {
         self.fileName = fileName
         self.duration = duration
         self.trackLangs = trackLangs
@@ -29,7 +30,7 @@ public struct MplsClip {
 extension MplsClip: CustomStringConvertible {
     
     public var description: String {
-        return "\(fileName.lastPathComponent) -> \(m2tsPath.lastPathComponent) -> \(chapterPath ?? "no chapter file.")"
+        return "\(fileName.basename()) -> \(m2tsPath.lastPathComponent) -> \(chapterPath ?? "no chapter file.")"
     }
     
 }

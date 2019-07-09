@@ -8,18 +8,15 @@
 import Foundation
 //import SwiftFFmpeg
 import MplsReader
+import Path
+
+extension Sequence where Element == Path {
+    func delete() throws {
+        try forEach {try $0.delete()}
+    }
+}
 
 extension Array where Element: Equatable {
-    
-    //    func countValue(_ v: Element) -> Int {
-    //        return self.reduce(0, { (result, current) -> Int in
-    //            if current == v {
-    //                return result + 1
-    //            } else {
-    //                return result
-    //            }
-    //        })
-    //    }
     
     func indexes(of v: Element) -> [Index] {
         var r = [Index]()
@@ -51,7 +48,7 @@ extension MplsClip {
         if let index = self.index {
             return "\(index)-\(m2tsPath.filenameWithoutExtension)"
         } else {
-            return m2tsPath.filenameWithoutExtension
+            return m2tsPath.basename(dropExtension: true)
         }
     }
     
@@ -136,7 +133,7 @@ extension Mpls {
         return (l.channelCount, l.sampleRate, l.sampleFormat) == (r.channelCount, r.sampleRate, r.sampleFormat)
     }
     */
-    public func split(chapterPath: String) -> [MplsClip] {
+    public func split(chapterPath: Path) -> [MplsClip] {
         
         do {
             try generateChapterFile(chapterPath: chapterPath)
@@ -150,30 +147,30 @@ extension Mpls {
         
         if files.count == 1 {
             let filepath = files[0]
-            let chapterName = fileName.filenameWithoutExtension + "_" + filepath.filenameWithoutExtension + "M2TS_chapter.txt"
-            let chapter = chapterPath.appendingPathComponent(chapterName)
-            return [MplsClip.init(fileName: fileName, duration: getDuration(file: filepath), trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapter) ? chapter : nil, index: nil)]
+            let chapterFilename = "\(fileName.basename(dropExtension: true))_\(filepath.basename(dropExtension: true))M2TS_chapter.txt"
+            let chapter = chapterPath.join(chapterFilename)
+            return [MplsClip.init(fileName: fileName, duration: getDuration(file: filepath.string), trackLangs: trackLangs, m2tsPath: filepath, chapterPath: chapter.exists ? chapter.string : nil, index: nil)]
         } else {
             var index = 0
             return files.map({ (filepath) -> MplsClip in
                 defer { index += 1 }
-                let chapterName = fileName.filenameWithoutExtension + "_" + filepath.filenameWithoutExtension + "M2TS_chapter.txt"
-                let chapter = chapterPath.appendingPathComponent(chapterName)
-                return MplsClip.init(fileName: fileName, duration: getDuration(file: filepath), trackLangs: trackLangs, m2tsPath: filepath, chapterPath: FileManager.default.fileExists(atPath: chapter) ? chapter : nil, index: index)
+                let chapterName = "\(fileName.basename(dropExtension: true))_\(filepath.basename(dropExtension: true))M2TS_chapter.txt"
+                let chapter = chapterPath.join(chapterName)
+                return MplsClip.init(fileName: fileName, duration: getDuration(file: filepath.string), trackLangs: trackLangs, m2tsPath: filepath, chapterPath: chapter.exists ? chapter.string : nil, index: index)
             })
         }
     }
     
-    private func generateChapterFile(chapterPath: String) throws {
-        let mpls = try mplsParse(path: fileName)
+    private func generateChapterFile(chapterPath: Path) throws {
+        let mpls = try mplsParse(path: fileName.string)
         let chapters = mpls.split()
         if !compressed {
             precondition(files.count <= chapters.count)
         }
         for (file, chap) in zip(files, chapters) {
-            let output = chapterPath.appendingPathComponent("\(fileName.filenameWithoutExtension)_\(file.filenameWithoutExtension)M2TS_chapter.txt")
+            let output = chapterPath.join("\(fileName.filenameWithoutExtension)_\(file.filenameWithoutExtension)M2TS_chapter.txt")
             if chap.nodes.count > 0 {
-                try chap.exportOgm().write(toFile: output, atomically: true, encoding: .utf8)
+                try chap.exportOgm().write(toFile: output.string, atomically: true, encoding: .utf8)
             }
         }
     }

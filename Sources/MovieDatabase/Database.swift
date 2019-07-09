@@ -9,23 +9,23 @@ import Foundation
 import SwiftEnhancement
 import MediaTools
 
-public enum MovieFeature: Hashable {
-    case uhd
-    case custom(String)
-    
-    var string: String {
-        switch self {
-        case .uhd:
-            return "UHD"
-        case .custom(let s):
-            return s
-        }
-    }
-    
-    public func hash(into hasher: inout Hasher) {
-        string.hash(into: &hasher)
-    }
-}
+//public enum MovieFeature: Hashable {
+//    case uhd
+//    case custom(String)
+//    
+//    var string: String {
+//        switch self {
+//        case .uhd:
+//            return "UHD"
+//        case .custom(let s):
+//            return s
+//        }
+//    }
+//    
+//    public func hash(into hasher: inout Hasher) {
+//        string.hash(into: &hasher)
+//    }
+//}
 
 public struct TitleUtility {
     

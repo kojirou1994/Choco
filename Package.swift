@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.1
 
 import PackageDescription
 
@@ -14,13 +14,19 @@ let package = Package(
         .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.2.0"),
         .package(url: "https://github.com/kojirou1994/ArgumentParser.git", .branch("master")),
         .package(url: "https://github.com/IBM-Swift/BlueSignals.git", from: "1.0.0"),
+        .package(url: "https://github.com/mxcl/Path.swift.git", from: "0.16.0")
     ],
     targets: [
         .systemLibrary(
             name: "CLibbluray",
-            pkgConfig: "libbluray"
+            pkgConfig: "libbluray",
+            providers: [.brew(["libbluray"])]
         ),
-        .target(name: "MediaUtility"),
+//        .systemLibrary(name: <#T##String#>, path: <#T##String?#>, pkgConfig: <#T##String?#>, providers: <#T##[SystemPackageProvider]?#>)
+        .target(
+            name: "MediaUtility",
+            dependencies: ["SwiftEnhancement"]
+        ),
         .target(
             name: "MplsReader",
             dependencies: ["Kwift", "MediaUtility"]
@@ -35,15 +41,21 @@ let package = Package(
         ),
         .target(
             name: "MovieOrganizer",
-            dependencies: ["Kwift", "MediaTools", "MovieDatabase", "ArgumentParser"]
+            dependencies: [
+                "Kwift",
+                "MediaTools",
+                "MovieDatabase",
+                "ArgumentParser",
+                "Path"
+            ]
         ),
         .target(
             name: "MplsReader-Demo",
-            dependencies: ["MplsReader"]
+            dependencies: ["MplsReader", "MediaTools"]
         ),
         .target(
             name: "BD-Remuxer",
-            dependencies: ["MediaTools", "MplsReader", "Kwift", "ArgumentParser", "Signals"]),
+            dependencies: ["MediaTools", "MplsReader", "Kwift", "ArgumentParser", "Signals", "Path"]),
 //        .target(
 //            name: "MKV2MP4",
 //            dependencies: ["Common", "Kwift", "Signals", "ArgumentParser"]),

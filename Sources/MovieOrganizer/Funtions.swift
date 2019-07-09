@@ -8,11 +8,9 @@
 import Foundation
 import MovieDatabase
 import ArgumentParser
-
+import Path
 
 let supportedFormats = ["mkv", "mp4"]
-
-
 
 extension OMDB.Response.MovieType: OptionValue {
     public init(argument: String) throws {
@@ -31,7 +29,7 @@ public class Organizer {
     
     private let rawInputs: [String]
     
-    private let outputDir: String?
+    private let outputDir: Path?
     
     private let tag: String?
     
@@ -61,7 +59,11 @@ public class Organizer {
         
         self.workdingMode = mode
         self.rawInputs = inputs
-        self.outputDir = outputDir
+        if let v = outputDir {
+            self.outputDir = Path(url: URL(fileURLWithPath: v))!
+        } else {
+            self.outputDir = nil
+        }
         self.tag = tag
     }
     
@@ -79,7 +81,7 @@ public class Organizer {
     
     public func organize(rawInput: String, mode: OMDB.Response.MovieType) throws {
         let input = try OrgInput.init(input: rawInput, tag: tag)
-        let outputDir = self.outputDir ?? input.path.deletingLastPathComponent
+        let outputDir = self.outputDir ?? input.path.parent
         switch mode {
         case .series:
             try organizeSeries(input, outputDir: outputDir)
@@ -88,23 +90,23 @@ public class Organizer {
         }
     }
     
-    private func organizeSeries(_ input: OrgInput, outputDir: String) throws {
-        let contents = try FileManager.default.contentsOfDirectory(atPath: input.path).filter(checkExtension(filename:))
+    private func organizeSeries(_ seriesInput: OrgInput, outputDir: Path) throws {
+        let contents = try seriesInput.path.ls().map {$0.path}.filter(checkExtension(filename:))
         if contents.isEmpty {
             throw OrganizerError.emptyFolder
         }
         var episodeIndexes = Set<Int>()
-        let parsedTitle = try TitleUtility.parse(input.path.lastPathComponent, type: .series)
+        let parsedTitle = try TitleUtility.parse(seriesInput.path.basename(), type: .series)
         guard let titleSeason = parsedTitle.season else {
             throw OrganizerError.noSeasonNumber
         }
         let episodes = try contents.map { (episode) -> InputEpisode in
             let thisEpisode: Int
-            if case let number = episode.deletingPathExtension.components(separatedBy: .whitespacesAndNewlines)[0],
+            if case let number = episode.basename(dropExtension: true).components(separatedBy: .whitespacesAndNewlines)[0],
                 number.hasPrefix("EP"), let episodeNumber = Int(number[2...]) {
                 thisEpisode = episodeNumber
-            } else if let numberRange = episode.range(of: "s\\d\\de\\d\\d", options: [String.CompareOptions.caseInsensitive, String.CompareOptions.regularExpression], range: nil, locale: nil) {
-                let number = String(episode[numberRange])
+            } else if let numberRange = episode.string.range(of: "s\\d\\de\\d\\d", options: [String.CompareOptions.caseInsensitive, String.CompareOptions.regularExpression], range: nil, locale: nil) {
+                let number = String(episode.string[numberRange])
                 thisEpisode = Int(number[4...5])!
                 
                 let thisSeason = Int(number[1...2])!
@@ -119,7 +121,7 @@ public class Organizer {
                 throw OrganizerError.duplicateEpisodeNumber(number: thisEpisode, filename: episode)
             }
             print("\(episode)\n--->\nSeason \(titleSeason) Episode \(thisEpisode)")
-            return .init(path: input.path.appendingPathComponent(episode), episodeNumber: thisEpisode)
+            return .init(path: episode, episodeNumber: thisEpisode)
             }.sorted()
         let minEpisodeNumber = episodeIndexes.min()!
         let maxEpisodeNumber = episodeIndexes.max()!
@@ -130,7 +132,7 @@ public class Organizer {
         }
 //        dump(episodes)
         let omdbInfo: OMDB.Response
-        if let imdb = input.imdb {
+        if let imdb = seriesInput.imdb {
             omdbInfo = try omdb.get(imdbID: imdb)
             precondition(omdbInfo.imdbID == imdb)
         } else {
@@ -140,8 +142,8 @@ public class Organizer {
             throw OrganizerError.wrongResponse
         }
         print("Got OMDB Info: \(omdbInfo.title)")
-        let tvdbInfo = try tvdb.get(imdbID: omdbInfo.imdbID, lang: input.tvdbLang)
-        let episodeInfo = try tvdb.getEpisodes(id: tvdbInfo.id, season: titleSeason, lang: input.tvdbLang).data.sorted()
+        let tvdbInfo = try tvdb.get(imdbID: omdbInfo.imdbID, lang: seriesInput.tvdbLang)
+        let episodeInfo = try tvdb.getEpisodes(id: tvdbInfo.id, season: titleSeason, lang: seriesInput.tvdbLang).data.sorted()
         if episodeInfo.count != episodes.count {
             throw OrganizerError.mismatchEpisodeCount(local: episodes.count, server: episodeInfo.count)
         }
@@ -153,124 +155,125 @@ public class Organizer {
         for (local, remote) in zip(episodes, episodeInfo) {
             precondition(local.episodeNumber == remote.airedEpisodeNumber)
             let newFilename = remote.niceTitle(episodeCount: episodes.count)
-            if local.path.lastPathComponent != newFilename {
+            if local.path.basename() != newFilename {
                 try rename(file: local.path, to: newFilename)
             }
         }
         
-        let seriesPath = outputDir.appendingPathComponent(omdbInfo.title.first(where: {$0.isLetter})?.uppercased() ?? "#").appendingPathComponent(seriesFolderName)
+        let seriesPath = outputDir.join(omdbInfo.title.first(where: {$0.isLetter})?.uppercased() ?? "#").join(seriesFolderName)
         
-        if !FileManager.default.directoryExists(atPath: seriesPath) {
-            try FileManager.default.createDirectory(atPath: seriesPath, withIntermediateDirectories: true, attributes: nil)
+        if !FileManager.default.directoryExists(atPath: seriesPath.string) {
+            try seriesPath.mkdir()
         }
-        let seasonPath = seriesPath.appendingPathComponent("S\(titleSeason) \(try TitleUtility.generateSuffix(exampleFile: episodes[0].path, tag: input.tag))")
-        print("moving from \(input.path) to \(seasonPath)")
-        if FileManager.default.fileExists(atPath: seasonPath) {
+        let seasonPath = seriesPath.join("S\(titleSeason) \(try TitleUtility.generateSuffix(exampleFile: episodes[0].path.string, tag: seriesInput.tag))")
+        print("moving from \(seriesInput.path) to \(seasonPath)")
+        if seasonPath.exists {
             throw OrganizerError.outputExists(seasonPath)
         }
-        try FileManager.default.moveItem(atPath: input.path, toPath: seasonPath)
-        let imdbFile = seasonPath.appendingPathComponent(imdbIDFilename)
-        if !fm.fileExists(atPath: imdbFile, isDirectory: nil) {
-            try omdbInfo.imdbID.write(toFile: imdbFile, atomically: true, encoding: .utf8)
+        
+        try seriesInput.path.move(into: seasonPath)
+        let imdbFile = seasonPath.join(imdbIDFilename)
+        if !imdbFile.exists {
+            try omdbInfo.imdbID.write(toFile: imdbFile.string, atomically: true, encoding: .utf8)
         }
         
-        let tagFile = seasonPath.appendingPathComponent(tagFilename)
-        if !fm.fileExists(atPath: tagFile, isDirectory: nil), let tag = input.tag {
-            try tag.write(toFile: tagFile, atomically: true, encoding: .utf8)
+        let tagFile = seasonPath.join(tagFilename)
+        if !tagFile.exists, let tag = seriesInput.tag {
+            try tag.write(toFile: tagFile.string, atomically: true, encoding: .utf8)
         }
     }
     
-    private func checkExtension(filename: String) -> Bool {
-        return supportedFormats.contains(filename.pathExtension.lowercased())
+    private func checkExtension(filename: Path) -> Bool {
+        return supportedFormats.contains(filename.extension.lowercased())
     }
     
     private func checkExtension(url: URL) -> Bool {
         return supportedFormats.contains(url.pathExtension.lowercased())
     }
     
-    private func organizeMovie(_ input: OrgInput, outputDir: String) throws {
+    private func organizeMovie(_ movieInput: OrgInput, outputDir: Path) throws {
         let omdbInfo: OMDB.Response
-        if let imdb = input.imdb {
+        if let imdb = movieInput.imdb {
             omdbInfo = try omdb.get(imdbID: imdb)
             precondition(omdbInfo.imdbID == imdb)
         } else {
-            let parsedTitle = try TitleUtility.parse(input.path.lastPathComponent, type: .movie)
+            let parsedTitle = try TitleUtility.parse(movieInput.path.basename(), type: .movie)
             omdbInfo = try omdb.search(title: parsedTitle.titleParts, year: parsedTitle.year)
         }
 
-        let mainMovieFile: String
-        if input.isDir {
-            let contents = try fm.contentsOfDirectory(at: URL.init(fileURLWithPath: input.path), includingPropertiesForKeys: [.fileSizeKey], options: []).filter(checkExtension(url:))
+        let mainMovieFile: Path
+        if movieInput.isDir {
+            let contents = try fm.contentsOfDirectory(at: URL.init(fileURLWithPath: movieInput.path.string), includingPropertiesForKeys: [.fileSizeKey], options: []).filter(checkExtension(url:))
             if contents.isEmpty {
                 throw OrganizerError.emptyFolder
             }
-            mainMovieFile = try contents.max(by: {try $0.resourceValues(forKeys: [URLResourceKey.fileSizeKey]).fileSize! < $1.resourceValues(forKeys: [URLResourceKey.fileSizeKey]).fileSize!})!.path
+            mainMovieFile = Path(url: try contents.max(by: {try $0.resourceValues(forKeys: [URLResourceKey.fileSizeKey]).fileSize! < $1.resourceValues(forKeys: [URLResourceKey.fileSizeKey]).fileSize!})!)!
         } else {
-            mainMovieFile = input.path
+            mainMovieFile = movieInput.path
         }
         
-        let newFoldername = omdbInfo.title.safeFilename().appending(" [\(omdbInfo.imdbID)]").appending(try TitleUtility.generateSuffix(exampleFile: mainMovieFile, tag: input.tag))
+        let newFoldername = omdbInfo.title.safeFilename().appending(" [\(omdbInfo.imdbID)]").appending(try TitleUtility.generateSuffix(exampleFile: mainMovieFile.string, tag: movieInput.tag))
             
         print(newFoldername)
         let newMainFileTitle = omdbInfo.title.safeFilename()
         let year = omdbInfo.year
-        let yearPath = outputDir.appendingPathComponent(year)
+        let yearPath = outputDir.join(year)
         
         try create(directory: yearPath)
-        let moviePath = yearPath.appendingPathComponent(newFoldername)
-        if fm.fileExists(atPath: moviePath) {
+        let moviePath = yearPath.join(newFoldername)
+        if moviePath.exists {
             print("\(moviePath) already exists!")
             throw OrganizerError.outputExists(moviePath)
         }
-        print("Move \(input.path) to \(moviePath)")
+        print("Move \(movieInput.path) to \(moviePath)")
             
-        if input.isDir {
-            if mainMovieFile.lastPathComponent.deletingPathExtension != newMainFileTitle {
+        if movieInput.isDir {
+            if mainMovieFile.basename(dropExtension: true) != newMainFileTitle {
                 try rename(file: mainMovieFile, to: newMainFileTitle)
             }
-            try fm.moveItem(atPath: input.path, toPath: moviePath)
+            try movieInput.path.move(to: moviePath)
         } else {
-            try fm.createDirectory(atPath: moviePath, withIntermediateDirectories: false, attributes: nil)
-            try fm.moveItem(atPath: input.path, toPath: moviePath.appendingPathComponent(newMainFileTitle).appendingPathExtension(input.path.pathExtension))
+            try moviePath.mkdir()
+            try movieInput.path.move(to: moviePath.join("\(newMainFileTitle).\(movieInput.path.extension)"))
         }
-        let imdbFile = moviePath.appendingPathComponent(imdbIDFilename)
-        if !fm.fileExists(atPath: imdbFile, isDirectory: nil) {
-            try omdbInfo.imdbID.write(toFile: imdbFile, atomically: true, encoding: .utf8)
+        let imdbFile = moviePath.join(imdbIDFilename)
+        if !imdbFile.exists {
+            try omdbInfo.imdbID.write(toFile: imdbFile.string, atomically: true, encoding: .utf8)
         }
         
-        let tagFile = moviePath.appendingPathComponent(tagFilename)
-        if !fm.fileExists(atPath: tagFile, isDirectory: nil), let tag = input.tag {
-            try tag.write(toFile: tagFile, atomically: true, encoding: .utf8)
+        let tagFile = moviePath.join(tagFilename)
+        if !tagFile.exists, let tag = movieInput.tag {
+            try tag.write(toFile: tagFile.string, atomically: true, encoding: .utf8)
         }
     }
     
-    private func rename(file atPath: String, to filename: String) throws {
-        if atPath.lastPathComponent.deletingPathExtension == filename {
+    private func rename(file atPath: Path, to filename: String) throws {
+        if atPath.basename(dropExtension: true) == filename {
             return
         }
-        let ext = atPath.pathExtension
-        print("rename from:\n\(atPath.lastPathComponent)\nto:\n\(filename).\(ext)")
-        try FileManager.default.moveItem(atPath: atPath, toPath: atPath.deletingLastPathComponent.appendingPathComponent(filename).appendingPathExtension(ext))
+        let ext = atPath.extension
+        print("rename from:\n\(atPath.basename())\nto:\n\(filename).\(ext)")
+        try atPath.rename(to: "\(filename).\(ext)")
     }
 
-    private func create(directory: String) throws {
-        if !fm.directoryExists(atPath: directory) {
-            try fm.createDirectory(atPath: directory, withIntermediateDirectories: false, attributes: nil)
+    private func create(directory: Path) throws {
+        if !directory.exists {
+            try directory.mkdir()
         }
     }
 }
 
 enum OrganizerError: Error {
     case emptyFolder
-    case outputExists(String)
+    case outputExists(Path)
     case noSeasonNumber
     case inputNotExist
     case wrongResponse
     case mismatchSeasonNumber
     case mismatchEpisodeCount(local: Int, server: Int)
     case episodeNotComplete([Int])
-    case duplicateEpisodeNumber(number: Int, filename: String)
-    case invalidEpisodeFilename(String)
+    case duplicateEpisodeNumber(number: Int, filename: Path)
+    case invalidEpisodeFilename(Path)
 }
 
 let imdbIDFilename = ".imdb"
@@ -278,7 +281,7 @@ let tagFilename = ".tag"
 let tvdbLangFilename = ".tvdb"
 
 struct OrgInput {
-    let path: String
+    let path: Path
     let isDir: Bool
     let imdb: String?
     let tag: String?
@@ -289,25 +292,28 @@ struct OrgInput {
         guard FileManager.default.fileExists(atPath: input, isDirectory: &isDir) else {
             throw OrganizerError.inputNotExist
         }
-        self.path = input
+        let path = Path(url: URL(fileURLWithPath: input))!
+        self.path = path
         self.isDir = isDir.boolValue
         if let imdb = imdb {
             self.imdb = imdb
-        } else if isDir.boolValue, case let imdbFilepath = input.appendingPathComponent(imdbIDFilename), FileManager.default.fileExists(atPath: imdbFilepath) {
-            self.imdb = try String.init(contentsOfFile: imdbFilepath).trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if isDir.boolValue, case let imdbFilepath = path.join(imdbIDFilename), imdbFilepath.exists {
+            self.imdb = try String.init(contentsOfFile: imdbFilepath.string).trimmingCharacters(in: .whitespacesAndNewlines)
             print("Using existing imdb from .imdb: \(self.imdb!)")
         } else {
             self.imdb = nil
         }
         
-        if case let tagFilepath = input.appendingPathComponent(tagFilename), FileManager.default.fileExists(atPath: tagFilepath) {
-            self.tag = try String.init(contentsOfFile: tagFilepath).trimmingCharacters(in: .whitespacesAndNewlines)
+        if case let tagFilepath = path.join(tagFilename),
+            tagFilepath.exists {
+            self.tag = try String.init(contentsOfFile: tagFilepath.string).trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
             self.tag = tag
         }
         
-        if case let tvdbFilepath = input.appendingPathComponent(tvdbLangFilename), FileManager.default.fileExists(atPath: tvdbFilepath) {
-            self.tvdbLang = TVDBLanguage.init(rawValue: try String.init(contentsOfFile: tvdbFilepath).trimmingCharacters(in: .whitespacesAndNewlines))
+        if case let tvdbFilepath = path.join(tvdbLangFilename),
+            tvdbFilepath.exists {
+            self.tvdbLang = TVDBLanguage.init(rawValue: try String.init(contentsOfFile: tvdbFilepath.string).trimmingCharacters(in: .whitespacesAndNewlines))
         } else {
             self.tvdbLang = nil
         }
@@ -319,7 +325,7 @@ struct InputEpisode: Comparable {
         return (lhs.episodeNumber, lhs.path) < (rhs.episodeNumber, rhs.path)
     }
     
-    let path: String
+    let path: Path
     let episodeNumber: Int
 }
 

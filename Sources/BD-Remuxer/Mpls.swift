@@ -1,12 +1,6 @@
-//
-//  Mpls.swift
-//  Common
-//
-//  Created by Kojirou on 2018/9/22.
-//
-
 import Foundation
 import MplsReader
+import Path
 
 extension MplsPlayItem {
     var langs: [String] {
@@ -30,11 +24,11 @@ public struct Mpls {
     
     public let duration: Timestamp
     
-    public let files: [String]
+    public let files: [Path]
     
     public let size: Int
     
-    public let fileName: String
+    public let fileName: Path
     
     public let trackLangs: [String]
     
@@ -60,17 +54,17 @@ public struct Mpls {
             // contains repeated files
             compressed = true
             self.size = size / files.count
-            self.files = fileSet.sorted()
+            self.files = fileSet.sorted().map {Path($0)!}
             self.duration = .init(ns: 0)
 //                .init(ns: durationValue / UInt64(files.count))
         } else {
             compressed = false
             self.size = size
-            self.files = files
+            self.files = files.map {Path($0)!}
             self.duration = .init(ns: durationValue)
         }
         trackLangs = info.tracks.map({ return $0.properties.language ?? "und" })
-        fileName = info.fileName
+        fileName = Path(info.fileName)!
         chapterCount = info.container.properties?.playlistChapters ?? 0
 //        rawValue = .mkvtoolnix(info)
     }
@@ -81,9 +75,9 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
     
     public var description: String {
         return """
-        fileName: \(fileName.lastPathComponent)
+        fileName: \(fileName.basename())
         files:
-        \(files.map {" - " + $0.lastPathComponent}.joined(separator: "\n"))
+        \(files.map {" - " + $0.basename()}.joined(separator: "\n"))
         chapterCount: \(chapterCount)
         size: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
         duration: \(duration.description)

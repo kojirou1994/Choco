@@ -1,8 +1,8 @@
-public struct FlacConverter: Converter {
+public struct FlacConverter: Executable {
     
     public static let executableName: String = "flac"
     
-    public var input: [String]
+    public var input: String
     
     public var output: String
     
@@ -13,7 +13,7 @@ public struct FlacConverter: Converter {
     public var forceOverwrite: Bool = false
     
     public init(input: String, output: String) {
-        self.input = [input]
+        self.input = input
         self.output = output
     }
     
@@ -29,7 +29,7 @@ public struct FlacConverter: Converter {
         var arg =  ["-\(realLevel)",
                     "-o",
                     output,
-                    input[0]]
+                    input]
         if silent {
             arg.append("-s")
         }
