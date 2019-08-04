@@ -1,23 +1,15 @@
-//
-//  MplsClip.swift
-//  Common
-//
-//  Created by Kojirou on 2018/9/22.
-//
-
 import Foundation
-import MplsReader
-import Path
+import MplsParser
 
 public struct MplsClip {
-    public let fileName: Path
+    public let fileName: URL
     public let duration: Timestamp
     public let trackLangs: [String]
-    public let m2tsPath: Path
-    public let chapterPath: String?
+    public let m2tsPath: URL
+    public let chapterPath: URL?
     public let index: Int?
     
-    public init(fileName: Path, duration: Timestamp, trackLangs: [String], m2tsPath: Path, chapterPath: String?, index: Int?) {
+    public init(fileName: URL, duration: Timestamp, trackLangs: [String], m2tsPath: URL, chapterPath: URL?, index: Int?) {
         self.fileName = fileName
         self.duration = duration
         self.trackLangs = trackLangs
@@ -30,7 +22,7 @@ public struct MplsClip {
 extension MplsClip: CustomStringConvertible {
     
     public var description: String {
-        return "\(fileName.basename()) -> \(m2tsPath.lastPathComponent) -> \(chapterPath ?? "no chapter file.")"
+        return "\(fileName.lastPathComponent) -> \(m2tsPath.lastPathComponent) -> \(chapterPath?.path ?? "no chapter file.")"
     }
     
 }

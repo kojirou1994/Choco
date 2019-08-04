@@ -1,20 +1,6 @@
-//
-//  extensions.swift
-//  Remuxer
-//
-//  Created by Kojirou on 2019/4/11.
-//
-
 import Foundation
 //import SwiftFFmpeg
-import MplsReader
-import Path
-
-extension Sequence where Element == Path {
-    func delete() throws {
-        try forEach {try $0.delete()}
-    }
-}
+import MplsParser
 
 extension Array where Element: Equatable {
     
@@ -46,9 +32,9 @@ extension MplsClip {
     
     public var baseFilename: String {
         if let index = self.index {
-            return "\(index)-\(m2tsPath.filenameWithoutExtension)"
+            return "\(index)-\(m2tsPath.lastPathComponentWithoutExtension)"
         } else {
-            return m2tsPath.basename(dropExtension: true)
+            return m2tsPath.lastPathComponentWithoutExtension
         }
     }
     
@@ -133,13 +119,9 @@ extension Mpls {
         return (l.channelCount, l.sampleRate, l.sampleFormat) == (r.channelCount, r.sampleRate, r.sampleFormat)
     }
     */
-    public func split(chapterPath: Path) -> [MplsClip] {
+    public func split(chapterPath: URL) throws -> [MplsClip] {
         
-        do {
-            try generateChapterFile(chapterPath: chapterPath)
-        } catch {
-            print("Generate Chapter File for \(fileName) failed: \(error)")
-        }
+        let chapters = try generateChapterFile(chapterPath: chapterPath)
         
         func getDuration(file: String) -> Timestamp {
             return .init(ns: UInt64((try? MkvmergeIdentification.init(filePath: file).container.properties?.duration) ?? 0))
@@ -147,32 +129,31 @@ extension Mpls {
         
         if files.count == 1 {
             let filepath = files[0]
-            let chapterFilename = "\(fileName.basename(dropExtension: true))_\(filepath.basename(dropExtension: true))M2TS_chapter.txt"
-            let chapter = chapterPath.join(chapterFilename)
-            return [MplsClip.init(fileName: fileName, duration: getDuration(file: filepath.string), trackLangs: trackLangs, m2tsPath: filepath, chapterPath: chapter.exists ? chapter.string : nil, index: nil)]
+            return [MplsClip.init(fileName: fileName, duration: getDuration(file: filepath.path), trackLangs: trackLangs, m2tsPath: filepath, chapterPath: chapters[0], index: nil)]
         } else {
             var index = 0
             return files.map({ (filepath) -> MplsClip in
                 defer { index += 1 }
-                let chapterName = "\(fileName.basename(dropExtension: true))_\(filepath.basename(dropExtension: true))M2TS_chapter.txt"
-                let chapter = chapterPath.join(chapterName)
-                return MplsClip.init(fileName: fileName, duration: getDuration(file: filepath.string), trackLangs: trackLangs, m2tsPath: filepath, chapterPath: chapter.exists ? chapter.string : nil, index: index)
+                return MplsClip.init(fileName: fileName, duration: getDuration(file: filepath.path), trackLangs: trackLangs, m2tsPath: filepath, chapterPath: chapters[index], index: index)
             })
         }
     }
     
-    private func generateChapterFile(chapterPath: Path) throws {
-        let mpls = try mplsParse(path: fileName.string)
+    private func generateChapterFile(chapterPath: URL) throws -> [URL?] {
+        let mpls = try mplsParse(path: fileName.path)
         let chapters = mpls.split()
         if !compressed {
             precondition(files.count <= chapters.count)
         }
-        for (file, chap) in zip(files, chapters) {
-            let output = chapterPath.join("\(fileName.filenameWithoutExtension)_\(file.filenameWithoutExtension)M2TS_chapter.txt")
+        return try zip(files, chapters).map({ (file, chap) -> URL? in
+            let output = chapterPath.appendingPathComponent("\(fileName.lastPathComponentWithoutExtension)_\(file.lastPathComponentWithoutExtension)_chapter.txt")
             if chap.nodes.count > 0 {
-                try chap.exportOgm().write(toFile: output.string, atomically: true, encoding: .utf8)
+                try chap.exportOgm().write(to: output, atomically: true, encoding: .utf8)
+                return output
+            } else {
+                return nil
             }
-        }
+        })
     }
     
 }

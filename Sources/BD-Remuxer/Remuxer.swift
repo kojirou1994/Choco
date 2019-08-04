@@ -1,30 +1,31 @@
-//
-//  Remuxer.swift
-//  Remuxer
-//
-//  Created by Kojirou on 2018/9/17.
-//
-
 import Foundation
 @_exported import MediaTools
-import MplsReader
+import MplsParser
 import ArgumentParser
 import Executable
-import Path
+import URLFileManager
 
 public enum RemuxerError: Error {
     case errorReadingFile
     case noPlaylists
     case sameFilename
     case outputExist
-    case noOutputFile(Path)
+    case noOutputFile(URL)
 }
+
+let _fm = URLFileManager()
 
 struct RemuxerArgument {
     
-    var outputPath: Path
+    private(set) internal var outputPath: URL
     
-    var temporaryPath: Path
+    private var temporaryPath: URL
+    
+    public func makeTemporaryPath() throws -> URL {
+        let t = temporaryPath.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try _fm.createDirectory(at: t)
+        return t
+    }
     
     enum RemuxMode: String, CaseIterable {
         
@@ -38,49 +39,61 @@ struct RemuxerArgument {
         case dumpBDMV
         // input is *.mkv or something else
         case file
-        // input is *.mpls
-        //            case splitMpls
         
         static var allSelection: String {
             return allCases.map{$0.rawValue}.joined(separator: "|")
         }
     }
     
-    var mode: RemuxMode
+    private(set) internal var mode: RemuxMode
     
-    var splits: [Int]?
+    private(set) internal var splits: [Int]?
     
-    var inputs: [Path]
+    private(set) internal var inputs: [URL]
     
-    var languages: Set<String>
+    struct LanguagePreference {
+        
+        static let defaultLanguages: Set<String> = ["und", "chi", "eng", "jpn"]
+        
+        static var `default`: Self {
+            .init(languages: Self.defaultLanguages, excludeLanguages: [])
+        }
+        var languages: Set<String>
+        
+        var excludeLanguages: Set<String>
+        
+        func generatePrimaryLanguages(with otherLanguages: [String]) -> Set<String> {
+            var preferedLanguages = languages
+            otherLanguages.forEach { (l) in
+                preferedLanguages.insert(l)
+            }
+            excludeLanguages.forEach { (l) in
+                preferedLanguages.remove(l)
+            }
+            return preferedLanguages
+        }
+    }
     
-    var excludeLanguages: Set<String>
+    private(set) internal var language: LanguagePreference
     
-    static let defaultLanguages: Set<String> = ["und", "chi", "eng", "jpn"]
+//    var excludeLanguages: Set<String>
     
-    var deleteAfterRemux: Bool
+    private(set) internal var deleteAfterRemux: Bool
     
-    var keepTrackName: Bool
+    private(set) internal var keepTrackName: Bool
     
-    var help: Bool
-}
-
-public class Remuxer {
+    private(set) internal var keepTrueHD: Bool
     
-    let config: RemuxerArgument
+    private(set) internal var help: Bool
     
-    let flacQueue = ParallelProcessQueue.init()
-    
-    let processManager = SubProcessManager()
-    
-    init() throws {
-        var config = RemuxerArgument.init(outputPath: .cwd, temporaryPath: .cwd, mode: .movie, splits: nil, inputs: [], languages: RemuxerArgument.defaultLanguages, excludeLanguages: [], deleteAfterRemux: false, keepTrackName: false, help: false)
+    static func parse() throws -> Self {
+        var config = RemuxerArgument.init(outputPath: URL(fileURLWithPath: "."), temporaryPath: URL(fileURLWithPath: "."), mode: .movie, splits: nil, inputs: [], language: .default, deleteAfterRemux: false, keepTrackName: false, keepTrueHD: false, help: false)
         let output = Option(name: "--output", anotherName: "-o", requireValue: true, description: "output dir") { (v) in
-            config.outputPath = Path.init(url: URL.init(fileURLWithPath: v))!
+            config.outputPath = URL.init(fileURLWithPath: v)
         }
         
         let temp = Option(name: "--temp", anotherName: "-t", requireValue: true, description: "temp dir") { (v) in
-            config.temporaryPath = Path.init(url: URL.init(fileURLWithPath: v))!
+            config.temporaryPath = URL.init(fileURLWithPath: v)
         }
         
         let mode = Option(name: "--mode", requireValue: true, description: "remux mode") { (v) in
@@ -90,10 +103,10 @@ public class Remuxer {
             config.mode = modeV
         }
         let language = Option(name: "--language", requireValue: true, description: "valid languages") { (v) in
-            config.languages = Set(v.components(separatedBy: ",") + ["und"])
+            config.language.languages = Set(v.components(separatedBy: ",") + ["und"])
         }
         let excludeLanguage = Option(name: "--exclude-language", requireValue: true, description: "exclude languages") { (v) in
-            config.excludeLanguages = Set(v.components(separatedBy: ","))
+            config.language.excludeLanguages = Set(v.components(separatedBy: ","))
         }
         let splits = Option(name: "--splits", requireValue: true, description: "split info") { (v) in
             let splits = v.split(separator: ",").map({ (str) -> Int in
@@ -112,37 +125,53 @@ public class Remuxer {
             config.keepTrackName = true
         }
         
+        let keepTrueHD = Option(name: "--keep-true-hd", requireValue: false, description: "keep TrueHD track") { (v) in
+            config.keepTrueHD = true
+        }
+        
         let help = Option(name: "--help", anotherName: "-H", requireValue: false, description: "show help") { (v) in
             config.help = true
         }
         
-        let parser = ArgumentParser(usage: "Remuxer --mode \(RemuxerArgument.RemuxMode.allSelection) [OPTIONS] [INPUT]", options: [output, temp, mode, language, splits, deleteAfterRemux, keepTrackName, help, excludeLanguage]) { (v) in
-            config.inputs.append(Path(url: URL(fileURLWithPath: v))!)
+        let parser = ArgumentParser(usage: "Remuxer --mode \(RemuxerArgument.RemuxMode.allSelection) [OPTIONS] [INPUT]", options: [output, temp, mode, language, splits, deleteAfterRemux, keepTrackName, keepTrueHD, help, excludeLanguage]) { (v) in
+            config.inputs.append(URL(fileURLWithPath: v))
         }
         try parser.parse(arguments: CommandLine.arguments.dropFirst())
-        config.temporaryPath = config.temporaryPath.join("tmp")
-        while config.temporaryPath.exists {
-            config.temporaryPath = config.temporaryPath.join("tmp")
-        }
-//        FFmpegLog.set(level: .quite)
-        flacQueue.maxConcurrentCount = 4
-        self.config = config
-        Swift.dump(config)
+        
         if config.help {
-            parser.showHelp(to: &stderrOutputStream)
+            parser.showHelp(to: &StdOutputStream.stderrOutputStream)
             exit(0)
         }
+        config.temporaryPath = config.temporaryPath.appendingPathComponent("BD-Remuxer-tmp", isDirectory: true)
+        try _fm.createDirectory(at: config.temporaryPath)
+        return config
+    }
+}
+
+public class Remuxer {
+    
+    private let config: RemuxerArgument
+    
+    private let flacQueue = ParallelProcessQueue.init()
+    
+    private let processManager = SubProcessManager()
+    
+    public init() throws {
+//        FFmpegLog.set(level: .quite)
+        flacQueue.maxConcurrentCount = 4
+        self.config = try .parse()
+        dump(config)
     }
     
-    func beforeRun(p: Process) {
+    private func beforeRun(p: Process) {
         p.terminationHandler = {self.processManager.remove(process: $0)}
     }
     
-    func afterRun(p: Process) {
+    private func afterRun(p: Process) {
         processManager.add(process: p)
     }
     
-    func recursiveRun(task: WorkTask) throws -> [Path] {
+    func recursiveRun(task: WorkTask) throws -> [URL] {
 //        let tempOutput = task.main.output
         do {
             task.main.printTask()
@@ -170,14 +199,79 @@ public class Remuxer {
             }
         }
         
-        if task.main.outputPath.exists {
+        if _fm.fileExistance(at: task.main.outputPath).exists {
             // output exists
             return [task.main.outputPath]
-        } else if task.chapterSplit, let parts = try? task.main.outputPath.parent.ls().filter({$0.path.extension == task.main.outputPath.extension && $0.path.basename().hasPrefix(task.main.outputPath.basename(dropExtension: true))}) {
-            return parts.map {$0.path}
+        } else if task.chapterSplit, let parts = try? _fm.contentsOfDirectory(at: task.main.outputPath.deletingLastPathComponent()).filter({$0.pathExtension == task.main.outputPath.pathExtension && $0.lastPathComponent.hasPrefix(task.main.outputPath.lastPathComponentWithoutExtension)}) {
+            return parts
         } else {
             print("Can't find output file(s).")
             throw RemuxerError.noOutputFile(task.main.outputPath)
+        }
+    }
+    
+    func remuxBDMV(at bdmvPath: URL, mode: MplsRemuxMode, temporaryPath: URL) throws {
+        let task = BDMVTask(rootPath: bdmvPath, mode: mode,temporaryPath: temporaryPath, language: config.language, splits: config.splits)
+        let finalOutputPath = config.outputPath.appendingPathComponent(task.getBlurayTitle(), isDirectory: true)
+        if _fm.fileExistance(at: finalOutputPath).exists {
+            throw RemuxerError.outputExist
+        }
+        let converters = try task.parse()
+        var tempFiles = [URL]()
+        try converters.forEach({ (converter) in
+            tempFiles.append(contentsOf: try recursiveRun(task: converter))
+        })
+        
+        try tempFiles.forEach { (tempFile) in
+            let mkvinfo = try MkvmergeIdentification(url: tempFile)
+            let duration = Timestamp(ns: UInt64(mkvinfo.container.properties?.duration ?? 0))
+            let subFolder: String
+            if duration > Timestamp.hour {
+                // big
+                subFolder = ""
+            } else if duration > Timestamp.minute*10 {
+                // > 10 min
+                subFolder = "medium"
+            } else if duration > Timestamp.minute {
+                // > 1 min
+                subFolder = "small"
+            } else {
+                subFolder = "garbage"
+            }
+            try remux(file: tempFile,
+                      remuxOutputDir: finalOutputPath.appendingPathComponent(subFolder), temporaryPath: temporaryPath,
+                      deleteAfterRemux: true, mkvinfo: mkvinfo)
+        }
+        if config.deleteAfterRemux {
+            try? _fm.removeItem(at: bdmvPath)
+        }
+    }
+    
+    func remuxFile(at path: URL, temporaryPath: URL) throws {
+        let fileType = _fm.fileExistance(at: path)
+        switch fileType {
+        case .none:
+            print("\(path.path) doesn't exist!")
+        case .directory:
+            // input is a directory, remux all contents
+            let outputDir = config.outputPath.appendingPathComponent(path.lastPathComponent, isDirectory: true)
+            try _fm.createDirectory(at: outputDir)
+            
+            let contents = try _fm.contentsOfDirectory(at: path)
+            
+            contents.forEach({ (fileInDir) in
+                do {
+                    try remux(file: fileInDir, remuxOutputDir: outputDir, temporaryPath: temporaryPath, deleteAfterRemux: false)
+                } catch {
+                    print(error)
+                }
+            })
+        case .file:
+            do {
+                try remux(file: path, remuxOutputDir: config.outputPath, temporaryPath: temporaryPath, deleteAfterRemux: false)
+            } catch {
+                print(error)
+            }
         }
     }
     
@@ -187,142 +281,68 @@ public class Remuxer {
             return
         }
 //        var failedTasks: [String] = []
-        let fm = FileManager.default
         
-        switch config.mode {
-        case .dumpBDMV:
-            config.inputs.forEach({ (bdmvPath) in
-                let task = BDMVTask(rootPath: bdmvPath, mode: .direct, configuration: config)
-                do {
+        config.inputs.forEach { (path) in
+            do {
+                let temporaryPath = try config.makeTemporaryPath()
+                self.currentTemporaryPath = temporaryPath
+                
+                switch config.mode {
+                case .dumpBDMV:
+                    let task = BDMVTask(rootPath: path, mode: .direct, temporaryPath: temporaryPath, language: config.language, splits: config.splits)
                     try task.dumpInfo()
-                } catch {
-                    print("Error: \(error)")
+                case .episodes, .movie:
+                    let mode: MplsRemuxMode = config.mode == .episodes ? .split : .direct
+                    try remuxBDMV(at: path, mode: mode, temporaryPath: temporaryPath)
+                case .file:
+                    try remuxFile(at: path, temporaryPath: temporaryPath)
                 }
-            })
-        case .episodes, .movie:
-            let mode: MplsRemuxMode
-            if config.mode == .episodes {
-                mode = .split
-            } else {
-                mode = .direct
+                
+                try _fm.removeItem(at: temporaryPath)
+                self.currentTemporaryPath = nil
+            } catch {
+                print("Error while handling file \(path.path), info: \(error)")
             }
-            config.inputs.forEach({ (bdmvPath) in
-                do {
-                    let task = BDMVTask(rootPath: bdmvPath, mode: mode, configuration: config)
-                    let finalOutputPath = config.outputPath.join(task.getBlurayTitle())
-                    if finalOutputPath.exists {
-                        throw RemuxerError.outputExist
-                    }
-                    if config.temporaryPath.exists {
-                        try config.temporaryPath.delete()
-                    }
-                    try config.temporaryPath.mkdir()
-                    let converters = try task.parse()
-                    var tempFiles = [Path]()
-                    try converters.forEach({ (converter) in
-                        tempFiles.append(contentsOf: try recursiveRun(task: converter))
-                    })
-                    
-                    try tempFiles.forEach { (tempFile) in
-                        let mkvinfo = try MkvmergeIdentification(filePath: tempFile.string)
-                        let duration = Timestamp(ns: UInt64(mkvinfo.container.properties?.duration ?? 0))
-                        let subFolder: String
-                        if duration > Timestamp.hour {
-                            // big
-                            subFolder = ""
-                        } else if duration > Timestamp.minute*10 {
-                            // > 10 min
-                            subFolder = "medium"
-                        } else if duration > Timestamp.minute {
-                            // > 1 min
-                            subFolder = "small"
-                        } else {
-                            subFolder = "garbage"
-                        }
-                        try remux(file: tempFile,
-                                  remuxOutputDir: finalOutputPath.join(subFolder),
-                                  deleteAfterRemux: true, mkvinfo: mkvinfo)
-                    }
-                    if config.deleteAfterRemux {
-                        try? bdmvPath.delete()
-                    }
-                    clear()
-                } catch {
-                    print("Remuxing \(bdmvPath) failed!!!")
-                    print("error: \(error)")
-                }
-            })
-        case .file:
-            var failed: [Path] = []
-            try? config.temporaryPath.mkdir()
-            config.inputs.forEach({ (file) in
-                var isDir: ObjCBool = false
-                if file.exists {
-                    if file.isDirectory {
-                        // input is a directory, remux all contents
-                        let outputDir = config.outputPath.join(file.basename())
-                        try? outputDir.mkdir()
-                        let contents = try! file.ls()
-                        contents.forEach({ (fileInDir) in
-                            do {
-                                try remux(file: fileInDir.path, remuxOutputDir: outputDir, deleteAfterRemux: false)
-                            } catch {
-                                print(error)
-                                failed.append(fileInDir.path)
-                            }
-                        })
-                    } else {
-                        do {
-                            try remux(file: file, remuxOutputDir: config.outputPath, deleteAfterRemux: false)
-                        } catch {
-                            print(error)
-                            failed.append(file)
-                        }
-                    }
-                } else {
-                    print("\(file) doesn't exist!")
-                }
-            })
-            if failed.count > 0 {
-                print("Muxing files failed:\n\(failed.map{$0.string}.joined(separator: "\n"))")
-            }
+            
         }
-//        if failedTasks.count > 0 {
-//            print("failed tasks:")
-//            print(failedTasks.joined(separator: "\n"))
-//        }
     }
+    
+    var currentTemporaryPath: URL?
     
     func clear() {
         processManager.terminateAll()
         flacQueue.terminateAllProcesses()
-        try! config.temporaryPath.delete()
+        if let t = currentTemporaryPath {
+            try! _fm.removeItem(at: t)
+        }
     }
     
 }
 
 extension Remuxer {
     
-    func remux(file: Path, remuxOutputDir: Path, deleteAfterRemux: Bool,
+    func remux(file: URL, remuxOutputDir: URL, temporaryPath: URL, deleteAfterRemux: Bool,
                parseOnly: Bool = false, mkvinfo: MkvmergeIdentification? = nil) throws {
-        let outputFilename = remuxOutputDir.join("\(file.basename(dropExtension: true)).mkv")
-        guard outputFilename != file else {
+        let outputFilename = remuxOutputDir.appendingPathComponent("\(file.lastPathComponentWithoutExtension).mkv")
+        guard !_fm.fileExistance(at: outputFilename).exists else {
             print("\(outputFilename) already exists!")
-            return
+            throw RemuxerError.outputExist
         }
-        var arguments = ["-q", "--output", outputFilename.string]
-        var trackOrder = [String]()
+
+        var trackOrder = [Mkvmerge.GlobalOption.TrackOrder]()
         var audioRemoveTracks = [Int]()
         var subtitleRemoveTracks = [Int]()
-        var externalTracks = [(file: Path, lang: String, trackName: String)]()
+        var externalTracks = [(file: URL, lang: String, trackName: String)]()
         
-        let mkvinfo = try mkvinfo ?? MkvmergeIdentification.init(filePath: file.string)
-        let modifications = try makeTrackModification(mkvinfo: mkvinfo)
+        let mkvinfo = try mkvinfo ?? MkvmergeIdentification.init(url: file)
+        let modifications = try makeTrackModification(mkvinfo: mkvinfo, temporaryPath: temporaryPath)
+        
+        var mainInput = Mkvmerge.Input.init(file: file.path)
         
         for modify in modifications.enumerated() {
             switch modify.element {
             case .copy(_):
-                trackOrder.append("0:\(modify.offset)")
+                trackOrder.append(.init(fid: 0, tid: modify.offset))
             case .remove(let type):
                 switch type {
                 case .audio:
@@ -342,50 +362,41 @@ extension Remuxer {
                     break
                 }
                 externalTracks.append((file: file, lang: lang, trackName: trackName))
-                trackOrder.append("\(externalTracks.count):0")
+                trackOrder.append(.init(fid: externalTracks.count, tid: 0))
             }
             if !config.keepTrackName {
-                arguments.append(contentsOf: ["--track-name", "\(modify.offset):"])
+                mainInput.options.append(.trackName(tid: modify.offset, name: ""))
             }
         }
 
-        if audioRemoveTracks.count > 0 {
-            arguments.append(contentsOf: ["-a", "!\(audioRemoveTracks.map({$0.description}).joined(separator: ","))"])
-        }
+        mainInput.options.append(.audioTracks(.disabledTIDs(audioRemoveTracks)))
+        mainInput.options.append(.subtitleTracks(.disabledTIDs(subtitleRemoveTracks)))
+        mainInput.options.append(.attachments(.removeAll))
         
-        if subtitleRemoveTracks.count > 0 {
-            arguments.append(contentsOf: ["-s", "!\(subtitleRemoveTracks.map({$0.description}).joined(separator: ","))"])
-        }
-        
-        arguments.append("--no-attachments")
-        arguments.append(file.string)
-        externalTracks.forEach { (track) in
-            arguments.append(contentsOf: ["--language", "0:\(track.lang)"])
+        let externalInputs = externalTracks.map { (track) -> Mkvmerge.Input in
+            var options: [Mkvmerge.Input.InputOption] = [.language(tid: 0, language: track.lang)]
             if config.keepTrackName {
-                arguments.append(contentsOf: ["--track-name", "0:\(track.trackName)"])
+                options.append(.trackName(tid: 0, name: track.trackName))
             }
-            arguments.append(track.file.string)
-        }
-        arguments.append(contentsOf: ["--title", ""])
-        if !trackOrder.isEmpty {
-            arguments.append(contentsOf: ["--track-order", trackOrder.joined(separator: ",")])
+            return .init(file: track.file.path, options: options)
         }
         
-        print("Mkvmerge arguments:\n\(arguments.joined(separator: " "))")
+        let mkvmerge = Mkvmerge.init(global: .init(quiet: true, split: generateSplit(splits: config.splits, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0), trackOrder: trackOrder), output: outputFilename.path, inputs: [mainInput] + externalInputs)
+        print("Mkvmerge arguments:\n\(mkvmerge.arguments.joined(separator: " "))")
         
         print("\nMkvmerge:\n\(file)\n->\n\(outputFilename)")
-        try MediaTools.mkvmerge.executable(arguments: arguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
+        try mkvmerge.runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
         
         externalTracks.forEach { (t) in
             do {
-                try t.file.delete()
+                try _fm.removeItem(at: t.file)
             } catch {
                 print("Can not delete file: \(t.file)")
             }
         }
         if deleteAfterRemux {
             do {
-                try file.delete()
+                try _fm.removeItem(at: file)
             } catch {
                 print("Can not delete file: \(file)")
             }
@@ -405,7 +416,8 @@ extension Remuxer {
         }
     }
     
-    private func makeTrackModification(mkvinfo: MkvmergeIdentification) throws -> [TrackModification] {
+    private func makeTrackModification(mkvinfo: MkvmergeIdentification,
+                                       temporaryPath: URL) throws -> [TrackModification] {
 //        let context = try FFmpegInputFormatContext.init(url: mkvinfo.fileName)
 //        try context.findStreamInfo()
 //        guard context.streamCount == mkvinfo.tracks.count else {
@@ -413,10 +425,10 @@ extension Remuxer {
 //            throw RemuxerError.errorReadingFile
 //        }
         
-        let preferedLanguages = config.generatePrimaryLanguages(with: mkvinfo.primaryLanguages)
+        let preferedLanguages = config.language.generatePrimaryLanguages(with: mkvinfo.primaryLanguages)
 //        let streams = context.streams
         let tracks = mkvinfo.tracks
-        var flacConverters = [FlacConverter]()
+        var flacConverters = [FlacEncoder]()
         var ffmpegArguments = ["-v", "quiet", "-nostdin", "-y", "-i", mkvinfo.fileName, "-vn"]
         var trackModifications = [TrackModification].init(repeating: .copy(type: .video), count: tracks.count)
         
@@ -427,29 +439,36 @@ extension Remuxer {
         // check track one by one
         print("Checking tracks codec")
         var index = 0
-        let baseFilename = Path(mkvinfo.fileName)!.basename(dropExtension: true)
+        let baseFilename = URL(fileURLWithPath:  mkvinfo.fileName).lastPathComponentWithoutExtension
+        
         while index < tracks.count {
             let track = tracks[index]
             let trackLanguage = track.properties.language ?? "und"
             print("\(index): \(track.codec) \(track.isLosslessAudio ? "lossless" : "lossy") \(trackLanguage) \(track.properties.audioChannels ?? 0)ch")
-            if track.isLosslessAudio, preferedLanguages.contains(trackLanguage) {
-                // add to ffmpeg arguments
-                let tempFlac = config.temporaryPath.join("\(baseFilename)-\(index)-\(trackLanguage)-ffmpeg.flac")
-                let finalFlac = config.temporaryPath.join("\(baseFilename)-\(index)-\(trackLanguage).flac")
-                ffmpegArguments.append(contentsOf: ["-map", "0:\(index)", tempFlac.string])
-                var flac = FlacConverter(input: tempFlac.string, output: finalFlac.string)
-                flac.level = 8
-                flac.forceOverwrite = true
-                flac.silent = true
-                flacConverters.append(flac)
-                
-                trackModifications[index] = .replace(type: .audio, file: finalFlac, lang: trackLanguage, trackName: track.properties.trackName ?? "")
-            } else if preferedLanguages.contains(trackLanguage) {
-                trackModifications[index] = .copy(type: track.type)
+            if preferedLanguages.contains(trackLanguage) {
+                if track.isTrueHD, config.keepTrueHD {
+                    trackModifications[index] = .copy(type: track.type)
+                } else if track.isLosslessAudio {
+                    // add to ffmpeg arguments
+                    let tempFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(index)-\(trackLanguage)-ffmpeg.flac")
+                    let finalFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(index)-\(trackLanguage).flac")
+                    ffmpegArguments.append(contentsOf: ["-map", "0:\(index)", tempFlac.path])
+                    var flac = FlacEncoder(input: tempFlac.path, output: finalFlac.path)
+                    flac.level = 8
+                    flac.forceOverwrite = true
+                    flac.silent = true
+                    flacConverters.append(flac)
+                    
+                    trackModifications[index] = .replace(type: .audio, file: finalFlac, lang: trackLanguage, trackName: track.properties.trackName ?? "")
+                } else {
+                    trackModifications[index] = .copy(type: track.type)
+                }
             } else {
                 trackModifications[index] = .remove(type: track.type)
             }
-            if track.isTruehd, index+1<tracks.count,
+
+            // handle truehd
+            if track.isTrueHD, index+1<tracks.count,
                 case let nextTrack = tracks[index+1],
                 nextTrack.isAC3 {
                 // Remove TRUEHD embed-in AC-3 track
@@ -465,7 +484,7 @@ extension Remuxer {
         
         print("ffmpeg \(ffmpegArguments.joined(separator: " "))")
 
-        try MediaTools.ffmpeg.executable(arguments: ffmpegArguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
+        try MediaTools.ffmpeg.executable(ffmpegArguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
         
         flacConverters.forEach { (flac) in
             let process = try! flac.convert()
@@ -473,7 +492,7 @@ extension Remuxer {
                 if p.terminationStatus != 0 {
                     print("error while converting flac \(flac.input)")
                 }
-                try! flac.inputPaths.delete()
+                try? flac.inputPaths.forEach(_fm.removeItem(at:))
             }
             flacQueue.add(process)
         }
@@ -509,7 +528,7 @@ extension Remuxer {
                 for m in trackModifications.enumerated() {
                     switch m.element {
                     case .replace(type: _, file: let file, lang: _, trackName: _):
-                        if filesWithSameMD5.contains(file.string) {
+                        if filesWithSameMD5.contains(file.path) {
                             allTracks.append(m)
                         }
                     default:
@@ -534,13 +553,13 @@ extension Remuxer {
 enum TrackModification {
     
     case copy(type: TrackType)
-    case replace(type: TrackType, file: Path, lang: String, trackName: String)
+    case replace(type: TrackType, file: URL, lang: String, trackName: String)
     case remove(type: TrackType)
     
     mutating func remove() {
         switch self {
         case .replace(type: let type, file: let file, lang: _, trackName: _):
-            try? file.delete()
+            try? _fm.removeItem(at: file)
             self = .remove(type: type)
         case .copy(type: let type):
             self = .remove(type: type)
@@ -580,9 +599,12 @@ struct TaskSummary {
 //}
 
 struct BDMVTask {
-    let rootPath: Path
+    let rootPath: URL
     let mode: MplsRemuxMode
-    let configuration: RemuxerArgument
+//    let configuration: RemuxerArgument
+    let temporaryPath: URL
+    let language: RemuxerArgument.LanguagePreference
+    let splits: [Int]?
     
     func parse() throws -> [WorkTask] {
         
@@ -605,29 +627,31 @@ struct BDMVTask {
                 if mpls.useFFmpeg || mpls.compressed/* || mpls.remuxMode == .split*/ {
                     tasks.append(contentsOf: try split(mpls: mpls))
                 } else {
-                    let preferedLanguages = configuration.generatePrimaryLanguages(with: [mpls.primaryLanguage])
+                    let preferedLanguages = language.generatePrimaryLanguages(with: [mpls.primaryLanguage])
                     let outputFilename = generateFilename(mpls: mpls)
-                    let output = configuration.temporaryPath.join(outputFilename + ".mkv")
-                    let parsedMpls = try mplsParse(path: mpls.fileName.string)
+                    let output = temporaryPath.appendingPathComponent(outputFilename + ".mkv")
+                    let parsedMpls = try mplsParse(path: mpls.fileName.path)
                     let chapter = parsedMpls.convert()
-                    let chapterFile = configuration.temporaryPath.join("\(mpls.fileName.basename(dropExtension: true)).txt")
+                    let chapterFile = temporaryPath.appendingPathComponent("\(mpls.fileName.lastPathComponentWithoutExtension).txt")
                     let chapterPath: String?
                     if chapter.isValid {
-                        try chapter.exportOgm().write(toFile: chapterFile.string, atomically: true, encoding: .utf8)
-                        chapterPath = chapterFile.string
+                        try chapter.exportOgm().write(toFile: chapterFile.path, atomically: true, encoding: .utf8)
+                        chapterPath = chapterFile.path
                     } else {
                         chapterPath = nil
                     }
                     
-                    if configuration.splits != nil {
-                        tasks.append(.init(input: mpls.fileName, main: MkvmergeMuxer.init(input: [mpls.fileName.string], output: output.string, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, chapterPath: chapterPath, extraArguments: generateSplitArguments(mpls: mpls)), chapterSplit: true, canBeIgnored: false))
+                    if splits != nil {
+                        
+                        tasks.append(.init(input: mpls.fileName, main: Mkvmerge(global: .init(quiet: true, split: generateSplit(splits: splits, chapterCount: mpls.chapterCount), chapterFile: chapterPath), output: output.path, inputs: [.init(file: mpls.fileName.path, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages))])]), chapterSplit: true, canBeIgnored: false))
                     } else {
                         let splitWorkers = try split(mpls: mpls).map {$0.main}
-                        tasks.append(
-                            .init(input: mpls.fileName,
-                                  main: MkvmergeMuxer(input: mpls.files.map{$0.string}, output: output.string, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, chapterPath: chapterPath),
-                                  chapterSplit: false, splitWorkers: splitWorkers,
-                                  joinWorker: MkvmergeMuxer(input: splitWorkers.map{$0.outputPath.string}, output: output.string, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, chapterPath: chapterPath, cleanInputChapter: true)))
+                        let main = Mkvmerge.init(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: mpls.files.enumerated().map {Mkvmerge.Input.init(file: $0.element.path, append: $0.offset != 0, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages))])})
+                        let joinWorker = Mkvmerge(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: splitWorkers.enumerated().map {Mkvmerge.Input.init(file: $0.element.outputPath.path, append: $0.offset != 0, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages)), .noChapters])})
+                        tasks.append(.init(input: mpls.fileName,
+                                           main: main, chapterSplit: false,
+                                           splitWorkers: splitWorkers, joinWorker: joinWorker
+                                           ))
                     }
                 }
             }
@@ -646,23 +670,21 @@ struct BDMVTask {
     }
     
     func getBlurayTitle() -> String {
-        var title: String = rootPath.basename()
-        title = title.safeFilename().trimmingCharacters(in: .whitespacesAndNewlines)
-        return title
+        rootPath.lastPathComponent.safeFilename().trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     func scan(removeDuplicate: Bool) throws -> [Mpls] {
         print("Start scanning BD folder: \(rootPath)")
-        let playlistPath = rootPath.join("BDMV/PLAYLIST")
+        let playlistPath = rootPath.appendingPathComponent("BDMV/PLAYLIST", isDirectory: true)
 
-        if playlistPath.exists {
-            let mplsPaths = try playlistPath.ls().map{$0.path}.filter {$0.extension.lowercased() == "mpls"}
+        if _fm.fileExistance(at: playlistPath) == .directory {
+            let mplsPaths = try _fm.contentsOfDirectory(at: playlistPath).filter {$0.pathExtension.lowercased() == "mpls"}
             if mplsPaths.isEmpty {
                 throw RemuxerError.noPlaylists
             }
             let allMpls = mplsPaths.compactMap { (mplsPath) -> Mpls? in
                 do {
-                    return try .init(filePath: mplsPath.string)
+                    return try .init(filePath: mplsPath.path)
                 } catch {
                     print("Invalid file: \(mplsPath), error: \(error)")
                     return nil
@@ -708,7 +730,7 @@ struct BDMVTask {
         return try split(mpls: mpls, restFiles: Set(mpls.files))
     }
     
-    func split(mpls: Mpls, restFiles: Set<Path>) throws -> [WorkTask] {
+    func split(mpls: Mpls, restFiles: Set<URL>) throws -> [WorkTask] {
         
         print("Splitting MPLS: \(mpls.fileName)")
         
@@ -716,27 +738,27 @@ struct BDMVTask {
             return []
         }
         
-        let clips = mpls.split(chapterPath: configuration.temporaryPath)
-        let preferedLanguages = configuration.generatePrimaryLanguages(with: [mpls.primaryLanguage])
+        let clips = try mpls.split(chapterPath: temporaryPath)
+        let preferedLanguages = language.generatePrimaryLanguages(with: [mpls.primaryLanguage])
         
         return clips.flatMap { (clip) -> [WorkTask] in
             if restFiles.contains(clip.m2tsPath) {
-                let output: Path
-                let outputBasename = "\(mpls.fileName.filenameWithoutExtension)-\(clip.baseFilename)"
+                let output: URL
+                let outputBasename = "\(mpls.fileName.lastPathComponentWithoutExtension)-\(clip.baseFilename)"
                 if mpls.useFFmpeg {
                     return [
                         .init(input: clip.fileName,
-                              main: FFmpegMuxer(input: clip.m2tsPath.string,
-                                                    output: configuration.temporaryPath.join("\(outputBasename)-ffmpeg-video.mkv").string,
+                              main: FFmpegMuxer(input: clip.m2tsPath.path,
+                                                    output: temporaryPath.appendingPathComponent("\(outputBasename)-ffmpeg-video.mkv").path,
                                                     mode: .videoOnly), chapterSplit: false, canBeIgnored: true),
                         .init(input: clip.fileName,
-                              main: FFmpegMuxer(input: clip.m2tsPath.string,
-                                                output: configuration.temporaryPath.join("\(outputBasename)-ffmpeg-audio.mkv").string, mode: .audioOnly), chapterSplit: false, canBeIgnored: true)
+                              main: FFmpegMuxer(input: clip.m2tsPath.path,
+                                                output: temporaryPath.appendingPathComponent("\(outputBasename)-ffmpeg-audio.mkv").path, mode: .audioOnly), chapterSplit: false, canBeIgnored: true)
                     ]
                 } else {
                     let outputFilename = "\(outputBasename).mkv"
-                    output = configuration.temporaryPath.join(outputFilename)
-                    return [.init(input: clip.fileName, main: MkvmergeMuxer.init(input: [clip.m2tsPath.string], output: output.string, audioLanguages: preferedLanguages, subtitleLanguages: preferedLanguages, chapterPath: clip.chapterPath), chapterSplit: false, canBeIgnored: false)]
+                    output = temporaryPath.appendingPathComponent(outputFilename)
+                    return [.init(input: clip.fileName, main: Mkvmerge.init(global: .init(quiet: true, chapterFile: clip.chapterPath?.path), output: output.path, inputs: [.init(file: clip.m2tsPath.path, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages))])]), chapterSplit: false, canBeIgnored: false)]
                 }
                 
             } else {
@@ -748,42 +770,28 @@ struct BDMVTask {
     }
     
     private func generateFilename(mpls: Mpls) -> String {
-        return "\(mpls.fileName.basename(dropExtension: true))-\(mpls.files.map{$0.basename(dropExtension: true)}.joined(separator: "+").prefix(200))"
+        return "\(mpls.fileName.lastPathComponentWithoutExtension)-\(mpls.files.map{$0.lastPathComponentWithoutExtension}.joined(separator: "+").prefix(200))"
     }
     
-    private func generateSplitArguments(mpls: Mpls) -> [String] {
-        guard let splits = configuration.splits, splits.count > 0 else {
-            return []
+}
+
+private func generateSplit(splits: [Int]?, chapterCount: Int) -> Mkvmerge.GlobalOption.Split? {
+        guard let splits = splits, splits.count > 0 else {
+            return nil
         }
         let totalChaps = splits.reduce(0, +)
-        if totalChaps == mpls.chapterCount {
+        if totalChaps == chapterCount {
             var chapIndex = [Int]()
             var chapCount = 0
             splits.forEach { (chap) in
                 chapIndex.append(chap+1+chapCount)
                 chapCount += chap
             }
-            return ["--split", "chapters:\(chapIndex.dropLast().map{$0.description}.joined(separator: ","))"]
+            return .chapters(.numbers(chapIndex.dropLast()))
         } else {
-            return []
+            return nil
         }
     }
-}
-
-extension RemuxerArgument {
-    
-    internal func generatePrimaryLanguages(with otherLanguages: [String]) -> Set<String> {
-        var preferedLanguages = languages
-        otherLanguages.forEach { (l) in
-            preferedLanguages.insert(l)
-        }
-        excludeLanguages.forEach { (l) in
-            preferedLanguages.remove(l)
-        }
-        return preferedLanguages
-    }
-    
-}
 
 //struct SubTask {
 //    let main: Converter
@@ -792,7 +800,7 @@ extension RemuxerArgument {
 //}
 
 struct WorkTask {
-    let input: Path
+    let input: URL
     let main: Converter
     let chapterSplit: Bool
     let splitWorkers: [Converter]?
@@ -800,7 +808,7 @@ struct WorkTask {
     let canBeIgnored: Bool
 //    let inputSize: Int
     
-    public init(input: Path, main: Converter, chapterSplit: Bool, canBeIgnored: Bool) {
+    public init(input: URL, main: Converter, chapterSplit: Bool, canBeIgnored: Bool) {
         self.input = input
         self.main = main
         self.chapterSplit = chapterSplit
@@ -809,7 +817,7 @@ struct WorkTask {
         self.canBeIgnored = canBeIgnored
     }
     
-    public init(input: Path, main: Converter, chapterSplit: Bool, splitWorkers: [Converter], joinWorker: Converter) {
+    public init(input: URL, main: Converter, chapterSplit: Bool, splitWorkers: [Converter], joinWorker: Converter) {
         self.input = input
         self.main = main
         self.chapterSplit = chapterSplit

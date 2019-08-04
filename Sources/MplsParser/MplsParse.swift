@@ -20,10 +20,6 @@ public enum MplsReadError: Error {
     case invalidSubPathType(UInt8)
 }
 
-//func mplsTimeDecode(value: UInt64) -> UInt64 {
-//    return value * 1000000 / 45
-//}
-
 struct MARK {
     static let ChapterMark: [UInt8] = [0xff, 0xff, 0x00, 0x00, 0x00, 0x00]
     static let SearchM2TS: [UInt8] = [0x4d, 0x32, 0x54, 0x53]//"M2TS"

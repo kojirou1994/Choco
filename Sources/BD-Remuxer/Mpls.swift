@@ -1,6 +1,5 @@
 import Foundation
-import MplsReader
-import Path
+import MplsParser
 
 extension MplsPlayItem {
     var langs: [String] {
@@ -24,11 +23,11 @@ public struct Mpls {
     
     public let duration: Timestamp
     
-    public let files: [Path]
+    public let files: [URL]
     
     public let size: Int
     
-    public let fileName: Path
+    public let fileName: URL
     
     public let trackLangs: [String]
     
@@ -54,17 +53,17 @@ public struct Mpls {
             // contains repeated files
             compressed = true
             self.size = size / files.count
-            self.files = fileSet.sorted().map {Path($0)!}
+            self.files = fileSet.sorted().map(URL.init(fileURLWithPath:))
             self.duration = .init(ns: 0)
 //                .init(ns: durationValue / UInt64(files.count))
         } else {
             compressed = false
             self.size = size
-            self.files = files.map {Path($0)!}
+            self.files = files.map(URL.init(fileURLWithPath:))
             self.duration = .init(ns: durationValue)
         }
         trackLangs = info.tracks.map({ return $0.properties.language ?? "und" })
-        fileName = Path(info.fileName)!
+        fileName = URL.init(fileURLWithPath: info.fileName)
         chapterCount = info.container.properties?.playlistChapters ?? 0
 //        rawValue = .mkvtoolnix(info)
     }
@@ -75,9 +74,9 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
     
     public var description: String {
         return """
-        fileName: \(fileName.basename())
+        fileName: \(fileName.lastPathComponent)
         files:
-        \(files.map {" - " + $0.basename()}.joined(separator: "\n"))
+        \(files.map {" - " + $0.lastPathComponent}.joined(separator: "\n"))
         chapterCount: \(chapterCount)
         size: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
         duration: \(duration.description)
@@ -87,7 +86,7 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
     }
     
     public static func < (lhs: Mpls, rhs: Mpls) -> Bool {
-        return lhs.fileName < rhs.fileName
+        return lhs.fileName.lastPathComponent < rhs.fileName.lastPathComponent
     }
     
     public static func == (lhs: Mpls, rhs: Mpls) -> Bool {

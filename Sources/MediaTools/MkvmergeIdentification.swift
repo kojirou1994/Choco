@@ -1,6 +1,6 @@
-@_exported import Foundation
-@_exported import Executable
-@_exported import MediaUtility
+import Foundation
+import Executable
+import MediaUtility
 
 public struct MkvmergeIdentification: Decodable {
     /// an array describing the attachments found if any
@@ -258,6 +258,10 @@ public struct MkvmergeIdentification: Decodable {
 internal let jsonDecoder = JSONDecoder()
 
 extension MkvmergeIdentification {
+    
+    public init(url: URL) throws {
+        try self.init(filePath: url.path)
+    }
     
     public init(filePath: String) throws {
         #if DEBUG

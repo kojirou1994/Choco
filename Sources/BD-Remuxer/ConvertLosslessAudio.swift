@@ -149,7 +149,7 @@ extension MkvmergeIdentification.Track {
         }
     }
     
-    var isTruehd: Bool {
+    var isTrueHD: Bool {
         switch codec {
         case "TrueHD Atmos", "TrueHD":
             return true

@@ -1,4 +1,4 @@
-public enum TrackType: String, Decodable, CustomStringConvertible {
+public enum TrackType: String, Codable, CustomStringConvertible {
     case video
     case audio
     case subtitles

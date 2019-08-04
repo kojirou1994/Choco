@@ -81,3 +81,15 @@ extension MplsPlaylist {
     }
     
 }
+
+extension MplsPlaylist {
+    public var m2tsList: [[String]] {
+        let angleCount = playItems.max(by: {$0.multiAngle.angleCount < $1.multiAngle.angleCount})!.multiAngle.angleCount + 1
+        var result = [[String]]()
+        result.reserveCapacity(angleCount)
+        for index in 0..<angleCount {
+            result.append(playItems.map {$0.clipId(for: index)})
+        }
+        return result
+    }
+}

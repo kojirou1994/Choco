@@ -7,14 +7,14 @@ let package = Package(
     products: [
         .executable(name: "BD-Remuxer", targets: ["BD-Remuxer"]),
 //        .executable(name: "MKV2MP4", targets: ["MKV2MP4"])
-        .library(name: "MplsReader", targets: ["MplsReader"]),
+        .library(name: "MplsParser", targets: ["MplsParser"]),
         .library(name: "MediaTools", targets: ["MediaTools"])
     ],
     dependencies: [
         .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.2.0"),
         .package(url: "https://github.com/kojirou1994/ArgumentParser.git", .branch("master")),
         .package(url: "https://github.com/IBM-Swift/BlueSignals.git", from: "1.0.0"),
-        .package(url: "https://github.com/mxcl/Path.swift.git", from: "0.16.0")
+        .package(url: "https://github.com/kojirou1994/URLFileManager.git", .branch("master")),
     ],
     targets: [
         .systemLibrary(
@@ -22,49 +22,48 @@ let package = Package(
             pkgConfig: "libbluray",
             providers: [.brew(["libbluray"])]
         ),
-//        .systemLibrary(name: <#T##String#>, path: <#T##String?#>, pkgConfig: <#T##String?#>, providers: <#T##[SystemPackageProvider]?#>)
         .target(
             name: "MediaUtility",
             dependencies: ["SwiftEnhancement"]
         ),
         .target(
-            name: "MplsReader",
-            dependencies: ["Kwift", "MediaUtility"]
-        ),
-        .target(
-            name: "MediaTools",
-            dependencies: ["Executable", "MediaUtility"]
-        ),
-        .target(
-            name: "MovieDatabase",
-            dependencies: ["SwiftEnhancement", "FoundationEnhancement", "MediaTools"]
-        ),
-        .target(
-            name: "MovieOrganizer",
+            name: "MplsParser",
             dependencies: [
                 "Kwift",
-                "MediaTools",
-                "MovieDatabase",
-                "ArgumentParser",
-                "Path"
+                "MediaUtility"
             ]
         ),
         .target(
-            name: "MplsReader-Demo",
-            dependencies: ["MplsReader", "MediaTools"]
+            name: "MediaTools",
+            dependencies: [
+                "Executable",
+                "MediaUtility"
+            ]
         ),
         .target(
             name: "BD-Remuxer",
-            dependencies: ["MediaTools", "MplsReader", "Kwift", "ArgumentParser", "Signals", "Path"]),
+            dependencies: [
+                "MediaTools",
+                "MplsParser",
+                "Kwift",
+                "ArgumentParser",
+                "Signals",
+                "URLFileManager"
+            ]
+        ),
 //        .target(
 //            name: "MKV2MP4",
 //            dependencies: ["Common", "Kwift", "Signals", "ArgumentParser"]),
         .target(
             name: "Exp",
-            dependencies: ["Kwift", "MediaTools", "MplsReader", "CLibbluray"]),
+            dependencies: [
+                "Kwift", "MediaTools",
+                "MplsParser", "CLibbluray"
+            ]
+        ),
         .target(
             name: "ChapterRename",
-            dependencies: ["Executable", "MplsReader"]),
+            dependencies: ["Executable", "MplsParser"]),
         .testTarget(
             name: "RemuxerTests",
             dependencies: ["BD-Remuxer"]),

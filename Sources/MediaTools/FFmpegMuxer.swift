@@ -23,7 +23,7 @@ public struct FFmpegMuxer: Executable {
         self.output = output
         self.mode = mode
     }
-        
+    
     public var arguments: [String] {
         let arguments: [String]
         switch mode {
@@ -36,4 +36,5 @@ public struct FFmpegMuxer: Executable {
         }
         return arguments
     }
+    
 }

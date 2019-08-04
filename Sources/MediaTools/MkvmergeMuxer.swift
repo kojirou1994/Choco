@@ -1,83 +1,6 @@
-public struct MkvmergeMuxer: Executable {
-    
-    public static let executableName: String = "mkvmerge"
-    
-    public let input: [String]
-    
-    public let output: String
-    
-    let audioLanguages: Set<String>
-    
-    let subtitleLanguages: Set<String>
-    
-    let chapterPath: String?
-    
-    var extraArguments: [String]
-    
-    let cleanInputChapter: Bool
-    
-    public init(input: String, output: String) {
-        self.input = [input]
-        self.output = output
-        self.audioLanguages = []
-        self.subtitleLanguages = []
-        self.chapterPath = nil
-        self.extraArguments = []
-        self.cleanInputChapter = false
-    }
-    
-    public init(input: [String], output: String, audioLanguages: Set<String>,
-                subtitleLanguages: Set<String>, chapterPath: String? = nil, extraArguments: [String] = [], cleanInputChapter: Bool = false) {
-        self.input = input
-        self.output = output
-        self.audioLanguages = audioLanguages
-        self.subtitleLanguages = subtitleLanguages
-        if let path = chapterPath, !path.isEmpty {
-            self.chapterPath = path
-        } else {
-            self.chapterPath = nil
-        }
-        self.extraArguments = extraArguments
-        self.cleanInputChapter = cleanInputChapter
-    }
-    
-    public var arguments: [String] {
-        var arguments = ["-q", "--output", output, "--no-attachments"]
-        if audioLanguages.count > 0 {
-            arguments.append("-a")
-            arguments.append(audioLanguages.joined(separator: ","))
-        }
-        if subtitleLanguages.count > 0 {
-            arguments.append("-s")
-            arguments.append(subtitleLanguages.joined(separator: ","))
-        }
-        
-        if cleanInputChapter {
-            arguments.append("--no-chapters")
-        }
-        arguments.append(input[0])
-        if input.count > 1 {
-            input[1...].forEach { (i) in
-                if cleanInputChapter {
-                    arguments.append("--no-chapters")
-                }
-                arguments.append("+")
-                arguments.append(i)
-            }
-        }
-        
-        if chapterPath != nil {
-            arguments.append(contentsOf: ["--chapters", chapterPath!])
-        }
-        
-        arguments.append(contentsOf: extraArguments)
-        
-        return arguments
-    }
-    
-}
+import Foundation
 
-public struct NewMkvmerge: Executable {
+public struct Mkvmerge: Executable {
     public static let executableName: String = "mkvmerge"
     
     public let global: GlobalOption
@@ -87,29 +10,37 @@ public struct NewMkvmerge: Executable {
         public var webm: Bool
         public var title: String
         public var defaultLanguage: String?
-        //    var split: Split?
-        //    enum Split {
-        //        case
-        //    }
+        public var split: Split?
+        public enum Split {
+            /// size in bytes
+            case size(Int)
+//            case duration(seconds: Int)
+            case chapters(ChapterSplit)
+            public enum ChapterSplit {
+                case all
+                case numbers([Int])
+            }
+        }
         public var trackOrder: [TrackOrder]?
         public struct TrackOrder {
             public let fid: Int
             public let tid: Int
-            var argument: String {
-                "\(fid):\(tid)"
-            }
+            var argument: String { "\(fid):\(tid)" }
             public init(fid: Int, tid: Int) {
                 self.fid = fid
                 self.tid = tid
             }
         }
+        public var chapterFile: String?
         
-        public init(quiet: Bool, webm: Bool = false, title: String = "", defaultLanguage: String? = nil, trackOrder: [TrackOrder]? = nil) {
+        public init(quiet: Bool, webm: Bool = false, title: String = "", defaultLanguage: String? = nil, split: Split? = nil, trackOrder: [TrackOrder]? = nil, chapterFile: String? = nil) {
             self.quiet = quiet
             self.webm = webm
             self.title = title
             self.defaultLanguage = defaultLanguage
+            self.split = split
             self.trackOrder = trackOrder
+            self.chapterFile = chapterFile
         }
         
         var arguments: [String] {
@@ -128,6 +59,21 @@ public struct NewMkvmerge: Executable {
                 r.append("--track-order")
                 r.append(to.map{$0.argument}.joined(separator: ","))
             }
+            if let c = chapterFile, !c.isEmpty {
+                r.append("--chapters")
+                r.append(c)
+            }
+            if let s = split {
+                r.append("--split")
+                switch s {
+                case .size(let bytes):
+                    r.append(String(describing: bytes))
+                case .chapters(.all):
+                    r.append("chapters:all")
+                case .chapters(.numbers(let numbers)):
+                    r.append("chapters:\(numbers.map{String(describing: $0)}.joined(separator: ","))")
+                }
+            }
             return r
         }
     }
@@ -138,12 +84,31 @@ public struct NewMkvmerge: Executable {
     
     public struct Input {
         public enum InputOption {
-            public enum TrackIndex {
-                case none
+            public enum TrackSelect {
+                case empty
+                case removeAll
                 case enabledTIDs([Int])
-                case enabledLANGs([String])
+                case enabledLANGs(Set<String>)
                 case disabledTIDs([Int])
-                case disabledLANGS([String])
+                case disabledLANGS(Set<String>)
+                
+                var checked: TrackSelect {
+                    switch self {
+                    case .enabledTIDs(let tids), .disabledTIDs(let tids):
+                        if tids.isEmpty {
+                            return .empty
+                        } else {
+                            return self
+                        }
+                    case .enabledLANGs(let langs), .disabledLANGS(let langs):
+                        if langs.isEmpty {
+                            return .empty
+                        } else {
+                            return self
+                        }
+                    default: return self
+                    }
+                }
                 
                 var argument: String {
                     switch self {
@@ -161,12 +126,12 @@ public struct NewMkvmerge: Executable {
                 }
                 
             }
-            case audioTracks(TrackIndex)
-            case videoTracks(TrackIndex)
-            case subtitleTracks(TrackIndex)
-            case buttonTracks(TrackIndex)
-            case trackTags(TrackIndex)
-            case attachments(TrackIndex)
+            case audioTracks(TrackSelect)
+            case videoTracks(TrackSelect)
+            case subtitleTracks(TrackSelect)
+            case buttonTracks(TrackSelect)
+            case trackTags(TrackSelect)
+            case attachments(TrackSelect)
             case noChapters
             case noGlobalTags
             case trackName(tid: Int, name: String)
@@ -174,44 +139,62 @@ public struct NewMkvmerge: Executable {
             
             var arguments: [String] {
                 switch self {
-                case .audioTracks(let i):
+                case .audioTracks(let v):
+                    let i = v.checked
                     switch i {
-                    case .none:
+                    case .empty:
+                        return []
+                    case .removeAll:
                         return ["--no-audio"]
                     default:
                         return ["--audio-tracks", i.argument]
                     }
-                case .videoTracks(let i):
+                case .videoTracks(let v):
+                    let i = v.checked
                     switch i {
-                    case .none:
+                    case .empty:
+                        return []
+                    case .removeAll:
                         return ["--no-video"]
                     default:
                         return ["--video-tracks", i.argument]
                     }
-                case .subtitleTracks(let i):
+                case .subtitleTracks(let v):
+                    let i = v.checked
                     switch i {
-                    case .none:
+                    case .empty:
+                        return []
+                    case .removeAll:
                         return ["--no-subtitles"]
                     default:
                         return ["--subtitle-tracks", i.argument]
                     }
-                case .buttonTracks(let i):
+                case .buttonTracks(let v):
+                    let i = v.checked
                     switch i {
-                    case .none:
+                    case .empty:
+                        return []
+                    case .removeAll:
                         return ["--no-buttons"]
                     default:
                         return ["--button-tracks", i.argument]
                     }
-                case .trackTags(let i):
+                case .trackTags(let v):
+                    let i = v.checked
                     switch i {
-                    case .none:
+                    case .empty:
+                        return []
+                    case .removeAll:
                         return ["--no-track-tags"]
                     default:
                         return ["--track-tags", i.argument]
                     }
-                case .attachments(let i):
+                case .attachments(let v):
+                    let i = v.checked
                     switch i {
-                    case .none:
+                    case .empty:
+                        return []
+                    case .removeAll:
                         return ["--no-attachments"]
                     default:
                         return ["--attachments", i.argument]
@@ -229,7 +212,7 @@ public struct NewMkvmerge: Executable {
         }
         public let file: String
         public let append: Bool
-        public let options: [InputOption]
+        public var options: [InputOption]
         
         public init(file: String, append: Bool = false, options: [InputOption] = []) {
             self.file = file
@@ -248,10 +231,17 @@ public struct NewMkvmerge: Executable {
     }
     
     public var arguments: [String] {
-        global.arguments + ["--output", output] + inputs.flatMap {$0.arguments}
+        let args = global.arguments + ["--output", output] + inputs.flatMap {$0.arguments}
+        if args.count >= 4096 {
+            let optionsFile = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("\(UUID().uuidString).json")
+            try! JSONSerialization.data(withJSONObject: args, options: [.prettyPrinted]).write(to: optionsFile)
+            return ["@\(optionsFile.path)"]
+        } else {
+            return args
+        }
     }
     
-    public init(global: GlobalOption, output: String, inputs: [NewMkvmerge.Input]) {
+    public init(global: GlobalOption, output: String, inputs: [Mkvmerge.Input]) {
         self.global = global
         self.output = output
         self.inputs = inputs
