@@ -32,8 +32,12 @@ let mplsVersionAHeader: [UInt8] = [0x30, 0x32, 0x30, 0x30] // "0200"
 let mplsVersionBHeader: [UInt8] = [0x30, 0x31, 0x30, 0x30] // "0100"
 let mplsVersionCHeader: [UInt8] = [0x30, 0x33, 0x30, 0x30] // "0300"
 
+import KwiftExtension
+
 public func mplsParse(path: String, verbose: Bool = false) throws -> MplsPlaylist {
-    let reader = try DataHandle.init(data: .init(contentsOf: .init(fileURLWithPath: path), options: .alwaysMapped))
+    let reader = try autoreleasepool {
+        try DataHandle.init(data: .init(contentsOf: .init(fileURLWithPath: path)))
+    }
     
     // MARK: parse header
     let mpls = reader.read(4)

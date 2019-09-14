@@ -139,7 +139,7 @@ struct RemuxerArgument {
         try parser.parse(arguments: CommandLine.arguments.dropFirst())
         
         if config.help {
-            parser.showHelp(to: &StdOutputStream.stderrOutputStream)
+            parser.showHelp(to: &StdOutputStream.stderr)
             exit(0)
         }
         config.temporaryPath = config.temporaryPath.appendingPathComponent("BD-Remuxer-tmp", isDirectory: true)
@@ -189,24 +189,24 @@ public class Remuxer {
                     if p.terminationStatus == 2 {
                         throw ExecutableError.nonZeroExitCode(2)
                     }
-                    return [task.joinWorker!.outputPath]
+                    return [task.joinWorker!.outputURL]
                 } catch {
                     print("Failed to join file, \(error)")
-                    return splitWorkers.map {$0.outputPath}
+                    return splitWorkers.map {$0.outputURL}
                 }
             } else {
                 throw error
             }
         }
         
-        if _fm.fileExistance(at: task.main.outputPath).exists {
+        if _fm.fileExistance(at: task.main.outputURL).exists {
             // output exists
-            return [task.main.outputPath]
-        } else if task.chapterSplit, let parts = try? _fm.contentsOfDirectory(at: task.main.outputPath.deletingLastPathComponent()).filter({$0.pathExtension == task.main.outputPath.pathExtension && $0.lastPathComponent.hasPrefix(task.main.outputPath.lastPathComponentWithoutExtension)}) {
+            return [task.main.outputURL]
+        } else if task.chapterSplit, let parts = try? _fm.contentsOfDirectory(at: task.main.outputURL.deletingLastPathComponent()).filter({$0.pathExtension == task.main.outputURL.pathExtension && $0.lastPathComponent.hasPrefix(task.main.outputURL.lastPathComponentWithoutExtension)}) {
             return parts
         } else {
             print("Can't find output file(s).")
-            throw RemuxerError.noOutputFile(task.main.outputPath)
+            throw RemuxerError.noOutputFile(task.main.outputURL)
         }
     }
     
@@ -418,15 +418,7 @@ extension Remuxer {
     
     private func makeTrackModification(mkvinfo: MkvmergeIdentification,
                                        temporaryPath: URL) throws -> [TrackModification] {
-//        let context = try FFmpegInputFormatContext.init(url: mkvinfo.fileName)
-//        try context.findStreamInfo()
-//        guard context.streamCount == mkvinfo.tracks.count else {
-//            print("ffmpeg and mkvmerge track count mismatch!")
-//            throw RemuxerError.errorReadingFile
-//        }
-        
         let preferedLanguages = config.language.generatePrimaryLanguages(with: mkvinfo.primaryLanguages)
-//        let streams = context.streams
         let tracks = mkvinfo.tracks
         var flacConverters = [FlacEncoder]()
         var ffmpegArguments = ["-v", "quiet", "-nostdin", "-y", "-i", mkvinfo.fileName, "-vn"]
@@ -492,7 +484,7 @@ extension Remuxer {
                 if p.terminationStatus != 0 {
                     print("error while converting flac \(flac.input)")
                 }
-                try? flac.inputPaths.forEach(_fm.removeItem(at:))
+                try? _fm.removeItem(at: URL(fileURLWithPath: flac.input))
             }
             flacQueue.add(process)
         }
@@ -647,7 +639,7 @@ struct BDMVTask {
                     } else {
                         let splitWorkers = try split(mpls: mpls).map {$0.main}
                         let main = Mkvmerge.init(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: mpls.files.enumerated().map {Mkvmerge.Input.init(file: $0.element.path, append: $0.offset != 0, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages))])})
-                        let joinWorker = Mkvmerge(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: splitWorkers.enumerated().map {Mkvmerge.Input.init(file: $0.element.outputPath.path, append: $0.offset != 0, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages)), .noChapters])})
+                        let joinWorker = Mkvmerge(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: splitWorkers.enumerated().map {Mkvmerge.Input.init(file: $0.element.outputURL.path, append: $0.offset != 0, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages)), .noChapters])})
                         tasks.append(.init(input: mpls.fileName,
                                            main: main, chapterSplit: false,
                                            splitWorkers: splitWorkers, joinWorker: joinWorker

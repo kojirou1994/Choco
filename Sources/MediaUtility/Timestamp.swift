@@ -1,4 +1,4 @@
-import SwiftEnhancement
+import KwiftExtension
 
 public struct Timestamp: LosslessStringConvertible {
     

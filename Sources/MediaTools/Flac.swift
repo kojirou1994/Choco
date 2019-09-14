@@ -2,9 +2,9 @@ public struct FlacEncoder: Executable {
     
     public static let executableName: String = "flac"
     
-    public var input: String
+    public let input: String
     
-    public var output: String
+    public let output: String
     
     public var level: Int8 = 5
     

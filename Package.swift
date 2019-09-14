@@ -12,7 +12,7 @@ let package = Package(
         .library(name: "MediaTools", targets: ["MediaTools"])
     ],
     dependencies: [
-        .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.2.0"),
+        .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.3.1"),
         .package(url: "https://github.com/kojirou1994/ArgumentParser.git", from: "0.0.1"),
         .package(url: "https://github.com/IBM-Swift/BlueSignals.git", from: "1.0.0"),
         .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
@@ -25,7 +25,7 @@ let package = Package(
         ),
         .target(
             name: "MediaUtility",
-            dependencies: ["SwiftEnhancement"]
+            dependencies: ["KwiftExtension"]
         ),
         .target(
             name: "MplsParser",
@@ -39,6 +39,12 @@ let package = Package(
             dependencies: [
                 "Executable",
                 "MediaUtility"
+            ]
+        ),
+        .target(
+            name: "TrackInfo",
+            dependencies: [
+                "MediaTools"
             ]
         ),
         .target(
