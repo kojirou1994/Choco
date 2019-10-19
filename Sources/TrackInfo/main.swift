@@ -7,7 +7,7 @@ guard CommandLine.argc > 1 else {
     exit(1)
 }
 
-extension TrackType {
+extension MediaTrackType {
     var mark: String {
         switch self {
         case .audio: return "A"

@@ -1,10 +1,10 @@
-import MplsParser
+import MediaUtility
 import Foundation
 import Executable
 
 do {
     guard CommandLine.argc >= 3 else {
-        print("ChapterRename mkv.mkv title.txt")
+        print("ChapterRename filename.mkv chapters.txt")
         exit(1)
     }
     
@@ -15,7 +15,7 @@ do {
     
     try AnyExecutable(executableName: "mkvextract", arguments: [mkvFilename, "chapters", "-s", exportChapterPath]).runAndWait(checkNonZeroExitCode: true)
     
-    var chapter = try Chapter.init(ogmFile: exportChapterPath)
+    var chapter = try Chapter(ogmFileURL: URL(fileURLWithPath: exportChapterPath))
     
     guard chapter.nodes.count == titles.count else {
         print("Chapter count mismatch")

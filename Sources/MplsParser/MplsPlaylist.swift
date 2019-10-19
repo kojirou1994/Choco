@@ -2,7 +2,7 @@ import Foundation
 
 public struct MplsPlaylist: CustomStringConvertible {
     
-    public let fileName: String
+    public let mplsURL: URL
 
     let playlistStartIndex: UInt32
     let chapterStartIndex: UInt32

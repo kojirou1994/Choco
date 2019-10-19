@@ -7,15 +7,14 @@ let package = Package(
     products: [
         .executable(name: "BD-Remuxer", targets: ["BD-Remuxer"]),
 //        .executable(name: "MKV2MP4", targets: ["MKV2MP4"])
-        .library(name: "MediaUtility", targets: ["MediaUtility"]),
         .library(name: "MplsParser", targets: ["MplsParser"]),
-        .library(name: "MediaTools", targets: ["MediaTools"])
     ],
     dependencies: [
         .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.3.1"),
-        .package(url: "https://github.com/kojirou1994/ArgumentParser.git", from: "0.0.1"),
+        .package(url: "https://github.com/kojirou1994/ArgumentParser.git", from: "0.1.0"),
         .package(url: "https://github.com/IBM-Swift/BlueSignals.git", from: "1.0.0"),
         .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
+        .package(url: "git@github.com:kojirou1994/MediaUtility.git", from: "0.0.1")
     ],
     targets: [
         .systemLibrary(
@@ -24,23 +23,20 @@ let package = Package(
             providers: [.brew(["libbluray"])]
         ),
         .target(
-            name: "MediaUtility",
-            dependencies: ["KwiftExtension"]
-        ),
-        .target(
             name: "MplsParser",
             dependencies: [
                 "Kwift",
                 "MediaUtility"
             ]
         ),
-        .target(
-            name: "MediaTools",
-            dependencies: [
-                "Executable",
-                "MediaUtility"
-            ]
-        ),
+//        .target(
+//            name: "MplsTest",
+//            dependencies: [
+//                "Kwift",
+//                "MplsParser",
+//                "URLFileManager"
+//            ]
+//        ),
         .target(
             name: "TrackInfo",
             dependencies: [
@@ -70,7 +66,7 @@ let package = Package(
         ),
         .target(
             name: "ChapterRename",
-            dependencies: ["Executable", "MplsParser"]),
+            dependencies: ["Executable", "MediaUtility"]),
         .testTarget(
             name: "RemuxerTests",
             dependencies: ["BD-Remuxer"]),

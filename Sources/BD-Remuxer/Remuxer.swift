@@ -1,9 +1,10 @@
 import Foundation
-@_exported import MediaTools
+import MediaTools
 import MplsParser
 import ArgumentParser
 import Executable
 import URLFileManager
+import KwiftUtility
 
 public enum RemuxerError: Error {
     case errorReadingFile
@@ -13,21 +14,29 @@ public enum RemuxerError: Error {
     case noOutputFile(URL)
 }
 
-let _fm = URLFileManager()
+let _fm = URLFileManager.default
 
-struct RemuxerArgument {
+struct RemuxerArgument: ArgumentProtocol {
     
-    private(set) internal var outputPath: URL
+    private var outputPath: String = "."
     
-    private var temporaryPath: URL
+    var outputRootDirectory: URL {
+        URL(fileURLWithPath: self.outputPath)
+    }
+    
+    private var temporaryPath: String = "."
+    
+    var temperoraryDirectory: URL {
+        URL(fileURLWithPath: self.temporaryPath).appendingPathComponent("BD-Remuxer-tmp")
+    }
     
     public func makeTemporaryPath() throws -> URL {
-        let t = temporaryPath.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let t = temperoraryDirectory.appendingPathComponent(UUID().uuidString)
         try _fm.createDirectory(at: t)
         return t
     }
     
-    enum RemuxMode: String, CaseIterable {
+    enum RemuxMode: String, CaseIterable, ValueOption {
         
         // auto detect
         //            case auto
@@ -45,11 +54,11 @@ struct RemuxerArgument {
         }
     }
     
-    private(set) internal var mode: RemuxMode
+    private(set) internal var mode: RemuxMode = .movie
     
-    private(set) internal var splits: [Int]?
+    private(set) internal var splits: [Int]? = nil
     
-    private(set) internal var inputs: [URL]
+    private(set) internal var inputs: [String] = []
     
     struct LanguagePreference {
         
@@ -74,76 +83,48 @@ struct RemuxerArgument {
         }
     }
     
-    private(set) internal var language: LanguagePreference
+    private(set) internal var language: LanguagePreference = .default
     
 //    var excludeLanguages: Set<String>
     
-    private(set) internal var deleteAfterRemux: Bool
+    private(set) internal var deleteAfterRemux: Bool = false
     
-    private(set) internal var keepTrackName: Bool
+    private(set) internal var keepTrackName: Bool = false
     
-    private(set) internal var keepTrueHD: Bool
+    private(set) internal var keepTrueHD: Bool = false
     
-    private(set) internal var help: Bool
+    private(set) internal var help: Bool = false
     
     static func parse() throws -> Self {
-        var config = RemuxerArgument.init(outputPath: URL(fileURLWithPath: "."), temporaryPath: URL(fileURLWithPath: "."), mode: .movie, splits: nil, inputs: [], language: .default, deleteAfterRemux: false, keepTrackName: false, keepTrueHD: false, help: false)
-        let output = Option(name: "--output", anotherName: "-o", requireValue: true, description: "output dir") { (v) in
-            config.outputPath = URL.init(fileURLWithPath: v)
-        }
         
-        let temp = Option(name: "--temp", anotherName: "-t", requireValue: true, description: "temp dir") { (v) in
-            config.temporaryPath = URL.init(fileURLWithPath: v)
-        }
+        let parser = ArgumentParser<Self>(toolName: "BD-Remuxer", overview: "Automatic remux blu-ray disc or media files.")
         
-        let mode = Option(name: "--mode", requireValue: true, description: "remux mode") { (v) in
-            guard let modeV = RemuxerArgument.RemuxMode.init(rawValue: v) else {
-                fatalError("Unknown mode: \(v)")
-            }
-            config.mode = modeV
+        parser.addValueOption(name: "--output", anotherName: "-o", description: "Root output directory", keypath: \.outputPath)
+        parser.addValueOption(name: "--temp", anotherName: "-t", description: "Root temp directory", keypath: \.temporaryPath)
+        parser.addValueOption(name: "--mode", anotherName: nil, description: "Remux mode", keypath: \.mode)
+        parser.addOption(name: "--language", anotherName: nil, requireValue: true, description: "Valid languages") { (v, arg) in
+            arg.language.languages = Set(v.components(separatedBy: ",") + CollectionOfOne("und"))
         }
-        let language = Option(name: "--language", requireValue: true, description: "valid languages") { (v) in
-            config.language.languages = Set(v.components(separatedBy: ",") + ["und"])
+        parser.addOption(name: "--exclude-language", anotherName: nil, requireValue: true, description: "Exclude languages") { (v, arg) in
+            arg.language.excludeLanguages = Set(v.components(separatedBy: ","))
         }
-        let excludeLanguage = Option(name: "--exclude-language", requireValue: true, description: "exclude languages") { (v) in
-            config.language.excludeLanguages = Set(v.components(separatedBy: ","))
+        parser.addOption(name: "--splits", anotherName: nil, requireValue: true, description: "Split info") { (v, arg) in
+            arg.splits = try v.split(separator: ",").map {try Int(argument: String($0)) }
         }
-        let splits = Option(name: "--splits", requireValue: true, description: "split info") { (v) in
-            let splits = v.split(separator: ",").map({ (str) -> Int in
-                if let int = Int(str) {
-                    return int
-                } else {
-                    fatalError("Invalid splits: \(v)")
-                }
-            })
-            config.splits = splits
-        }
-        let deleteAfterRemux = Option(name: "--delete-after-remux", requireValue: false, description: "delete the src after remux") { (_) in
-            config.deleteAfterRemux = true
-        }
-        let keepTrackName = Option(name: "--keep-track-name", requireValue: false, description: "keep original track name") { (v) in
-            config.keepTrackName = true
-        }
+        parser.addFlagOption(name: "--delete-after-remux", anotherName: nil, description: "Delete the src after remux", keypath: \.deleteAfterRemux)
+        parser.addFlagOption(name: "--keep-track-name", anotherName: nil, description: "Keep original track name", keypath: \.keepTrackName)
+        parser.addFlagOption(name: "--keep-truehd", anotherName: nil, description: "Keep TrueHD track", keypath: \.keepTrueHD)
+        parser.addFlagOption(name: "--help", anotherName: "-H", description: "Show help", keypath: \.help)
         
-        let keepTrueHD = Option(name: "--keep-true-hd", requireValue: false, description: "keep TrueHD track") { (v) in
-            config.keepTrueHD = true
-        }
+        parser.set(positionalInputKeyPath: \.inputs)
         
-        let help = Option(name: "--help", anotherName: "-H", requireValue: false, description: "show help") { (v) in
-            config.help = true
-        }
+        let config = try parser.parse(arguments: CommandLine.arguments.dropFirst())
         
-        let parser = ArgumentParser(usage: "Remuxer --mode \(RemuxerArgument.RemuxMode.allSelection) [OPTIONS] [INPUT]", options: [output, temp, mode, language, splits, deleteAfterRemux, keepTrackName, keepTrueHD, help, excludeLanguage]) { (v) in
-            config.inputs.append(URL(fileURLWithPath: v))
-        }
-        try parser.parse(arguments: CommandLine.arguments.dropFirst())
-        
-        if config.help {
-            parser.showHelp(to: &StdOutputStream.stderr)
+        if config.help || config.inputs.isEmpty {
+            parser.showHelp(to: StdioOutputStream.stderr)
             exit(0)
         }
-        config.temporaryPath = config.temporaryPath.appendingPathComponent("BD-Remuxer-tmp", isDirectory: true)
-        try _fm.createDirectory(at: config.temporaryPath)
+        
         return config
     }
 }
@@ -164,11 +145,11 @@ public class Remuxer {
     }
     
     private func beforeRun(p: Process) {
-        p.terminationHandler = {self.processManager.remove(process: $0)}
+        p.terminationHandler = {self.processManager.remove($0)}
     }
     
     private func afterRun(p: Process) {
-        processManager.add(process: p)
+        processManager.add(p)
     }
     
     func recursiveRun(task: WorkTask) throws -> [URL] {
@@ -212,7 +193,7 @@ public class Remuxer {
     
     func remuxBDMV(at bdmvPath: URL, mode: MplsRemuxMode, temporaryPath: URL) throws {
         let task = BDMVTask(rootPath: bdmvPath, mode: mode,temporaryPath: temporaryPath, language: config.language, splits: config.splits)
-        let finalOutputPath = config.outputPath.appendingPathComponent(task.getBlurayTitle(), isDirectory: true)
+        let finalOutputPath = config.outputRootDirectory.appendingPathComponent(task.getBlurayTitle())
         if _fm.fileExistance(at: finalOutputPath).exists {
             throw RemuxerError.outputExist
         }
@@ -254,7 +235,7 @@ public class Remuxer {
             print("\(path.path) doesn't exist!")
         case .directory:
             // input is a directory, remux all contents
-            let outputDir = config.outputPath.appendingPathComponent(path.lastPathComponent, isDirectory: true)
+            let outputDir = config.outputRootDirectory.appendingPathComponent(path.lastPathComponent)
             try _fm.createDirectory(at: outputDir)
             
             let contents = try _fm.contentsOfDirectory(at: path)
@@ -268,7 +249,7 @@ public class Remuxer {
             })
         case .file:
             do {
-                try remux(file: path, remuxOutputDir: config.outputPath, temporaryPath: temporaryPath, deleteAfterRemux: false)
+                try remux(file: path, remuxOutputDir: config.outputRootDirectory, temporaryPath: temporaryPath, deleteAfterRemux: false)
             } catch {
                 print(error)
             }
@@ -282,26 +263,27 @@ public class Remuxer {
         }
 //        var failedTasks: [String] = []
         
-        config.inputs.forEach { (path) in
+        config.inputs.forEach { (input) in
+            let inputURL = URL(fileURLWithPath: input)
             do {
                 let temporaryPath = try config.makeTemporaryPath()
                 self.currentTemporaryPath = temporaryPath
                 
                 switch config.mode {
                 case .dumpBDMV:
-                    let task = BDMVTask(rootPath: path, mode: .direct, temporaryPath: temporaryPath, language: config.language, splits: config.splits)
+                    let task = BDMVTask(rootPath: inputURL, mode: .direct, temporaryPath: temporaryPath, language: config.language, splits: config.splits)
                     try task.dumpInfo()
                 case .episodes, .movie:
                     let mode: MplsRemuxMode = config.mode == .episodes ? .split : .direct
-                    try remuxBDMV(at: path, mode: mode, temporaryPath: temporaryPath)
+                    try remuxBDMV(at: inputURL, mode: mode, temporaryPath: temporaryPath)
                 case .file:
-                    try remuxFile(at: path, temporaryPath: temporaryPath)
+                    try remuxFile(at: inputURL, temporaryPath: temporaryPath)
                 }
                 
                 try _fm.removeItem(at: temporaryPath)
                 self.currentTemporaryPath = nil
             } catch {
-                print("Error while handling file \(path.path), info: \(error)")
+                print("Error while handling input \(input), error: \(error)")
             }
             
         }
@@ -544,9 +526,9 @@ extension Remuxer {
 
 enum TrackModification {
     
-    case copy(type: TrackType)
-    case replace(type: TrackType, file: URL, lang: String, trackName: String)
-    case remove(type: TrackType)
+    case copy(type: MediaTrackType)
+    case replace(type: MediaTrackType, file: URL, lang: String, trackName: String)
+    case remove(type: MediaTrackType)
     
     mutating func remove() {
         switch self {
@@ -561,7 +543,7 @@ enum TrackModification {
         
     }
     
-    var type: TrackType {
+    var type: MediaTrackType {
         switch self {
         case .replace(type: let type, file: _, lang: _, trackName: _):
             return type
@@ -622,11 +604,11 @@ struct BDMVTask {
                     let preferedLanguages = language.generatePrimaryLanguages(with: [mpls.primaryLanguage])
                     let outputFilename = generateFilename(mpls: mpls)
                     let output = temporaryPath.appendingPathComponent(outputFilename + ".mkv")
-                    let parsedMpls = try mplsParse(path: mpls.fileName.path)
+                    let parsedMpls = try MplsPlaylist.parse(mplsURL: mpls.fileName)
                     let chapter = parsedMpls.convert()
                     let chapterFile = temporaryPath.appendingPathComponent("\(mpls.fileName.lastPathComponentWithoutExtension).txt")
                     let chapterPath: String?
-                    if chapter.isValid {
+                    if !chapter.isEmpty {
                         try chapter.exportOgm().write(toFile: chapterFile.path, atomically: true, encoding: .utf8)
                         chapterPath = chapterFile.path
                     } else {

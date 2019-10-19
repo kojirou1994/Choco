@@ -1,5 +1,5 @@
 import Foundation
-//import SwiftFFmpeg
+import MediaTools
 import MplsParser
 
 extension Array where Element: Equatable {
@@ -140,7 +140,7 @@ extension Mpls {
     }
     
     private func generateChapterFile(chapterPath: URL) throws -> [URL?] {
-        let mpls = try mplsParse(path: fileName.path)
+        let mpls = try MplsPlaylist.parse(mplsURL: fileName)
         let chapters = mpls.split()
         if !compressed {
             precondition(files.count <= chapters.count)
