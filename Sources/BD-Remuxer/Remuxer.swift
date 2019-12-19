@@ -5,6 +5,8 @@ import ArgumentParser
 import Executable
 import URLFileManager
 import KwiftUtility
+import TrackExtension
+import TSCBasic
 
 public enum RemuxerError: Error {
     case errorReadingFile
@@ -95,6 +97,10 @@ struct RemuxerArgument: ArgumentProtocol {
     
     private(set) internal var help: Bool = false
     
+    internal private(set) var ignoreWarning = false
+
+    internal private(set) var removeExtraDTS = false
+    
     static func parse() throws -> Self {
         
         let parser = ArgumentParser<Self>(toolName: "BD-Remuxer", overview: "Automatic remux blu-ray disc or media files.")
@@ -114,6 +120,8 @@ struct RemuxerArgument: ArgumentProtocol {
         parser.addFlagOption(name: "--delete-after-remux", anotherName: nil, description: "Delete the src after remux", keypath: \.deleteAfterRemux)
         parser.addFlagOption(name: "--keep-track-name", anotherName: nil, description: "Keep original track name", keypath: \.keepTrackName)
         parser.addFlagOption(name: "--keep-truehd", anotherName: nil, description: "Keep TrueHD track", keypath: \.keepTrueHD)
+        parser.addFlagOption(name: "--ignore-warning", anotherName: nil, description: "ignore mkvmerge warning", keypath: \.ignoreWarning)
+        parser.addFlagOption(name: "--remove-extra-dts", anotherName: nil, description: "Remove dts when a truehd exists", keypath: \.removeExtraDTS)
         parser.addFlagOption(name: "--help", anotherName: "-H", description: "Show help", keypath: \.help)
         
         parser.set(positionalInputKeyPath: \.inputs)
@@ -133,42 +141,85 @@ public class Remuxer {
     
     private let config: RemuxerArgument
     
-    private let flacQueue = ParallelProcessQueue.init()
+    private let allowedExitCodes: [CInt]
     
-    private let processManager = SubProcessManager()
+    private let flacQueue = OperationQueue()
+    
+//    private let processManager = SubProcessManager()
     
     public init() throws {
-//        FFmpegLog.set(level: .quite)
-        flacQueue.maxConcurrentCount = 4
+        flacQueue.maxConcurrentOperationCount = 4
         self.config = try .parse()
         dump(config)
+        if self.config.ignoreWarning {
+            self.allowedExitCodes = [0, 1]
+        } else {
+            self.allowedExitCodes = [0]
+        }
     }
-    
-    private func beforeRun(p: Process) {
-        p.terminationHandler = {self.processManager.remove($0)}
+
+    private var runningProcess: TSCBasic.Process?
+
+    private func launch(externalExecutable: Executable) throws -> ProcessResult {
+        let process = try externalExecutable.generateTSCProcess(outputRedirection: .collect, startNewProcessGroup: false)
+        try process.launch()
+        runningProcess = process
+        let result = try process.waitUntilExit()
+        runningProcess = nil
+//        switch result.exitStatus {
+//        case .signalled(signal: _):
+//            throw ExecutableError.tscNonZeroExit(result.exitStatus)
+//        default:
+//            break
+//        }
+        return result
     }
-    
-    private func afterRun(p: Process) {
-        processManager.add(p)
+
+    private func launch(externalExecutable: Executable,
+                                               checkAllowedExitCodes codes: [CInt]) throws {
+        let result = try self.launch(externalExecutable: externalExecutable)
+        switch result.exitStatus {
+        case .terminated(code: let code):
+            if !codes.contains(code) {
+                throw ExecutableError.tscNonZeroExit(result.exitStatus)
+            }
+        case .signalled(signal: _):
+            throw ExecutableError.tscNonZeroExit(result.exitStatus)
+        }
+    }
+
+    func cancel() {
+        flacQueue.cancelAllOperations()
+        runningProcess?.signal(SIGTERM)
+        do {
+            try currentTemporaryPath.map {try _fm.removeItem(at: $0)}
+        } catch {
+            print("Faield to remove the temp dir at \(currentTemporaryPath!), you can delete it manually")
+        }
+    }
+
+    func logConverterStart(name: String, input: String, output: String) {
+        print("\n\(name):\n\(input)\n->\n\(output)")
     }
     
     func recursiveRun(task: WorkTask) throws -> [URL] {
-//        let tempOutput = task.main.output
         do {
-            task.main.printTask()
-            try task.main.runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
+            logConverterStart(name: task.main.executableName,
+                              input: task.main.inputDescription,
+                              output: task.main.outputURL.path)
+            try launch(externalExecutable: task.main, checkAllowedExitCodes: allowedExitCodes)
         } catch {
             if task.canBeIgnored {
                 return []
             }
             if let splitWorkers = task.splitWorkers {
                 for splitWorker in splitWorkers {
-                    try splitWorker.runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
+                    try launch(externalExecutable: splitWorker, checkAllowedExitCodes: allowedExitCodes)
                 }
                 do {
-                    let p = try task.joinWorker!.runAndWait(checkNonZeroExitCode: false, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
-                    if p.terminationStatus == 2 {
-                        throw ExecutableError.nonZeroExitCode(2)
+                    let result = try launch(externalExecutable: task.joinWorker!)
+                    if result.exitStatus == .terminated(code: 2) {
+                        throw ExecutableError.tscNonZeroExit(result.exitStatus)
                     }
                     return [task.joinWorker!.outputURL]
                 } catch {
@@ -219,7 +270,7 @@ public class Remuxer {
             } else {
                 subFolder = "garbage"
             }
-            try remux(file: tempFile,
+            try _remux(file: tempFile,
                       remuxOutputDir: finalOutputPath.appendingPathComponent(subFolder), temporaryPath: temporaryPath,
                       deleteAfterRemux: true, mkvinfo: mkvinfo)
         }
@@ -242,14 +293,14 @@ public class Remuxer {
             
             contents.forEach({ (fileInDir) in
                 do {
-                    try remux(file: fileInDir, remuxOutputDir: outputDir, temporaryPath: temporaryPath, deleteAfterRemux: false)
+                    try _remux(file: fileInDir, remuxOutputDir: outputDir, temporaryPath: temporaryPath, deleteAfterRemux: false)
                 } catch {
                     print(error)
                 }
             })
         case .file:
             do {
-                try remux(file: path, remuxOutputDir: config.outputRootDirectory, temporaryPath: temporaryPath, deleteAfterRemux: false)
+                try _remux(file: path, remuxOutputDir: config.outputRootDirectory, temporaryPath: temporaryPath, deleteAfterRemux: false)
             } catch {
                 print(error)
             }
@@ -291,20 +342,15 @@ public class Remuxer {
     
     var currentTemporaryPath: URL?
     
-    func clear() {
-        processManager.terminateAll()
-        flacQueue.terminateAllProcesses()
-        if let t = currentTemporaryPath {
-            try! _fm.removeItem(at: t)
-        }
-    }
-    
 }
 
 extension Remuxer {
     
-    func remux(file: URL, remuxOutputDir: URL, temporaryPath: URL, deleteAfterRemux: Bool,
-               parseOnly: Bool = false, mkvinfo: MkvmergeIdentification? = nil) throws {
+    private func _remux(file: URL, remuxOutputDir: URL, temporaryPath: URL,
+                        deleteAfterRemux: Bool,
+                        parseOnly: Bool = false,
+                        mkvinfo: MkvmergeIdentification? = nil) throws {
+        print("Start remuxing file \(file.lastPathComponent)")
         let outputFilename = remuxOutputDir.appendingPathComponent("\(file.lastPathComponentWithoutExtension).mkv")
         guard !_fm.fileExistance(at: outputFilename).exists else {
             print("\(outputFilename) already exists!")
@@ -317,9 +363,9 @@ extension Remuxer {
         var externalTracks = [(file: URL, lang: String, trackName: String)]()
         
         let mkvinfo = try mkvinfo ?? MkvmergeIdentification.init(url: file)
-        let modifications = try makeTrackModification(mkvinfo: mkvinfo, temporaryPath: temporaryPath)
+        let modifications = try _makeTrackModification(mkvinfo: mkvinfo, temporaryPath: temporaryPath)
         
-        var mainInput = Mkvmerge.Input.init(file: file.path)
+        var mainInput = Mkvmerge.Input(file: file.path)
         
         for modify in modifications.enumerated() {
             switch modify.element {
@@ -367,7 +413,7 @@ extension Remuxer {
         print("Mkvmerge arguments:\n\(mkvmerge.arguments.joined(separator: " "))")
         
         print("\nMkvmerge:\n\(file)\n->\n\(outputFilename)")
-        try mkvmerge.runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
+        try launch(externalExecutable: mkvmerge, checkAllowedExitCodes: allowedExitCodes)
         
         externalTracks.forEach { (t) in
             do {
@@ -398,7 +444,7 @@ extension Remuxer {
         }
     }
     
-    private func makeTrackModification(mkvinfo: MkvmergeIdentification,
+    private func _makeTrackModification(mkvinfo: MkvmergeIdentification,
                                        temporaryPath: URL) throws -> [TrackModification] {
         let preferedLanguages = config.language.generatePrimaryLanguages(with: mkvinfo.primaryLanguages)
         let tracks = mkvinfo.tracks
@@ -412,44 +458,83 @@ extension Remuxer {
         
         // check track one by one
         print("Checking tracks codec")
-        var index = 0
+        var currentTrackIndex = 0
         let baseFilename = URL(fileURLWithPath:  mkvinfo.fileName).lastPathComponentWithoutExtension
         
-        while index < tracks.count {
-            let track = tracks[index]
-            let trackLanguage = track.properties.language ?? "und"
-            print("\(index): \(track.codec) \(track.isLosslessAudio ? "lossless" : "lossy") \(trackLanguage) \(track.properties.audioChannels ?? 0)ch")
+        while currentTrackIndex < tracks.count {
+            let currentTrack = tracks[currentTrackIndex]
+            let trackLanguage = currentTrack.properties.language ?? "und"
+            print(currentTrack.remuxerInfo)
+            var embbedAC3Removed = false
             if preferedLanguages.contains(trackLanguage) {
-                if track.isTrueHD, config.keepTrueHD {
-                    trackModifications[index] = .copy(type: track.type)
-                } else if track.isLosslessAudio {
+                var trackDone = false
+                if currentTrack.isTrueHD, config.keepTrueHD {
+                    trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
+                    trackDone = true
+                }
+                if !trackDone, config.removeExtraDTS, currentTrack.isDTSHD {
+                    var fixed = false
+                    if case let indexBefore = currentTrackIndex-1, indexBefore >= 0 {
+                        let compareTrack = tracks[indexBefore]
+                        if compareTrack.isTrueHD,
+                            compareTrack.properties.language == currentTrack.properties.language,
+                        compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
+                            trackModifications[currentTrackIndex] = .remove(type: .audio)
+                            fixed = true
+                            // remove the ac3 after
+                            if !embbedAC3Removed, currentTrackIndex+1<tracks.count,
+                                case let nextTrack = tracks[currentTrackIndex+1],
+                                nextTrack.isAC3, nextTrack.properties.language == currentTrack.properties.language {
+                                // Remove TRUEHD embed-in AC-3 track
+                                trackModifications[currentTrackIndex+1] = .remove(type: .audio)
+                                currentTrackIndex += 1
+                                embbedAC3Removed = true
+                            }
+                        }
+                    }
+                    if !fixed, case let indexAfter = currentTrackIndex+1, indexAfter < tracks.count {
+                        let compareTrack = tracks[indexAfter]
+                        if compareTrack.isTrueHD,
+                            compareTrack.properties.language == currentTrack.properties.language,
+                            compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
+                            trackModifications[currentTrackIndex] = .remove(type: .audio)
+                            fixed = true
+                        }
+                    }
+                    trackDone = fixed
+                }
+
+                if !trackDone, currentTrack.isLosslessAudio {
                     // add to ffmpeg arguments
-                    let tempFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(index)-\(trackLanguage)-ffmpeg.flac")
-                    let finalFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(index)-\(trackLanguage).flac")
-                    ffmpegArguments.append(contentsOf: ["-map", "0:\(index)", tempFlac.path])
+                    let tempFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
+                    let finalFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).flac")
+                    ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", tempFlac.path])
                     var flac = FlacEncoder(input: tempFlac.path, output: finalFlac.path)
                     flac.level = 8
                     flac.forceOverwrite = true
                     flac.silent = true
                     flacConverters.append(flac)
                     
-                    trackModifications[index] = .replace(type: .audio, file: finalFlac, lang: trackLanguage, trackName: track.properties.trackName ?? "")
-                } else {
-                    trackModifications[index] = .copy(type: track.type)
+                    trackModifications[currentTrackIndex] = .replace(type: .audio, file: finalFlac, lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
+                    trackDone = true
+                }
+
+                if !trackDone {
+                    trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
                 }
             } else {
-                trackModifications[index] = .remove(type: track.type)
+                trackModifications[currentTrackIndex] = .remove(type: currentTrack.type)
             }
 
             // handle truehd
-            if track.isTrueHD, index+1<tracks.count,
-                case let nextTrack = tracks[index+1],
+            if !embbedAC3Removed, currentTrack.isTrueHD, currentTrackIndex+1<tracks.count,
+                case let nextTrack = tracks[currentTrackIndex+1],
                 nextTrack.isAC3 {
                 // Remove TRUEHD embed-in AC-3 track
-                trackModifications[index+1] = .remove(type: .audio)
-                index += 1
+                trackModifications[currentTrackIndex+1] = .remove(type: .audio)
+                currentTrackIndex += 1
             }
-            index += 1
+            currentTrackIndex += 1
         }
         
         guard flacConverters.count > 0 else {
@@ -458,19 +543,24 @@ extension Remuxer {
         
         print("ffmpeg \(ffmpegArguments.joined(separator: " "))")
 
-        try MediaTools.ffmpeg.executable(ffmpegArguments).runAndWait(checkNonZeroExitCode: true, beforeRun: beforeRun(p:), afterRun: afterRun(p:))
+        try launch(externalExecutable: MediaTools.ffmpeg.executable(ffmpegArguments),
+                   checkAllowedExitCodes: [0])
         
         flacConverters.forEach { (flac) in
-            let process = try! flac.convert()
-            process.terminationHandler = { p in
-                if p.terminationStatus != 0 {
-                    print("error while converting flac \(flac.input)")
+            self.logConverterStart(name: "flac", input: flac.input, output: flac.output)
+
+            let operation = FlacConvertOperation(flac: flac)
+            operation.completionBlock = {
+                do {
+                    try _fm.removeItem(at: URL(fileURLWithPath: flac.input))
+                } catch {
+                    print("Failed to remove the temp flac file at \(flac.input)")
                 }
-                try? _fm.removeItem(at: URL(fileURLWithPath: flac.input))
             }
-            flacQueue.add(process)
+
+            flacQueue.addOperation(operation)
         }
-        flacQueue.waitUntilAllOProcessesAreFinished()
+        flacQueue.waitUntilAllOperationsAreFinished()
         
         // check duplicate audio track
         let flacPaths = flacConverters.map({$0.output})

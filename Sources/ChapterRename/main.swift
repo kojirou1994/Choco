@@ -13,7 +13,7 @@ do {
     
     let titles = try String.init(contentsOfFile: CommandLine.arguments[2]).components(separatedBy: .newlines)
     
-    try AnyExecutable(executableName: "mkvextract", arguments: [mkvFilename, "chapters", "-s", exportChapterPath]).runAndWait(checkNonZeroExitCode: true)
+    _ = try AnyExecutable(executableName: "mkvextract", arguments: [mkvFilename, "chapters", "-s", exportChapterPath]).runTSC()
     
     var chapter = try Chapter(ogmFileURL: URL(fileURLWithPath: exportChapterPath))
     
@@ -30,7 +30,7 @@ do {
     
     try chapter.exportOgm().write(toFile: newChapterPath, atomically: true, encoding: .utf8)
     
-    try AnyExecutable(executableName: "mkvpropedit", arguments: [mkvFilename, "--chapters", newChapterPath]).runAndWait(checkNonZeroExitCode: true)
+    _ = try AnyExecutable(executableName: "mkvpropedit", arguments: [mkvFilename, "--chapters", newChapterPath]).runTSC()
 
 } catch {
     print("Error: \(error)")
