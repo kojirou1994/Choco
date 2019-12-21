@@ -15,7 +15,8 @@ let package = Package(
         .package(url: "https://github.com/IBM-Swift/BlueSignals.git", from: "1.0.0"),
         .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
         .package(url: "git@github.com:kojirou1994/MediaUtility.git", from: "0.0.2"),
-        .package(url: "git@github.com:kojirou1994/Executable.git", from: "0.0.1")
+        .package(url: "git@github.com:kojirou1994/Executable.git", from: "0.0.1"),
+        .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0")
     ],
     targets: [
         .systemLibrary(
@@ -59,7 +60,8 @@ let package = Package(
                 "ArgumentParser",
                 "Signals",
                 "URLFileManager",
-                "TrackExtension"
+                "TrackExtension",
+                "Rainbow"
             ]
         ),
 //        .target(

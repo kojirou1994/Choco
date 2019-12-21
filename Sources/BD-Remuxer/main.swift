@@ -1,12 +1,11 @@
 import Signals
 import Foundation
 
-let remuxer = try Remuxer.init()
+let remuxer = try Remuxer(config: .parse())
 
 Signals.trap(signals: [.quit, .int, .kill, .term, .abrt]) { (_) in
-    print("bye-bye")
-    remuxer.cancel()
-    exit(0)
+    print("Terminating current task...")
+    remuxer.terminate()
 }
 
-remuxer.run()
+remuxer.start()
