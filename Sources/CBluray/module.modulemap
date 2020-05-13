@@ -1,4 +1,4 @@
-module CLibbluray [system] {
+module CBluray [system] {
     header "bluray.h"
     link "bluray"
     export *

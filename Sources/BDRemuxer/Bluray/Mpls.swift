@@ -74,7 +74,7 @@ public struct Mpls {
 extension Mpls: Comparable, Equatable, CustomStringConvertible {
     
     public var description: String {
-        return """
+        """
         fileName: \(fileName.lastPathComponent)
         files:
         \(files.map {" - " + $0.lastPathComponent}.joined(separator: "\n"))
@@ -87,11 +87,11 @@ extension Mpls: Comparable, Equatable, CustomStringConvertible {
     }
     
     public static func < (lhs: Mpls, rhs: Mpls) -> Bool {
-        return lhs.fileName.lastPathComponent < rhs.fileName.lastPathComponent
+        lhs.fileName.lastPathComponent < rhs.fileName.lastPathComponent
     }
     
     public static func == (lhs: Mpls, rhs: Mpls) -> Bool {
-        return (lhs.duration, lhs.size, lhs.files, lhs.trackLangs) == (rhs.duration, rhs.size, rhs.files, rhs.trackLangs)
+        (lhs.duration, lhs.size, lhs.files, lhs.trackLangs) == (rhs.duration, rhs.size, rhs.files, rhs.trackLangs)
     }
 }
 

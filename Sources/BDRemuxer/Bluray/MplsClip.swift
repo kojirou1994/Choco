@@ -22,7 +22,7 @@ public struct MplsClip {
 extension MplsClip: CustomStringConvertible {
     
     public var description: String {
-        return "\(fileName.lastPathComponent) -> \(m2tsPath.lastPathComponent) -> \(chapterPath?.path ?? "no chapter file.")"
+        "\(fileName.lastPathComponent) -> \(m2tsPath.lastPathComponent) -> \(chapterPath?.path ?? "no chapter file.")"
     }
     
 }

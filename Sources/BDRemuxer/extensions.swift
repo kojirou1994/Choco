@@ -2,32 +2,6 @@ import Foundation
 import MediaTools
 import MplsParser
 
-extension Array where Element: Equatable {
-    
-    func indexes(of v: Element) -> [Index] {
-        var r = [Index]()
-        for (index, current) in enumerated() {
-            if current == v {
-                r.append(index)
-            }
-        }
-        return r
-    }
-    
-}
-
-extension Sequence {
-    func count(where predicate: (Element) throws -> Bool) rethrows -> Int {
-        var count = 0
-        for element in self {
-            if try predicate(element) {
-                count += 1
-            }
-        }
-        return count
-    }
-}
-
 extension MplsClip {
     
     public var baseFilename: String {

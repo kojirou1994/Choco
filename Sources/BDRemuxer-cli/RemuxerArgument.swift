@@ -1,8 +1,8 @@
 import Foundation
 import ArgumentParser
 import KwiftUtility
-
-public struct RemuxerArgument: ArgumentProtocol {
+/*
+public struct BDRemuxer: ParsableCommand {
 
     private var outputPath: String = "."
     private var temporaryPath: String = "."
@@ -17,23 +17,7 @@ public struct RemuxerArgument: ArgumentProtocol {
     internal private(set) var ignoreWarning = false
     internal private(set) var removeExtraDTS = false
     internal private(set) var organize = false
-
-    public init() {}
-
-    var outputRootDirectory: URL {
-        URL(fileURLWithPath: self.outputPath)
-    }
-
-    var temperoraryDirectory: URL {
-        URL(fileURLWithPath: self.temporaryPath).appendingPathComponent("BD-Remuxer-tmp")
-    }
-
-    internal func withTemporaryPath(_ body: (URL) -> Void) throws {
-        let t = temperoraryDirectory.appendingPathComponent(UUID().uuidString)
-        try _fm.createDirectory(at: t)
-        body(t)
-        try _fm.removeItem(at: t)
-    }
+    internal private(set) var mainOnly = false
 
     enum RemuxMode: String, CaseIterable, ValueOption {
         // direct mux all mpls
@@ -50,28 +34,7 @@ public struct RemuxerArgument: ArgumentProtocol {
         }
     }
 
-    struct LanguagePreference {
 
-        static let defaultLanguages: Set<String> = ["und", "chi", "eng", "jpn"]
-
-        static var `default`: Self {
-            .init(languages: Self.defaultLanguages, excludeLanguages: [])
-        }
-
-        var languages: Set<String>
-        var excludeLanguages: Set<String>
-
-        func generatePrimaryLanguages(with otherLanguages: [String]) -> Set<String> {
-            var preferedLanguages = languages
-            otherLanguages.forEach { (l) in
-                preferedLanguages.insert(l)
-            }
-            excludeLanguages.forEach { (l) in
-                preferedLanguages.remove(l)
-            }
-            return preferedLanguages
-        }
-    }
 
     static func parse() throws -> Self {
 
@@ -96,6 +59,7 @@ public struct RemuxerArgument: ArgumentProtocol {
         parser.addFlagOption(name: "--remove-extra-dts", anotherName: nil, description: "Remove dts when another same spec truehd exists", keypath: \.removeExtraDTS)
         parser.addFlagOption(name: "--organize", anotherName: nil, description: "Organize the output files to sub folders, not work for file mode", keypath: \.organize)
         parser.addFlagOption(name: "--help", anotherName: "-H", description: "Show help", keypath: \.help)
+        parser.addFlagOption(name: "--main-only", anotherName: nil, description: "Main file only in bluray.", keypath: \.mainOnly)
 
         parser.set(positionalInputKeyPath: \.inputs)
 
@@ -109,3 +73,4 @@ public struct RemuxerArgument: ArgumentProtocol {
         return config
     }
 }
+*/

@@ -25,6 +25,10 @@ extension MkvmergeIdentification.Track {
         }
     }
 
+    public var isGarbageDTS: Bool {
+        codec == "DTS"
+    }
+
     public var isAC3: Bool {
         switch codec {
         case "E-AC-3", "AC-3":
