@@ -11,10 +11,10 @@ let package = Package(
     .library(name: "MplsParser", targets: ["MplsParser"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.5.0"),
-    .package(url: "https://github.com/apple/swift-argument-parser", from: "0.0.1"),
+    .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.8.0"),
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "0.3.0"),
     .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
-    .package(url: "git@github.com:kojirou1994/MediaUtility.git", from: "0.0.2"),
+    .package(url: "git@github.com:kojirou1994/MediaUtility.git", from: "0.1.0"),
     .package(url: "git@github.com:kojirou1994/Executable.git", from: "0.1.0"),
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0")
   ],
@@ -27,7 +27,7 @@ let package = Package(
     .target(
       name: "MplsParser",
       dependencies: [
-        "Kwift",
+        .product(name: "KwiftUtility", package: "Kwift"),
         "MediaUtility"
       ]
     ),
@@ -49,7 +49,7 @@ let package = Package(
       dependencies: [
         "CBluray",
         "MplsParser",
-        "Kwift",
+        .product(name: "KwiftUtility", package: "Kwift"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
         "URLFileManager",
         "TrackExtension",
@@ -67,12 +67,16 @@ let package = Package(
     //            name: "MKV2MP4",
     //            dependencies: ["Common", "Kwift", "Signals", "ArgumentParser"]),
     .target(
-      name: "ChapterRename",
+      name: "chapter-tool",
       dependencies: [
         "Executable",
-        "MediaUtility",
+        "URLFileManager",
+        .product(name: "MediaTools", package: "MediaUtility"),
         .product(name: "ArgumentParser", package: "swift-argument-parser")
     ]),
+    .testTarget(
+      name: "MplsParserTests",
+      dependencies: ["MplsParser"]),
     .testTarget(
       name: "RemuxerTests",
       dependencies: ["BDRemuxer"]),

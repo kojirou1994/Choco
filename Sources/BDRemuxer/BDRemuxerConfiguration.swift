@@ -23,11 +23,14 @@ public struct BDRemuxerConfiguration {
     public let organizeOutput: Bool
     public let mainTitleOnly: Bool
 
+  public let keepFlac: Bool
+
     public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: BDRemuxerMode,
                 audioPreference: AudioPreference,
                 splits: [Int]?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet,
                 deleteAfterRemux: Bool, keepTrackName: Bool, keepVideoLanguage: Bool, keepTrueHD: Bool, keepDTSHD: Bool,
-                fixDTS: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool) {
+                fixDTS: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool,
+                keepFlac: Bool) {
         self.outputRootDirectory = outputRootDirectory
         self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(BDRemuxerTempDirectoryName)
         self.mode = mode
@@ -44,6 +47,7 @@ public struct BDRemuxerConfiguration {
         self.ignoreWarning = ignoreWarning
         self.organizeOutput = organize
         self.mainTitleOnly = mainTitleOnly
+      self.keepFlac = keepFlac
     }
 
 }
