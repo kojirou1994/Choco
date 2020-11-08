@@ -97,6 +97,9 @@ extension BDRemuxerCli {
     @Option(help: "Remux mode")
     var mode: BDRemuxerMode = .movie
 
+    @Option(help: "Audio bitrate per channel")
+    var audioBitrate: Int = 128
+
     @Option(help: "Split info, number joined by ,",
             transform: {argument in
               try argument.split(separator: ",").map {try Int($0).unwrap() }
@@ -112,6 +115,9 @@ extension BDRemuxerCli {
     @Flag(help: "Delete the src after remux")
     var deleteAfterRemux: Bool = false
 
+    @Flag(help: "Keep original video track's language")
+    var keepVideoLanguage: Bool = false
+
     @Flag(help: "Keep original track name")
     var keepTrackName: Bool = false
 
@@ -120,6 +126,9 @@ extension BDRemuxerCli {
 
     @Flag(help: "Keep DTS-HD track")
     var keepDTSHD: Bool = false
+
+    @Flag(help: "Auto mixdown")
+    var mixdown: Bool = false
 
     @Flag(help: "Ignore mkvmerge warning")
     var ignoreWarning: Bool = false
@@ -148,14 +157,15 @@ extension BDRemuxerCli {
     static var muxer: BDRemuxer!
 
     func run() throws {
-      let configuration = BDRemuxerConfiguration(outputRootDirectory: URL(fileURLWithPath: output),
-                                                 temperoraryDirectory: URL(fileURLWithPath: temp),
-                                                 mode: mode,
-                                                 audioPreference: .init(codec: audioCodec, channelBitrate: 128, generateStereo: false),
-                                                 splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages,
-                                                 deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: false,
-                                                 keepTrueHD: keepTrueHD, keepDTSHD: keepDTSHD, fixDTS: fixDTS, removeExtraDTS: removeExtraDTS,
-                                                 ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly, keepFlac: keepFlac)
+      let configuration = BDRemuxerConfiguration(
+        outputRootDirectory: URL(fileURLWithPath: output),
+        temperoraryDirectory: URL(fileURLWithPath: temp),
+        mode: mode,
+        audioPreference: .init(codec: audioCodec, channelBitrate: audioBitrate, generateStereo: mixdown),
+        splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages,
+        deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
+        keepTrueHD: keepTrueHD, keepDTSHD: keepDTSHD, fixDTS: fixDTS, removeExtraDTS: removeExtraDTS,
+        ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly, keepFlac: keepFlac)
       dump(configuration)
       let muxer = try BDRemuxer(config: configuration)
       Self.muxer = muxer

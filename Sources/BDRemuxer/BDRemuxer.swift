@@ -276,7 +276,7 @@ extension BDRemuxer {
         default:
           break
         }
-      case .replace(let type, let file, let lang, let trackName):
+      case .replace(let type, let files, let lang, let trackName):
         switch type {
         case .audio:
           audioRemovedTrackIndexes.append(modify.offset)
@@ -285,8 +285,10 @@ extension BDRemuxer {
         default:
           break
         }
-        externalTracks.append((file: file, lang: lang, trackName: trackName))
-        trackOrder.append(.init(fid: externalTracks.count, tid: 0))
+        files.forEach { file in
+          externalTracks.append((file: file, lang: lang, trackName: trackName))
+          trackOrder.append(.init(fid: externalTracks.count, tid: 0))
+        }
       }
       if !config.keepTrackName {
         mainInput.options.append(.trackName(tid: modify.offset, name: ""))
@@ -445,7 +447,18 @@ extension BDRemuxer {
 
           audioConverters.append(.init(input: tempFFmpegOutputFlac, output: finalOutputAudioTrack, preference: config.audioPreference, channelCount: currentTrack.properties.audioChannels!, trackIndex: currentTrackIndex))
 
-          trackModifications[currentTrackIndex] = .replace(type: .audio, file: finalOutputAudioTrack, lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
+          var replaceFiles = [finalOutputAudioTrack]
+          // Optionally down mix
+          if config.audioPreference.generateStereo, currentTrack.properties.audioChannels! > 2 {
+            let tempFFmpegMixdownFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg-downmix.flac")
+            let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(config.audioPreference.codec.outputFileExtension)")
+            ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", "-ac", "2", tempFFmpegMixdownFlac.path])
+
+            audioConverters.append(.init(input: tempFFmpegMixdownFlac, output: finalDownmixAudioTrack, preference: config.audioPreference, channelCount: 2, trackIndex: currentTrackIndex))
+            replaceFiles.insert(finalDownmixAudioTrack, at: 0)
+          }
+
+          trackModifications[currentTrackIndex] = .replace(type: .audio, files: replaceFiles, lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
           trackDone = true
         }
 
@@ -500,36 +513,15 @@ extension BDRemuxer {
           indexes.dropFirst().forEach { trackModifications[audioConverters[$0].trackIndex].remove() }
         }
       }
-      //            for filesWithSameMD5 in duplicateAudioGroups {
-      //                var allTracks = [(Int, TrackModification)]()
-      //                for m in trackModifications.enumerated() {
-      //                    switch m.element {
-      //                    case .replace(type: _, file: let file, lang: _, trackName: _):
-      //                        if filesWithSameMD5.contains(file) {
-      //                            allTracks.append(m)
-      //                        }
-      //                    default:
-      //                        break
-      //                    }
-      //                }
-      //                precondition(allTracks.count > 1)
-      //                let removeTracks = allTracks[1...]
-      //                removeTracks.forEach { trackModifications[$0.0].remove() }
-      //            }
+
     }
 
     // external temp flac -> final audio tracks
     audioConverters.forEach { converter in
       self.logConverterStart(name: converter.executableName, input: converter.input.path, output: converter.output.path)
 
-      let operation = AudioConvertOperation(converter: converter) { _ in
-      }
-      operation.completionBlock = {
-        do {
-          try _fm.removeItem(at: converter.input)
-        } catch {
-          print("Failed to remove the temp flac file at \(converter.input)")
-        }
+      let operation = AudioConvertOperation(converter: converter) { error in
+        print("Audio convert error: \(error)")
       }
 
       audioConvertQueue.addOperation(operation)
@@ -543,15 +535,15 @@ extension BDRemuxer {
   }
 }
 
-enum TrackModification {
+enum TrackModification: CustomStringConvertible {
   case copy(type: MediaTrackType)
-  case replace(type: MediaTrackType, file: URL, lang: String, trackName: String)
+  case replace(type: MediaTrackType, files: [URL], lang: String, trackName: String)
   case remove(type: MediaTrackType)
 
   mutating func remove() {
     switch self {
-    case .replace(type: let type, file: let file, lang: _, trackName: _):
-      try? _fm.removeItem(at: file)
+    case .replace(type: let type, files: let files, lang: _, trackName: _):
+      files.forEach{ try? _fm.removeItem(at: $0) }
       self = .remove(type: type)
     case .copy(type: let type):
       self = .remove(type: type)
@@ -562,7 +554,7 @@ enum TrackModification {
 
   var type: MediaTrackType {
     switch self {
-    case .replace(type: let type, file: _, lang: _, trackName: _):
+    case .replace(type: let type, files: _, lang: _, trackName: _):
       return type
     case .copy(type: let type):
       return type
@@ -570,16 +562,18 @@ enum TrackModification {
       return type
     }
   }
-}
 
-// struct SubTask {
-//    var sizeBefore: UInt64
-//    var sizeAfter: UInt64
-//    var startDate: Date
-//    var endDate: Date
-//    let converter: Converter
-//    let split: Bool
-// }
+  var description: String {
+    switch self {
+    case .replace(type: let type, files: let files, lang: let lang, trackName: let trackName):
+      return "replace(type: \(type), files: \(files.map(\.path)), lang: \(lang), trackName: \(trackName))"
+    case .copy(type: let type):
+      return "copy(type: \(type))"
+    case .remove(type: let type):
+      return "remove(type: \(type))"
+    }
+  }
+}
 
 public struct BDMVMetadata {
   public init(rootPath: URL, mode: MplsRemuxMode, mainOnly: Bool,
