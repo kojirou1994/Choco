@@ -39,13 +39,18 @@ extension LanguageSet: ExpressibleByArgument {
 
 extension BDRemuxerMode: ExpressibleByArgument {}
 extension BDRemuxerConfiguration.AudioPreference.AudioCodec: ExpressibleByArgument {}
+extension BDRemuxerConfiguration.VideoPreference.Codec: ExpressibleByArgument {}
+extension BDRemuxerConfiguration.VideoPreference.CodecPreset: ExpressibleByArgument {}
 
 struct BDRemuxerCli: ParsableCommand {
 
   static let configuration: CommandConfiguration =
     .init(commandName: "BDRemuxer-cli",
           abstract: "Automatic remux blu-ray disc or media files.",
-          subcommands: [DumpBDMV.self, Mux.self]
+          subcommands: [
+            DumpBDMV.self,
+            Crop.self,
+            Mux.self]
     )
 }
 
@@ -148,6 +153,21 @@ extension BDRemuxerCli {
     @Flag(help: "Prevent flac track from being re-encoded.")
     var keepFlac: Bool = false
 
+    @Flag(help: "Encode video.")
+    var encodeVideo: Bool = false
+
+    @Option(help: "Codec for video track, available: \(BDRemuxerConfiguration.VideoPreference.Codec.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    var videoCodec: BDRemuxerConfiguration.VideoPreference.Codec = .x265
+
+    @Option(help: "Codec preset for video track, available: \(BDRemuxerConfiguration.VideoPreference.CodecPreset.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    var videoPreset: BDRemuxerConfiguration.VideoPreference.CodecPreset = .slow
+
+    @Option(help: "Codec crf for video track")
+    var videoCrf: Int = 18
+
+    @Flag(help: "Auto crop video track")
+    var autoCrop: Bool = false
+
     @Option(help: "Codec for lossless audio track, available: \(BDRemuxerConfiguration.AudioPreference.AudioCodec.allCases.map{$0.rawValue}.joined(separator: ", "))")
     var audioCodec: BDRemuxerConfiguration.AudioPreference.AudioCodec = .flac
 
@@ -161,6 +181,7 @@ extension BDRemuxerCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
+        videoPreference: .init(encodeVideo: encodeVideo, codec: videoCodec, preset: videoPreset, crf: videoCrf, autoCrop: autoCrop),
         audioPreference: .init(codec: audioCodec, channelBitrate: audioBitrate, generateStereo: mixdown),
         splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,

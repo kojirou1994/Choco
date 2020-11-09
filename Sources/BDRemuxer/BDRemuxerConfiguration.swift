@@ -8,6 +8,7 @@ public struct BDRemuxerConfiguration {
   public let temperoraryDirectory: URL
   public let mode: BDRemuxerMode
   public let splits: [Int]?
+  public let videoPreference: VideoPreference
   public let audioPreference: AudioPreference
   public let languagePreference: LanguagePreference
 
@@ -26,6 +27,7 @@ public struct BDRemuxerConfiguration {
   public let keepFlac: Bool
 
   public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: BDRemuxerMode,
+              videoPreference: VideoPreference,
               audioPreference: AudioPreference,
               splits: [Int]?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet,
               deleteAfterRemux: Bool, keepTrackName: Bool, keepVideoLanguage: Bool, keepTrueHD: Bool, keepDTSHD: Bool,
@@ -35,6 +37,7 @@ public struct BDRemuxerConfiguration {
     self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(BDRemuxerTempDirectoryName)
     self.mode = mode
     self.splits = splits
+    self.videoPreference = videoPreference
     self.audioPreference = audioPreference
     self.languagePreference = .init(preferedLanguages: preferedLanguages.addingUnd(), excludeLanguages: excludeLanguages)
     self.deleteAfterRemux = deleteAfterRemux
@@ -64,10 +67,12 @@ extension BDRemuxerConfiguration {
       self.generateStereo = generateStereo
     }
 
-    public enum AudioCodec: String, CaseIterable {
+    public enum AudioCodec: String, CaseIterable, CustomStringConvertible {
       case flac
       case opus
       case fdkAAC = "fdk-aac"
+
+      public var description: String { rawValue }
     }
   }
 
@@ -87,6 +92,37 @@ extension BDRemuxerConfiguration {
       return result
     }
   }
+
+  public struct VideoPreference {
+    public init(encodeVideo: Bool, codec: BDRemuxerConfiguration.VideoPreference.Codec, preset: BDRemuxerConfiguration.VideoPreference.CodecPreset, crf: Int, autoCrop: Bool) {
+      self.encodeVideo = encodeVideo
+      self.codec = codec
+      self.preset = preset
+      self.crf = crf
+      self.autoCrop = autoCrop
+    }
+
+
+    public let encodeVideo: Bool
+    public let codec: Codec
+    public let preset: CodecPreset
+    public let crf: Int
+    public let autoCrop: Bool
+
+    public enum Codec: String, CaseIterable, CustomStringConvertible {
+      case x265
+      case x264
+
+      public var description: String { rawValue }
+    }
+
+    public enum CodecPreset: String, CaseIterable, CustomStringConvertible {
+      case ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo
+
+      public var description: String { rawValue }
+    }
+  }
+
 }
 
 extension BDRemuxerConfiguration.AudioPreference.AudioCodec {
@@ -98,6 +134,17 @@ extension BDRemuxerConfiguration.AudioPreference.AudioCodec {
       return "opus"
     case .fdkAAC:
       return "m4a"
+    }
+  }
+}
+
+extension BDRemuxerConfiguration.VideoPreference.Codec {
+  var pixelFormat: String {
+    switch self {
+    case .x264:
+      return "yuv420p"
+    case .x265:
+      return "yuv420p10le"
     }
   }
 }

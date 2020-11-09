@@ -231,11 +231,9 @@ extension BDRemuxer {
                       parseOnly: Bool = false,
                       mkvinfoCache: MkvmergeIdentification? = nil) throws -> Summary {
     let startDate = Date()
-    //        print("Start remuxing file \(file.lastPathComponent)")
     let outputURL = remuxOutputDir
       .appendingPathComponent("\(file.lastPathComponentWithoutExtension).mkv")
     guard !_fm.fileExistance(at: outputURL).exists else {
-      //            print("\(outputFilename) already exists!")
       throw BDRemuxerError.outputExist
     }
     let sizeBefore: UInt64
@@ -246,9 +244,11 @@ extension BDRemuxer {
     }
 
     var trackOrder = [Mkvmerge.GlobalOption.TrackOrder]()
+    var videoRemovedTrackIndexes = [Int]()
     var audioRemovedTrackIndexes = [Int]()
-    var videoTrackIndexes = [Int]()
     var subtitleRemoveTracks = [Int]()
+    /// copied video tracks
+    var videoCopiedTrackIndexes = [Int]()
     var externalTracks = [(file: URL, lang: String, trackName: String)]()
 
     let mkvinfo = try mkvinfoCache ?? readMKV(at: file)
@@ -263,7 +263,7 @@ extension BDRemuxer {
         trackOrder.append(.init(fid: 0, tid: modify.offset))
         switch type {
         case .video:
-          videoTrackIndexes.append(modify.offset)
+          videoCopiedTrackIndexes.append(modify.offset)
         default:
           break
         }
@@ -273,7 +273,8 @@ extension BDRemuxer {
           audioRemovedTrackIndexes.append(modify.offset)
         case .subtitles:
           subtitleRemoveTracks.append(modify.offset)
-        default:
+        case .video:
+          // currently impossible
           break
         }
       case .replace(let type, let files, let lang, let trackName):
@@ -283,7 +284,7 @@ extension BDRemuxer {
         case .subtitles:
           subtitleRemoveTracks.append(modify.offset)
         default:
-          break
+          videoRemovedTrackIndexes.append(modify.offset)
         }
         files.forEach { file in
           externalTracks.append((file: file, lang: lang, trackName: trackName))
@@ -296,24 +297,26 @@ extension BDRemuxer {
     }
 
     if !config.keepVideoLanguage {
-      videoTrackIndexes.forEach { mainInput.options.append(.language(tid: $0, language: "und")) }
+      videoCopiedTrackIndexes.forEach { mainInput.options.append(.language(tid: $0, language: "und")) }
     }
 
+    mainInput.options.append(.videoTracks(.disabledTIDs(videoRemovedTrackIndexes)))
     mainInput.options.append(.audioTracks(.disabledTIDs(audioRemovedTrackIndexes)))
     mainInput.options.append(.subtitleTracks(.disabledTIDs(subtitleRemoveTracks)))
     mainInput.options.append(.attachments(.removeAll))
 
     let externalInputs = externalTracks.map { (track) -> Mkvmerge.Input in
       var options: [Mkvmerge.Input.InputOption] = [.language(tid: 0, language: track.lang)]
-      if config.keepTrackName {
-        options.append(.trackName(tid: 0, name: track.trackName))
-      }
+      options.append(.trackName(tid: 0, name: config.keepTrackName ? track.trackName : ""))
+      options.append(.noGlobalTags)
+      options.append(.noChapters)
+      options.append(.trackTags(.removeAll))
       return .init(file: track.file.path, options: options)
     }
     let splitInfo = generateSplit(splits: config.splits, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
-    let mkvmerge = Mkvmerge(global: .init(quiet: true, split: splitInfo,
-                                          trackOrder: trackOrder),
-                            output: outputURL.path, inputs: [mainInput] + externalInputs)
+    let mkvmerge = Mkvmerge(
+      global: .init(quiet: true, split: splitInfo, trackOrder: trackOrder),
+      output: outputURL.path, inputs: [mainInput] + externalInputs)
     print("Mkvmerge arguments:\n\(mkvmerge.arguments.joined(separator: " "))")
 
     print("\nMkvmerge:\n\(file)\n->\n\(outputURL)")
@@ -375,7 +378,7 @@ extension BDRemuxer {
     let preferedLanguages = config.languagePreference.generatePrimaryLanguages(with: mkvinfo.primaryLanguages)
     let tracks = mkvinfo.tracks
     var audioConverters = [AudioConverter]()
-    var ffmpegArguments = ["-v", "quiet", "-nostdin", "-y", "-i", mkvinfo.fileName, "-vn"]
+    var ffmpegArguments = ["-v", "quiet", "-nostdin", "-y", "-i", mkvinfo.fileName]
     var trackModifications = [TrackModification](repeating: .copy(type: .video), count: tracks.count)
 
     defer {
@@ -391,92 +394,117 @@ extension BDRemuxer {
       let currentTrack = tracks[currentTrackIndex]
       let trackLanguage = currentTrack.properties.language ?? "und"
       print(currentTrack.remuxerInfo)
-      var embbedAC3Removed = false
-      if preferedLanguages.contains(trackLanguage) {
-        var trackDone = false
-        // keep true-hd
-        if currentTrack.isTrueHD, config.keepTrueHD {
-          trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
-          trackDone = true
+      switch currentTrack.type {
+      case .video:
+        if config.videoPreference.encodeVideo {
+          // encode video
+          let encodedTrackFile = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-encoded.mkv")
+          ffmpegArguments
+            .append(contentsOf: [
+                      "-map", "0:\(currentTrackIndex)", "-c:v", "lib\(config.videoPreference.codec.rawValue)",
+                      "-pix_fmt", config.videoPreference.codec.pixelFormat,
+                      "-crf", "\(config.videoPreference.crf)",
+                      "-preset", config.videoPreference.preset.rawValue])
+          // autocrop
+          if config.videoPreference.autoCrop {
+            print("Calculating crop info..")
+            let cropInfo = try calculateAutoCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
+            ffmpegArguments.append("-vf")
+            ffmpegArguments.append(cropInfo.ffmpegArgument)
+          }
+          // output
+          ffmpegArguments.append(encodedTrackFile.path)
+          trackModifications[currentTrackIndex] = .replace(type: .video, files: [encodedTrackFile], lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
         }
-        // remove same spec dts-hd
-        if !trackDone, config.removeExtraDTS, currentTrack.isDTSHD {
-          var fixed = false
-          if case let indexBefore = currentTrackIndex - 1, indexBefore >= 0 {
-            let compareTrack = tracks[indexBefore]
-            if compareTrack.isTrueHD,
-               compareTrack.properties.language == currentTrack.properties.language,
-               compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
-              trackModifications[currentTrackIndex] = .remove(type: .audio)
-              fixed = true
-              // remove the ac3 after
-              if !embbedAC3Removed, currentTrackIndex + 1 < tracks.count,
-                 case let nextTrack = tracks[currentTrackIndex + 1],
-                 nextTrack.isAC3, nextTrack.properties.language == currentTrack.properties.language {
-                // Remove TRUEHD embed-in AC-3 track
-                trackModifications[currentTrackIndex + 1] = .remove(type: .audio)
-                currentTrackIndex += 1
-                embbedAC3Removed = true
+      case .audio, .subtitles:
+        var embbedAC3Removed = false
+        if preferedLanguages.contains(trackLanguage) {
+          var trackDone = false
+          // keep true-hd
+          if currentTrack.isTrueHD, config.keepTrueHD {
+            trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
+            trackDone = true
+          }
+          // remove same spec dts-hd
+          if !trackDone, config.removeExtraDTS, currentTrack.isDTSHD {
+            var fixed = false
+            if case let indexBefore = currentTrackIndex - 1, indexBefore >= 0 {
+              let compareTrack = tracks[indexBefore]
+              if compareTrack.isTrueHD,
+                 compareTrack.properties.language == currentTrack.properties.language,
+                 compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
+                trackModifications[currentTrackIndex] = .remove(type: .audio)
+                fixed = true
+                // remove the ac3 after
+                if !embbedAC3Removed, currentTrackIndex + 1 < tracks.count,
+                   case let nextTrack = tracks[currentTrackIndex + 1],
+                   nextTrack.isAC3, nextTrack.properties.language == currentTrack.properties.language {
+                  // Remove TRUEHD embed-in AC-3 track
+                  trackModifications[currentTrackIndex + 1] = .remove(type: .audio)
+                  currentTrackIndex += 1
+                  embbedAC3Removed = true
+                }
               }
             }
-          }
-          if !fixed, case let indexAfter = currentTrackIndex + 1, indexAfter < tracks.count {
-            let compareTrack = tracks[indexAfter]
-            if compareTrack.isTrueHD,
-               compareTrack.properties.language == currentTrack.properties.language,
-               compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
-              trackModifications[currentTrackIndex] = .remove(type: .audio)
-              fixed = true
+            if !fixed, case let indexAfter = currentTrackIndex + 1, indexAfter < tracks.count {
+              let compareTrack = tracks[indexAfter]
+              if compareTrack.isTrueHD,
+                 compareTrack.properties.language == currentTrack.properties.language,
+                 compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
+                trackModifications[currentTrackIndex] = .remove(type: .audio)
+                fixed = true
+              }
             }
-          }
-          trackDone = fixed
-        }
-
-        // keep flac
-        if !trackDone && currentTrack.isFlac && config.keepFlac {
-          trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
-          trackDone = true
-        }
-
-        // lossless audio -> flac, or fix garbage dts
-        if !trackDone && (currentTrack.isLosslessAudio || (config.fixDTS && currentTrack.isGarbageDTS)) {
-          // add to ffmpeg arguments
-          let tempFFmpegOutputFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
-          let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(config.audioPreference.codec.outputFileExtension)")
-          ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", tempFFmpegOutputFlac.path])
-
-          audioConverters.append(.init(input: tempFFmpegOutputFlac, output: finalOutputAudioTrack, preference: config.audioPreference, channelCount: currentTrack.properties.audioChannels!, trackIndex: currentTrackIndex))
-
-          var replaceFiles = [finalOutputAudioTrack]
-          // Optionally down mix
-          if config.audioPreference.generateStereo, currentTrack.properties.audioChannels! > 2 {
-            let tempFFmpegMixdownFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg-downmix.flac")
-            let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(config.audioPreference.codec.outputFileExtension)")
-            ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", "-ac", "2", tempFFmpegMixdownFlac.path])
-
-            audioConverters.append(.init(input: tempFFmpegMixdownFlac, output: finalDownmixAudioTrack, preference: config.audioPreference, channelCount: 2, trackIndex: currentTrackIndex))
-            replaceFiles.insert(finalDownmixAudioTrack, at: 0)
+            trackDone = fixed
           }
 
-          trackModifications[currentTrackIndex] = .replace(type: .audio, files: replaceFiles, lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
-          trackDone = true
+          // keep flac
+          if !trackDone && currentTrack.isFlac && config.keepFlac {
+            trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
+            trackDone = true
+          }
+
+          // lossless audio -> flac, or fix garbage dts
+          if !trackDone && (currentTrack.isLosslessAudio || (config.fixDTS && currentTrack.isGarbageDTS)) {
+            // add to ffmpeg arguments
+            let tempFFmpegOutputFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
+            let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(config.audioPreference.codec.outputFileExtension)")
+            ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", tempFFmpegOutputFlac.path])
+
+            audioConverters.append(.init(input: tempFFmpegOutputFlac, output: finalOutputAudioTrack, preference: config.audioPreference, channelCount: currentTrack.properties.audioChannels!, trackIndex: currentTrackIndex))
+
+            var replaceFiles = [finalOutputAudioTrack]
+            // Optionally down mix
+            if config.audioPreference.generateStereo, currentTrack.properties.audioChannels! > 2 {
+              let tempFFmpegMixdownFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg-downmix.flac")
+              let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(config.audioPreference.codec.outputFileExtension)")
+              ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", "-ac", "2", tempFFmpegMixdownFlac.path])
+
+              audioConverters.append(.init(input: tempFFmpegMixdownFlac, output: finalDownmixAudioTrack, preference: config.audioPreference, channelCount: 2, trackIndex: currentTrackIndex))
+              replaceFiles.insert(finalDownmixAudioTrack, at: 0)
+            }
+
+            trackModifications[currentTrackIndex] = .replace(type: .audio, files: replaceFiles, lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
+            trackDone = true
+          }
+
+          if !trackDone {
+            trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
+          }
+        } else {
+          trackModifications[currentTrackIndex] = .remove(type: currentTrack.type)
         }
 
-        if !trackDone {
-          trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
+        // handle truehd
+        if !embbedAC3Removed, currentTrack.isTrueHD, currentTrackIndex + 1 < tracks.count,
+           case let nextTrack = tracks[currentTrackIndex + 1],
+           nextTrack.isAC3 {
+          // Remove TRUEHD embed-in AC-3 track
+          trackModifications[currentTrackIndex + 1] = .remove(type: .audio)
+          currentTrackIndex += 1
         }
-      } else {
-        trackModifications[currentTrackIndex] = .remove(type: currentTrack.type)
       }
 
-      // handle truehd
-      if !embbedAC3Removed, currentTrack.isTrueHD, currentTrackIndex + 1 < tracks.count,
-         case let nextTrack = tracks[currentTrackIndex + 1],
-         nextTrack.isAC3 {
-        // Remove TRUEHD embed-in AC-3 track
-        trackModifications[currentTrackIndex + 1] = .remove(type: .audio)
-        currentTrackIndex += 1
-      }
       currentTrackIndex += 1
     }
 
