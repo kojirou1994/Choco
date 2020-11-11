@@ -173,7 +173,7 @@ public final class BDRemuxer {
       }
 
       let summary = try _remux(file: tempFile,
-                               remuxOutputDir: finalOutputPath.appendingPathComponent(subFolder), temporaryPath: temporaryPath,
+                               outputDirectoryURL: finalOutputPath.appendingPathComponent(subFolder), temporaryPath: temporaryPath,
                                deleteAfterRemux: true, mkvinfoCache: mkvinfo)
 
       sizeBefore += summary.sizeBefore
@@ -186,7 +186,7 @@ public final class BDRemuxer {
     return .init(sizeBefore: sizeBefore, sizeAfter: sizeAfter, startDate: startDate, endDate: .init())
   }
 
-  func remuxFile(at path: URL, temporaryPath: URL) throws -> Summary {
+  func remuxFile(at path: URL, outputDirectoryURL: URL, temporaryPath: URL) throws -> Summary {
     let fileType = _fm.fileExistance(at: path)
     switch fileType {
     case .none:
@@ -194,7 +194,7 @@ public final class BDRemuxer {
     case .directory:
       throw BDRemuxerError.directoryInFileMode
     case .file:
-      return try _remux(file: path, remuxOutputDir: config.outputRootDirectory, temporaryPath: temporaryPath, deleteAfterRemux: config.deleteAfterRemux)
+      return try _remux(file: path, outputDirectoryURL: outputDirectoryURL, temporaryPath: temporaryPath, deleteAfterRemux: config.deleteAfterRemux)
     }
   }
 
@@ -203,16 +203,57 @@ public final class BDRemuxer {
       throw BDRemuxerError.terminated
     }
 
-    return try self.withTemporaryDirectory { tempDirectory in
-      self.currentTemporaryPath = tempDirectory
-      defer { self.currentTemporaryPath = nil }
-      switch config.mode {
-      case .episodes, .movie:
+    switch config.mode {
+    case .episodes, .movie:
+      return try withTemporaryDirectory { tempDirectory in
         let mode: MplsRemuxMode = config.mode == .episodes ? .split : .direct
         return try remuxBDMV(at: input, mode: mode, temporaryPath: tempDirectory)
-      case .file:
-        return try remuxFile(at: input, temporaryPath: tempDirectory)
       }
+    case .file:
+      return try withTemporaryDirectory { tempDirectory in
+        try remuxFile(at: input, outputDirectoryURL: config.outputRootDirectory, temporaryPath: tempDirectory)
+      }
+    case .directory:
+      try preconditionOrThrow(_fm.fileExistance(at: input) == .directory)
+
+      let startDate = Date()
+      var sizeBefore: UInt64 = 0
+      var sizeAfter: UInt64 = 0
+
+      let inputPrefix = input.path
+      let dirName = input.lastPathComponent
+
+      let succ = _fm.forEachContent(in: input, handleFile: true, handleDirectory: false, skipHiddenFiles: false) { fileURL in
+        let fileDirPath = fileURL.deletingLastPathComponent().path
+        guard fileDirPath.hasPrefix(inputPrefix) else {
+          print("Invalid path", fileURL.path)
+          return
+        }
+        let outputDirectoryURL = config.outputRootDirectory
+          .appendingPathComponent(dirName)
+          .appendingPathComponent(String(fileDirPath.dropFirst(inputPrefix.count)))
+
+        do {
+          switch fileURL.pathExtension.lowercased() {
+          case "mkv", "mp4":
+            // remux
+            try self.withTemporaryDirectory { tempDirectory in
+              let subSummary = try remuxFile(at: fileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory)
+              sizeBefore += subSummary.sizeBefore
+              sizeAfter += subSummary.sizeAfter
+            }
+          default:
+          // copy
+            try _fm.copyItem(at: fileURL, to: outputDirectoryURL.appendingPathComponent(fileURL.lastPathComponent))
+          }
+        } catch {
+          print("Error processing file at", fileURL.path, "Error:", error)
+        }
+      }
+      try preconditionOrThrow(succ, "Cannot read dir")
+
+      return .init(sizeBefore: sizeBefore, sizeAfter: sizeAfter,
+                   startDate: startDate, endDate: .init())
     }
   }
 
@@ -226,12 +267,12 @@ extension BDRemuxer {
     try .init(url: url)
   }
 
-  private func _remux(file: URL, remuxOutputDir: URL, temporaryPath: URL,
+  private func _remux(file: URL, outputDirectoryURL: URL, temporaryPath: URL,
                       deleteAfterRemux: Bool,
                       parseOnly: Bool = false,
                       mkvinfoCache: MkvmergeIdentification? = nil) throws -> Summary {
     let startDate = Date()
-    let outputURL = remuxOutputDir
+    let outputURL = outputDirectoryURL
       .appendingPathComponent("\(file.lastPathComponentWithoutExtension).mkv")
     guard !_fm.fileExistance(at: outputURL).exists else {
       throw BDRemuxerError.outputExist
@@ -351,8 +392,8 @@ extension BDRemuxer {
 // MARK: - Utilities
 
 extension BDRemuxer {
-  @usableFromInline
-  internal func withTemporaryDirectory<T>(_ body: (URL) throws -> T) throws -> T {
+
+  private func withTemporaryDirectory<T>(_ body: (URL) throws -> T) throws -> T {
     let uniqueTempDirectory = config.temperoraryDirectory.appendingPathComponent(UUID().uuidString)
     try _fm.createDirectory(at: uniqueTempDirectory)
     defer {
@@ -363,6 +404,8 @@ extension BDRemuxer {
         print(error)
       }
     }
+    self.currentTemporaryPath = uniqueTempDirectory
+    defer { self.currentTemporaryPath = nil }
     return try body(uniqueTempDirectory)
   }
 
@@ -508,7 +551,12 @@ extension BDRemuxer {
       currentTrackIndex += 1
     }
 
-    if audioConverters.isEmpty {
+    guard trackModifications.contains(where: {mod in
+      switch mod {
+      case .replace: return true
+      default: return false
+      }
+    }) else {
       return trackModifications
     }
 
@@ -522,7 +570,11 @@ extension BDRemuxer {
     let tempFFmpegFlacFiles = audioConverters.map { $0.input }
     let flacMD5s: [String]
     do {
-      flacMD5s = try FlacMD5.calculate(inputs: tempFFmpegFlacFiles.map { $0.path })
+      if tempFFmpegFlacFiles.isEmpty {
+        flacMD5s = .init()
+      } else {
+        flacMD5s = try FlacMD5.calculate(inputs: tempFFmpegFlacFiles.map { $0.path })
+      }
     } catch {
       throw BDRemuxerError.validateFlacMD5(error)
     }

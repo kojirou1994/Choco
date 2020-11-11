@@ -94,7 +94,7 @@ extension BDRemuxerConfiguration {
   }
 
   public struct VideoPreference {
-    public init(encodeVideo: Bool, codec: BDRemuxerConfiguration.VideoPreference.Codec, preset: BDRemuxerConfiguration.VideoPreference.CodecPreset, crf: Int, autoCrop: Bool) {
+    public init(encodeVideo: Bool, codec: BDRemuxerConfiguration.VideoPreference.Codec, preset: BDRemuxerConfiguration.VideoPreference.CodecPreset, crf: Double, autoCrop: Bool) {
       self.encodeVideo = encodeVideo
       self.codec = codec
       self.preset = preset
@@ -106,7 +106,7 @@ extension BDRemuxerConfiguration {
     public let encodeVideo: Bool
     public let codec: Codec
     public let preset: CodecPreset
-    public let crf: Int
+    public let crf: Double
     public let autoCrop: Bool
 
     public enum Codec: String, CaseIterable, CustomStringConvertible {

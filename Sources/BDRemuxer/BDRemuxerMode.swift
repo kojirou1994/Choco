@@ -3,8 +3,8 @@ public enum BDRemuxerMode: String, CaseIterable, Codable {
   case movie
   // split all mpls
   case episodes
-  // print mpls list
-  //    case dumpBDMV
+  // map all files to output dir's same dir structure
+  case directory
   // input is *.mkv or something else
   case file
 }

@@ -4,6 +4,7 @@ import KwiftUtility
 import Foundation
 import KwiftUtility
 import BDRemuxer
+import MediaUtility
 
 extension Summary {
   #if canImport(Darwin)
@@ -19,11 +20,16 @@ extension Summary {
     endDate.timeIntervalSince(startDate)
   }
 
+  private var simpleTimeString: String {
+    Timestamp(hour: 0, minute: 0, second: UInt64(usedSeconds), milesecond: 0, nanosecond: 0)
+      .description
+  }
+
   var usedTimeString: String {
     #if canImport(Darwin)
     return Self.timeFormat.string(from: startDate, to: endDate) ?? "\(usedSeconds)"
     #else
-    return "\(usedSeconds)"
+    return simpleTimeString
     #endif
   }
 }
@@ -163,7 +169,7 @@ extension BDRemuxerCli {
     var videoPreset: BDRemuxerConfiguration.VideoPreference.CodecPreset = .slow
 
     @Option(help: "Codec crf for video track")
-    var videoCrf: Int = 18
+    var videoCrf: Double = 18
 
     @Flag(help: "Auto crop video track")
     var autoCrop: Bool = false
