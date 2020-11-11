@@ -244,6 +244,7 @@ public final class BDRemuxer {
             }
           default:
           // copy
+            try _fm.createDirectory(at: outputDirectoryURL)
             try _fm.copyItem(at: fileURL, to: outputDirectoryURL.appendingPathComponent(fileURL.lastPathComponent))
           }
         } catch {
