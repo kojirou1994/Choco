@@ -33,7 +33,8 @@ public func calculateAutoCrop(at path: String, previews: Int,
 
   try process.launch()
 
-  while !fm.fileExistance(at: tempFile).exists {
+  while process.result == nil,
+        !fm.fileExistance(at: tempFile).exists {
     Thread.sleep(forTimeInterval: 0.1)
   }
 
@@ -41,10 +42,10 @@ public func calculateAutoCrop(at path: String, previews: Int,
     Thread.sleep(forTimeInterval: 0.3)
     process.signal(SIGINT)
   }.start()
-  try process.waitUntilExit()
+  
+  let stderr = try process.waitUntilExit().stderrOutput.get()
   try fm.removeItem(at: tempFile)
 
-  let stderr = try process.result.unwrap("No result").stderrOutput.get()
   let prefix = "  + autocrop: "
   for lineBuffer in stderr.lazySplit(separator: UInt8(ascii: "\n")) {
     let line = lineBuffer.utf8String
