@@ -57,20 +57,30 @@ public struct BDRemuxerConfiguration {
 
 extension BDRemuxerConfiguration {
   public struct AudioPreference {
+    public init(encodeAudio: Bool, codec: BDRemuxerConfiguration.AudioPreference.AudioCodec, lossyAudioChannelBitrate: Int, downmixMethod: BDRemuxerConfiguration.AudioPreference.DownmixMethod) {
+      self.encodeAudio = encodeAudio
+      self.codec = codec
+      self.lossyAudioChannelBitrate = lossyAudioChannelBitrate
+      self.downmixMethod = downmixMethod
+    }
+
+    public let encodeAudio: Bool
     public let codec: AudioCodec
     public let lossyAudioChannelBitrate: Int
-    public let generateStereo: Bool
-
-    public init(codec: AudioCodec, channelBitrate: Int, generateStereo: Bool) {
-      self.codec = codec
-      self.lossyAudioChannelBitrate = channelBitrate
-      self.generateStereo = generateStereo
-    }
+    public let downmixMethod: DownmixMethod
 
     public enum AudioCodec: String, CaseIterable, CustomStringConvertible {
       case flac
       case opus
-      case fdkAAC = "fdk-aac"
+      case aac
+
+      public var description: String { rawValue }
+    }
+
+    public enum DownmixMethod: String, CaseIterable, CustomStringConvertible {
+      case disable
+      case auto
+      case all
 
       public var description: String { rawValue }
     }
@@ -94,16 +104,17 @@ extension BDRemuxerConfiguration {
   }
 
   public struct VideoPreference {
-    public init(encodeVideo: Bool, codec: BDRemuxerConfiguration.VideoPreference.Codec, preset: BDRemuxerConfiguration.VideoPreference.CodecPreset, crf: Double, autoCrop: Bool) {
+    public init(encodeVideo: Bool, encodeScript: String?, codec: BDRemuxerConfiguration.VideoPreference.Codec, preset: BDRemuxerConfiguration.VideoPreference.CodecPreset, crf: Double, autoCrop: Bool) {
       self.encodeVideo = encodeVideo
+      self.encodeScript = encodeScript
       self.codec = codec
       self.preset = preset
       self.crf = crf
       self.autoCrop = autoCrop
     }
 
-
     public let encodeVideo: Bool
+    public let encodeScript: String?
     public let codec: Codec
     public let preset: CodecPreset
     public let crf: Double
@@ -132,7 +143,7 @@ extension BDRemuxerConfiguration.AudioPreference.AudioCodec {
       return "flac"
     case .opus:
       return "opus"
-    case .fdkAAC:
+    case .aac:
       return "m4a"
     }
   }

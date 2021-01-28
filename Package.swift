@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-  name: "BDRemuxer",
+  name: "Choco",
   platforms: [
     .macOS(.v10_15)
   ],
@@ -14,9 +14,10 @@ let package = Package(
     .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.8.0"),
     .package(url: "https://github.com/apple/swift-argument-parser", from: "0.3.0"),
     .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
-    .package(url: "git@github.com:kojirou1994/MediaUtility.git", from: "0.1.0"),
-    .package(url: "git@github.com:kojirou1994/Executable.git", from: "0.1.0"),
-    .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0")
+    .package(url: "https://github.com/kojirou1994/MediaUtility.git", from: "0.2.0"),
+    .package(url: "https://github.com/kojirou1994/Executable.git", from: "0.4.0"),
+    .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
+    .package(url: "https://github.com/apple/swift-log", from: "1.4.0")
   ],
   targets: [
     .systemLibrary(
@@ -32,34 +33,23 @@ let package = Package(
       ]
     ),
     .target(
-      name: "TrackExtension",
-      dependencies: [
-        .product(name: "MediaTools", package: "MediaUtility")
-      ]
-    ),
-    .target(
-      name: "TrackInfo",
-      dependencies: [
-        .product(name: "ArgumentParser", package: "swift-argument-parser"),
-        "TrackExtension"
-      ]
-    ),
-    .target(
-      name: "BDRemuxer",
+      name: "libChoco",
       dependencies: [
         "CBluray",
         "MplsParser",
+        "Rainbow",
+        "URLFileManager",
         .product(name: "KwiftUtility", package: "Kwift"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
-        "URLFileManager",
-        "TrackExtension",
-        "Rainbow"
+        .product(name: "MediaUtility", package: "MediaUtility"),
+        .product(name: "MediaTools", package: "MediaUtility"),
+        .product(name: "Logging", package: "swift-log")
       ]
     ),
     .target(
-      name: "BDRemuxer-cli",
+      name: "choco-cli",
       dependencies: [
-        "BDRemuxer",
+        "libChoco",
         "Rainbow"
       ]
     ),
@@ -79,6 +69,6 @@ let package = Package(
       dependencies: ["MplsParser"]),
     .testTarget(
       name: "RemuxerTests",
-      dependencies: ["BDRemuxer"]),
+      dependencies: ["libChoco"]),
   ]
 )

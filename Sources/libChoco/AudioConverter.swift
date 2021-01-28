@@ -1,5 +1,5 @@
 import Foundation
-import Executable
+import ExecutableLauncher
 import MediaUtility
 import MediaTools
 
@@ -7,6 +7,7 @@ struct AudioConverter: Executable {
   let input: URL
   let output: URL
   let preference: BDRemuxerConfiguration.AudioPreference
+  let ffmpegCodecs: BDRemuxer.FFmpegCodecs
   let channelCount: Int
   let trackIndex: Int
 
@@ -18,7 +19,7 @@ struct AudioConverter: Executable {
       return FlacEncoder.executableName
     case .opus:
       return "opusenc"
-    case .fdkAAC:
+    case .aac:
       return "ffmpeg"
     }
   }
@@ -36,8 +37,10 @@ struct AudioConverter: Executable {
       return flac.arguments
     case .opus:
       return ["--bitrate", bitrate.description, "--discard-comments", input.path, output.path]
-    case .fdkAAC:
-      return ["-nostdin", "-i", input.path, "-c:a", "libfdk_aac", "-b:a", bitrate.description, output.path]
+    case .aac:
+      return ["-nostdin", "-i", input.path,
+              "-c:a", ffmpegCodecs.fdkAAC ? "libfdk_aac" : "aac",
+              "-b:a", "\(bitrate)k", output.path]
     }
   }
 }

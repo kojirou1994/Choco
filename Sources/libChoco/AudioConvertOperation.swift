@@ -2,6 +2,7 @@ import TSCBasic
 import class Foundation.Operation
 import TSCLibc
 import MediaTools
+import ExecutableLauncher
 
 class AudioConvertOperation: Operation {
 
@@ -11,7 +12,7 @@ class AudioConvertOperation: Operation {
 
   init(converter: AudioConverter, errorHandler: @escaping (Error) -> Void) {
     self.process = try! converter
-      .generateProcess(use: SwiftToolsSupportExecutableLauncher(outputRedirection: .collect))
+      .generateProcess(use: TSCExecutableLauncher(outputRedirection: .collect))
     self.converter = converter
     self.errorHandler = errorHandler
   }

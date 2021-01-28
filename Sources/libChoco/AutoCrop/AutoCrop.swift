@@ -1,5 +1,5 @@
 import MediaUtility
-import Executable
+import ExecutableLauncher
 import URLFileManager
 import Foundation
 
@@ -29,7 +29,7 @@ public func calculateAutoCrop(at path: String, previews: Int,
   }
 
   let process = try HandBrake(input: path, output: tempFile.path, previews: previews)
-    .generateProcess(use: SwiftToolsSupportExecutableLauncher(outputRedirection: .collect, startNewProcessGroup: false))
+    .generateProcess(use: TSCExecutableLauncher(outputRedirection: .collect, startNewProcessGroup: false))
 
   try process.launch()
 

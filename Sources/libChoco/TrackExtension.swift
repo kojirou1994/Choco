@@ -2,7 +2,7 @@ import Foundation
 @_exported import MediaTools
 @_exported import MediaUtility
 
-extension MkvmergeIdentification.Track {
+extension MkvMergeIdentification.Track {
 
   public var isFlac: Bool {
     codec == "FLAC"
@@ -74,7 +74,7 @@ extension MkvmergeIdentification.Track {
       str.append(" \(properties.audioChannels ?? 0)ch")
     }
 
-    str.append(" \(Timestamp(ns: numericCast(properties.defaultDuration ?? 0)).description)")
+//    str.append(" \(Timestamp(ns: numericCast(properties.defaultDuration ?? 0)).description)")
     return str
   }
 }

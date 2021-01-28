@@ -1,19 +1,16 @@
 import Foundation
-import TrackExtension
+import MediaTools
 import ArgumentParser
+import ExecutableLauncher
 
 struct TrackInfo: ParsableCommand {
-  static var configuration: CommandConfiguration {
-    .init(commandName: "TrackInfo", abstract: "", discussion: "")
-  }
-
   @Argument()
   var inputs: [String]
 
   func run() throws {
     inputs.forEach { file in
       do {
-        let info = try MkvmergeIdentification(filePath: file)
+        let info = try MkvMergeIdentification(filePath: file)
         print(file)
         for track in info.tracks {
           print(track.remuxerInfo)
@@ -24,12 +21,4 @@ struct TrackInfo: ParsableCommand {
       }
     }
   }
-
-  func validate() throws {
-    if inputs.isEmpty {
-      throw ValidationError("No inputs!")
-    }
-  }
 }
-
-TrackInfo.main()

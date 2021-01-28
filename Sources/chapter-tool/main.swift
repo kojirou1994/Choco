@@ -1,6 +1,6 @@
 import MediaUtility
 import Foundation
-import Executable
+import ExecutableLauncher
 import ArgumentParser
 import MediaTools
 import URLFileManager
@@ -24,7 +24,7 @@ func write(chapter: MatroskaChapters, to fileURL: URL) throws {
 
 func extractChapter(from fileURL: URL) throws -> URL {
   let chapterBackupURL = fm.makeUniqueFileURL(fileURL.appendingPathExtension("backup.xml"))
-  _ = try Mkvextract(filepath: fileURL.path, extractions: [.chapter(.init(simple: false, outputFilename: chapterBackupURL.path))])
+  _ = try MkvExtract(filepath: fileURL.path, extractions: [.chapter(.init(simple: false, outputFilename: chapterBackupURL.path))])
     .launch(use: SwiftToolsSupportExecutableLauncher())
   return chapterBackupURL
 }
@@ -34,8 +34,84 @@ struct ChapterTool: ParsableCommand {
   static var configuration: CommandConfiguration {
     .init(subcommands: [
       Rename.self,
-      Clean.self
+      Clean.self,
+      AutoRename.self
     ])
+  }
+
+  struct AutoRename: ParsableCommand {
+
+    @Option()
+    var language: String
+
+    @Option()
+    var chapterFormat: String = "txt"
+
+    @Flag(inversion: FlagInversion.prefixedNo, help: "Remove the chapter file if success")
+    var removeChapFile: Bool = false
+
+    @Flag(inversion: FlagInversion.prefixedNo, help: "Remove extra chapters if chapter count mismatch")
+    var removeExtraChapter: Bool = false
+
+    @Argument(help: ArgumentHelp("Input paths", discussion: "", valueName: "path"))
+    var inputs: [String]
+
+    func run() throws {
+      inputs.forEach { input in
+        let succ = fm.forEachContent(in: URL(fileURLWithPath: input), handleFile: true, handleDirectory: false, skipHiddenFiles: true) { fileURL in
+          do {
+            let chapterFileURL = fileURL.deletingPathExtension().appendingPathExtension(chapterFormat)
+            
+            guard fileURL.pathExtension.lowercased() == "mkv",
+                  fm.fileExistance(at: chapterFileURL).exists else {
+              return
+            }
+            let chapterBackupURL = try extractChapter(from: fileURL)
+
+            var chapter = try MatroskaChapters(data: .init(contentsOf: chapterBackupURL))
+
+            precondition(chapter.entries.count == 1)
+
+            let titles = try String(contentsOf: chapterFileURL).components(separatedBy: .newlines)
+
+            var chapterAtoms = chapter.entries[0].chapterAtoms
+            if chapterAtoms.count > titles.count {
+              if removeExtraChapter {
+                chapterAtoms.removeLast(chapterAtoms.count - titles.count)
+              } else {
+                throw ValidationError("Chapter count mismatch")
+              }
+            }
+            if chapterAtoms.count < titles.count {
+              throw ValidationError("Chapter count mismatch, titles over flow")
+            }
+
+            for index in titles.indices {
+              let chapterString = titles[index]
+              if var chapterDisplays = chapterAtoms[index].chapterDisplays {
+                if let displayIndex = chapterDisplays.firstIndex(where: {$0.chapterLanguage == language}) {
+                  chapterDisplays[displayIndex].chapterString = chapterString
+                } else {
+                  chapterDisplays.append(.init(chapterString: chapterString, chapterLanguage: language))
+                }
+                chapterAtoms[index].chapterDisplays = chapterDisplays
+              } else {
+                chapterAtoms[index].chapterDisplays = [.init(chapterString: chapterString, chapterLanguage: language)]
+              }
+            }
+
+            chapter.entries[0].chapterAtoms = chapterAtoms
+
+            try write(chapter: chapter, to: fileURL)
+          } catch {
+            print("Error: ", error, fileURL)
+          }
+        }
+        if !succ {
+          print("Cannot read input: \(input)")
+        }
+      }
+    }
   }
 
   struct Rename: ParsableCommand {
@@ -60,7 +136,9 @@ struct ChapterTool: ParsableCommand {
       let titles = try String(contentsOfFile: chapterPath).components(separatedBy: .newlines)
 
       var chapterAtoms = chapter.entries[0].chapterAtoms
-      precondition(chapterAtoms.count == titles.count, "Chapter count mismatch")
+      guard chapterAtoms.count == titles.count else {
+        throw ValidationError("Chapter count mismatch")
+      }
 
       for index in chapterAtoms.indices {
         let chapterString = titles[index]
@@ -85,7 +163,7 @@ struct ChapterTool: ParsableCommand {
 
   struct Clean: ParsableCommand {
     @Argument(help: ArgumentHelp("Mkv file path", discussion: "", valueName: "file-path"))
-    var filePath: [String]
+    var inputs: [String]
 
     @Flag()
     var removeTitle: Bool = false
@@ -93,7 +171,7 @@ struct ChapterTool: ParsableCommand {
     static let minChapterInterval = Timestamp.second * 3
 
     func run() throws {
-      filePath.forEach { path in
+      inputs.forEach { path in
         do {
           print("Cleaning \(path)")
           let fileURL = URL(fileURLWithPath: path)

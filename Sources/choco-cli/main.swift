@@ -3,7 +3,7 @@ import ArgumentParser
 import KwiftUtility
 import Foundation
 import KwiftUtility
-import BDRemuxer
+import libChoco
 import MediaUtility
 
 extension Summary {
@@ -47,20 +47,23 @@ extension BDRemuxerMode: ExpressibleByArgument {}
 extension BDRemuxerConfiguration.AudioPreference.AudioCodec: ExpressibleByArgument {}
 extension BDRemuxerConfiguration.VideoPreference.Codec: ExpressibleByArgument {}
 extension BDRemuxerConfiguration.VideoPreference.CodecPreset: ExpressibleByArgument {}
+extension BDRemuxerConfiguration.AudioPreference.DownmixMethod: ExpressibleByArgument {}
 
-struct BDRemuxerCli: ParsableCommand {
+struct ChocoCli: ParsableCommand {
 
   static let configuration: CommandConfiguration =
     .init(commandName: "BDRemuxer-cli",
           abstract: "Automatic remux blu-ray disc or media files.",
           subcommands: [
+            TrackInfo.self,
+            TrackHash.self,
             DumpBDMV.self,
             Crop.self,
             Mux.self]
     )
 }
 
-extension BDRemuxerCli {
+extension ChocoCli {
   struct DumpBDMV: ParsableCommand {
     static var configuration: CommandConfiguration {
       .init(commandName: "dumpBDMV", abstract: "", discussion: "")
@@ -108,9 +111,6 @@ extension BDRemuxerCli {
     @Option(help: "Remux mode")
     var mode: BDRemuxerMode = .movie
 
-    @Option(help: "Audio bitrate per channel")
-    var audioBitrate: Int = 128
-
     @Option(help: "Split info, number joined by ,",
             transform: {argument in
               try argument.split(separator: ",").map {try Int($0).unwrap() }
@@ -138,9 +138,6 @@ extension BDRemuxerCli {
     @Flag(help: "Keep DTS-HD track")
     var keepDTSHD: Bool = false
 
-    @Flag(help: "Auto mixdown")
-    var mixdown: Bool = false
-
     @Flag(help: "Ignore mkvmerge warning")
     var ignoreWarning: Bool = false
 
@@ -165,6 +162,9 @@ extension BDRemuxerCli {
     @Option(help: "Codec for video track, available: \(BDRemuxerConfiguration.VideoPreference.Codec.allCases.map{$0.rawValue}.joined(separator: ", "))")
     var videoCodec: BDRemuxerConfiguration.VideoPreference.Codec = .x265
 
+    @Option(help: "VS script template path.")
+    var encodeScript: String?
+
     @Option(help: "Codec preset for video track, available: \(BDRemuxerConfiguration.VideoPreference.CodecPreset.allCases.map{$0.rawValue}.joined(separator: ", "))")
     var videoPreset: BDRemuxerConfiguration.VideoPreference.CodecPreset = .slow
 
@@ -174,27 +174,42 @@ extension BDRemuxerCli {
     @Flag(help: "Auto crop video track")
     var autoCrop: Bool = false
 
+    @Flag(inversion: FlagInversion.prefixedNo, help: "Encode audio.")
+    var encodeAudio: Bool = true
+
     @Option(help: "Codec for lossless audio track, available: \(BDRemuxerConfiguration.AudioPreference.AudioCodec.allCases.map{$0.rawValue}.joined(separator: ", "))")
     var audioCodec: BDRemuxerConfiguration.AudioPreference.AudioCodec = .flac
+
+    @Option(help: "Audio bitrate per channel")
+    var audioBitrate: Int = 128
+
+    @Option(help: "Downmix method, available: \(BDRemuxerConfiguration.AudioPreference.DownmixMethod.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    var downmix: BDRemuxerConfiguration.AudioPreference.DownmixMethod = .disable
 
     @Argument(help: "path")
     var inputs: [String]
 
     static var muxer: BDRemuxer!
 
+    func scriptTemplate() throws -> String? {
+      // replace error
+      try encodeScript
+        .map { try String(contentsOfFile: $0)}
+    }
+
     func run() throws {
-      let configuration = BDRemuxerConfiguration(
+      let configuration = try BDRemuxerConfiguration(
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
-        videoPreference: .init(encodeVideo: encodeVideo, codec: videoCodec, preset: videoPreset, crf: videoCrf, autoCrop: autoCrop),
-        audioPreference: .init(codec: audioCodec, channelBitrate: audioBitrate, generateStereo: mixdown),
+        videoPreference: .init(encodeVideo: encodeVideo, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, crf: videoCrf, autoCrop: autoCrop),
+        audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix),
         splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
         keepTrueHD: keepTrueHD, keepDTSHD: keepDTSHD, fixDTS: fixDTS, removeExtraDTS: removeExtraDTS,
         ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly, keepFlac: keepFlac)
-      dump(configuration)
-      let muxer = try BDRemuxer(config: configuration)
+      
+      let muxer = try BDRemuxer(config: configuration, logger: .init(label: "Remuxer"))
       Self.muxer = muxer
       Signals.trap(signals: [.quit, .int, .kill, .term, .abrt]) { (_) in
         Self.muxer.terminate()
@@ -246,8 +261,8 @@ extension BDRemuxerCli {
 }
 
 #if Xcode
-import Executable
+import ExecutableLauncher
 ExecutablePath.add("/usr/local/bin")
 #endif
 
-BDRemuxerCli.main()
+ChocoCli.main()

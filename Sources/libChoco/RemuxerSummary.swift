@@ -5,4 +5,8 @@ public struct Summary {
   public let sizeAfter: UInt64
   public let startDate: Date
   public let endDate: Date
+
+  func add(_ other: Self) {
+
+  }
 }
