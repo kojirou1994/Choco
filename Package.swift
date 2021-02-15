@@ -19,7 +19,7 @@ let package = Package(
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.4.0"),
     .package(url: "https://github.com/kojirou1994/BufferUtility.git", .branch("main")),
-    .package(name: "Mustache", url: "https://github.com/groue/GRMustache.swift.git", .upToNextMajor(from: "4.0.1")),
+    .package(url: "https://github.com/AlwaysRightInstitute/mustache.git", .upToNextMajor(from: "1.0.0")),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
   ],
   targets: [
@@ -42,7 +42,7 @@ let package = Package(
         "MplsParser",
         "Rainbow",
         "URLFileManager",
-        .product(name: "Mustache", package: "Mustache"),
+        .product(name: "mustache", package: "mustache"),
         .product(name: "KwiftUtility", package: "Kwift"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
         .product(name: "MediaUtility", package: "MediaUtility"),
