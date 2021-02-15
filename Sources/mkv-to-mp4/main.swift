@@ -27,8 +27,10 @@ enum Mp4TrackCodec: CaseIterable {
 
   private var codecs: [String] {
     switch self {
-    case .avc: return ["MPEG-4p10/AVC/h.264"]
-    case .hevc: return ["MPEG-H/HEVC/h.265"]
+    case .avc:
+      return ["MPEG-4p10/AVC/h.264"]
+    case .hevc:
+      return ["MPEG-H/HEVC/h.265"]
     case .flac:
       return ["FLAC"]
     case .aac:
@@ -50,20 +52,13 @@ enum Mp4TrackCodec: CaseIterable {
     switch self {
     case .avc: return "264"
     case .hevc: return "265"
-    case .flac:
-      return "flac"
-    case .aac:
-      return "aac"
-    case .ac3:
-      return "ac3"
-    case .eac3:
-      return "eac3"
-    case .srt:
-      return "srt"
-    case .trueHD:
-      return "mlp"
-    case .mp3:
-      return "mp3"
+    case .flac: return "flac"
+    case .aac: return "aac"
+    case .ac3: return "ac3"
+    case .eac3: return "eac3"
+    case .srt: return "srt"
+    case .trueHD: return "mlp"
+    case .mp3: return "mp3"
     }
   }
 
@@ -498,6 +493,9 @@ struct MkvToMp4: ParsableCommand {
         .enumerated()
         .filter { $0.element.supportsMp4 }
 
+      try preconditionOrThrow(supportedTracks.filter{$0.element.type == .video}.count == 1,
+                              "Must have exactly 1 video track!")
+
       let extractedTracks = supportedTracks.map { _, track in
         tempFileURL(pathExtension: track.extractFileExtension)
       }
@@ -546,14 +544,24 @@ struct MkvToMp4: ParsableCommand {
         if keepTrackName {
           name = track.element.properties.trackName
         }
-        return MP4Box.FileImporting(filename: trackFile.path, trackSelection: nil, name: name ?? "", fps: nil, group: nil, par: track.element.par, language: lang, isChapter: false)
+        var hdlr: String?
+        var layout: String?
+        if Mp4TrackCodec.matched(codec: track.element.codec) == .srt {
+          hdlr = "sbtl"
+          layout = "-1"
+        }
+        var group: Int?
+        if track.element.type == .audio {
+          group = 1
+        }
+        return MP4Box.FileImporting(filename: trackFile.path, trackSelection: nil, name: name ?? "", fps: nil, group: group, par: track.element.par, language: lang, isChapter: false, hdlr: hdlr, layout: layout)
       }
       if let chapterFileURL = extractedChapterFileURL,
          case let chapter = try Chapter(ogmFileURL: chapterFileURL),
          !chapter.isEmpty {
         let appleChapterFileURL = tempFileURL(pathExtension: "ttxt")
         try chapter.exportApple().write(to: appleChapterFileURL, atomically: true, encoding: .utf8)
-        importings.append(.init(filename: appleChapterFileURL.path, trackSelection: nil, name: "", fps: nil, group: nil, par: nil, language: nil, isChapter: true))
+        importings.append(.init(filename: appleChapterFileURL.path, trackSelection: nil, name: "", fps: nil, group: nil, par: nil, language: nil, isChapter: true, hdlr: nil, layout: nil))
 
       }
 

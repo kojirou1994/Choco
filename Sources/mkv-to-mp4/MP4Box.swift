@@ -65,6 +65,16 @@ struct MP4Box: Executable {
 
     let isChapter: Bool
 
+    /// set track handler type to the given code point (4CC)
+    let hdlr: String?
+    /*
+     specify the track layout as WxHxXxY
+     * if W (resp H) = 0: the max width (resp height) of the tracks in the file are used
+     * if Y=-1: the layout is moved to the bottom of the track area
+     * X and Y can be omitted: :layout=WxH
+     */
+    let layout: String?
+
     var argument: String {
       var result = filename
 
@@ -91,6 +101,8 @@ struct MP4Box: Executable {
         result.append(":chap")
       }
       addOption(value: par, key: "par")
+      addOption(value: hdlr, key: "hdlr")
+      addOption(value: layout, key: "layout")
 
       return result
     }
@@ -110,7 +122,6 @@ struct MP4Box: Executable {
      clap (string):                 set visual clean aperture (see -clap )
      mx (string):                   set track matrix (see -mx )
      ext (string):                  override file extension when importing
-     hdlr (string):                 set track handler type to the given code point (4CC)
      disable:                       disable imported track(s)
 
      rap:                           D import only RAP samples
@@ -164,10 +175,6 @@ struct MP4Box: Executable {
      chap:                          specify the track is a chapter track
      chapter (string):              add a single chapter (old nero format) with given name lasting the entire file
      chapfile (string):             add a chapter file (old nero format)
-     layout (string):               specify the track layout as WxHxXxY
-     * if W (resp H) = 0: the max width (resp height) of the tracks in the file are used
-     * if Y=-1: the layout is moved to the bottom of the track area
-     * X and Y can be omitted: :layout=WxH
      rescale (int):                 force media timescale to TS !! changes the media duration
      timescale (int):               set imported media timescale to TS
      moovts (int):                  set movie timescale to TS. A negative value picks the media timescale of the first track imported

@@ -4,6 +4,8 @@ import ExecutableLauncher
 import MediaTools
 #if canImport(CryptoKit)
 import CryptoKit
+#elseif canImport(Crypto)
+import Crypto
 #else
 #error("Unsupported platform, no crypto library!!")
 #endif
