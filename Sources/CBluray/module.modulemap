@@ -1,5 +1,5 @@
 module CBluray [system] {
-    header "bluray.h"
-    link "bluray"
-    export *
+  header "bluray.h"
+  link "bluray"
+  export *
 }

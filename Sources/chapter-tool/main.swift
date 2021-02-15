@@ -10,7 +10,7 @@ let fm = URLFileManager.default
 func write(chapter: MatroskaChapters, to fileURL: URL) throws {
   func write(chap: String, file: URL) throws {
     _ = try AnyExecutable(executableName: "mkvpropedit", arguments: [file.path, "-c", chap])
-      .launch(use: SwiftToolsSupportExecutableLauncher())
+      .launch(use: TSCExecutableLauncher())
   }
   if chapter.entries[0].chapterAtoms.isEmpty || (chapter.entries[0].chapterAtoms.count == 1 && chapter.entries[0].chapterAtoms[0].timestamp!.value == 0) {
     try write(chap: "", file: fileURL)
@@ -25,7 +25,7 @@ func write(chapter: MatroskaChapters, to fileURL: URL) throws {
 func extractChapter(from fileURL: URL) throws -> URL {
   let chapterBackupURL = fm.makeUniqueFileURL(fileURL.appendingPathExtension("backup.xml"))
   _ = try MkvExtract(filepath: fileURL.path, extractions: [.chapter(.init(simple: false, outputFilename: chapterBackupURL.path))])
-    .launch(use: SwiftToolsSupportExecutableLauncher())
+    .launch(use: TSCExecutableLauncher())
   return chapterBackupURL
 }
 

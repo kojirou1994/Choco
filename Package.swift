@@ -17,7 +17,8 @@ let package = Package(
     .package(url: "https://github.com/kojirou1994/MediaUtility.git", from: "0.2.0"),
     .package(url: "https://github.com/kojirou1994/Executable.git", from: "0.4.0"),
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
-    .package(url: "https://github.com/apple/swift-log", from: "1.4.0")
+    .package(url: "https://github.com/apple/swift-log", from: "1.4.0"),
+    .package(url: "https://github.com/kojirou1994/BufferUtility.git", .branch("main")),
   ],
   targets: [
     .systemLibrary(
@@ -50,17 +51,26 @@ let package = Package(
       name: "choco-cli",
       dependencies: [
         "libChoco",
-        "Rainbow"
+        "Rainbow",
+        .product(name: "BufferUtility", package: "BufferUtility"),
       ]
     ),
-    //        .target(
-    //            name: "MKV2MP4",
-    //            dependencies: ["Common", "Kwift", "Signals", "ArgumentParser"]),
+    .target(
+      name: "mkv-to-mp4",
+      dependencies: [
+        "URLFileManager",
+        .product(name: "KwiftUtility", package: "Kwift"),
+        .product(name: "ArgumentParser", package: "swift-argument-parser"),
+        .product(name: "MediaUtility", package: "MediaUtility"),
+        .product(name: "MediaTools", package: "MediaUtility"),
+        .product(name: "Logging", package: "swift-log")
+      ]),
     .target(
       name: "chapter-tool",
       dependencies: [
         "Executable",
         "URLFileManager",
+        .product(name: "MediaUtility", package: "MediaUtility"),
         .product(name: "MediaTools", package: "MediaUtility"),
         .product(name: "ArgumentParser", package: "swift-argument-parser")
     ]),
