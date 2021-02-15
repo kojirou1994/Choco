@@ -10,8 +10,8 @@ import Logging
 
 let _fm = URLFileManager.default
 
-public final class BDRemuxer {
-  private let config: BDRemuxerConfiguration
+public final class ChocoMuxer {
+  private let config: ChocoConfiguration
 
   private let ffmpegCodecs: FFmpegCodecs
 
@@ -56,7 +56,7 @@ public final class BDRemuxer {
 
   let logger: Logger
 
-  public init(config: BDRemuxerConfiguration, logger: Logger) throws {
+  public init(config: ChocoConfiguration, logger: Logger) throws {
     audioConvertQueue.maxConcurrentOperationCount = ProcessInfo.processInfo.processorCount
     self.config = config
     self.logger = logger
@@ -151,7 +151,7 @@ public final class BDRemuxer {
       return parts
     } else {
       logger.error("Necessary files are missing: \(task.main.outputURL.path).")
-      throw BDRemuxerError.noOutputFile(task.main.outputURL)
+      throw ChocoError.noOutputFile(task.main.outputURL)
     }
   }
 
@@ -164,13 +164,13 @@ public final class BDRemuxer {
                             mainOnly: config.mainTitleOnly, splits: config.splits)
     let finalOutputPath = config.outputRootDirectory.appendingPathComponent(task.getBlurayTitle())
     if _fm.fileExistance(at: finalOutputPath).exists {
-      throw BDRemuxerError.outputExist
+      throw ChocoError.outputExist
     }
     let converters: [WorkTask]
     do {
       converters = try task.parse(temporaryDirectory: temporaryPath, language: config.languagePreference)
     } catch {
-      throw BDRemuxerError.parseBDMV(error)
+      throw ChocoError.parseBDMV(error)
     }
     var tempFiles = [URL]()
     for converter in converters {
@@ -221,9 +221,9 @@ public final class BDRemuxer {
     let fileType = _fm.fileExistance(at: path)
     switch fileType {
     case .none:
-      throw BDRemuxerError.inputNotExists
+      throw ChocoError.inputNotExists
     case .directory:
-      throw BDRemuxerError.directoryInFileMode
+      throw ChocoError.directoryInFileMode
     case .file:
       return try _remux(file: path, outputDirectoryURL: outputDirectoryURL, temporaryPath: temporaryPath, deleteAfterRemux: config.deleteAfterRemux)
     }
@@ -231,7 +231,7 @@ public final class BDRemuxer {
 
   public func run(input: URL) throws -> Summary {
     if terminated {
-      throw BDRemuxerError.terminated
+      throw ChocoError.terminated
     }
 
     switch config.mode {
@@ -295,7 +295,7 @@ public final class BDRemuxer {
   var currentTemporaryPath: URL?
 }
 
-extension BDRemuxer {
+extension ChocoMuxer {
 
   @usableFromInline
   internal func readMKV(at url: URL) throws -> MkvMergeIdentification {
@@ -310,7 +310,7 @@ extension BDRemuxer {
     let outputURL = outputDirectoryURL
       .appendingPathComponent("\(file.lastPathComponentWithoutExtension).mkv")
     guard !_fm.fileExistance(at: outputURL).exists else {
-      throw BDRemuxerError.outputExist
+      throw ChocoError.outputExist
     }
     let sizeBefore: UInt64
     do {
@@ -399,7 +399,7 @@ extension BDRemuxer {
     do {
       try launch(externalExecutable: mkvmerge, checkAllowedExitCodes: allowedExitCodes)
     } catch {
-      throw BDRemuxerError.mkvmergeMux(error)
+      throw ChocoError.mkvmergeMux(error)
     }
 
     externalTracks.forEach { t in
@@ -426,7 +426,7 @@ extension BDRemuxer {
 
 // MARK: - Utilities
 
-extension BDRemuxer {
+extension ChocoMuxer {
 
   private func withTemporaryDirectory<T>(_ body: (URL) throws -> T) throws -> T {
     let uniqueTempDirectory = config.temperoraryDirectory.appendingPathComponent(UUID().uuidString)
@@ -615,7 +615,7 @@ extension BDRemuxer {
         flacMD5s = try FlacMD5.calculate(inputs: tempFFmpegFlacFiles.map { $0.path })
       }
     } catch {
-      throw BDRemuxerError.validateFlacMD5(error)
+      throw ChocoError.validateFlacMD5(error)
     }
     precondition(tempFFmpegFlacFiles.count == flacMD5s.count, "Flac MD5 count dont match")
 
@@ -647,7 +647,7 @@ extension BDRemuxer {
     }
     audioConvertQueue.waitUntilAllOperationsAreFinished()
     if terminated {
-      throw BDRemuxerError.terminated
+      throw ChocoError.terminated
     }
 
     return trackModifications
@@ -712,12 +712,12 @@ public struct BDMVMetadata {
   //    let language: BDRemuxerConfiguration.LanguagePreference
   let splits: [Int]?
 
-  public func parse(temporaryDirectory: URL, language: BDRemuxerConfiguration.LanguagePreference) throws -> [BDRemuxer.WorkTask] {
+  public func parse(temporaryDirectory: URL, language: ChocoConfiguration.LanguagePreference) throws -> [ChocoMuxer.WorkTask] {
     let mplsList = try scan(removeDuplicate: true)
 
     // TODO: check conflict
 
-    var tasks = [BDRemuxer.WorkTask]()
+    var tasks = [ChocoMuxer.WorkTask]()
 
     if mode == .split {
       var allFiles = Set(mplsList.flatMap { $0.files })
@@ -788,7 +788,7 @@ public struct BDMVMetadata {
     if _fm.fileExistance(at: playlistPath) == .directory {
       let mplsPaths = try _fm.contentsOfDirectory(at: playlistPath).filter { $0.pathExtension.lowercased() == "mpls" }
       if mplsPaths.isEmpty {
-        throw BDRemuxerError.noPlaylists
+        throw ChocoError.noPlaylists
       }
       let allMpls = mplsPaths.compactMap { (mplsPath) -> Mpls? in
         do {
@@ -830,15 +830,15 @@ public struct BDMVMetadata {
       }
     } else {
       print("No PLAYLIST Folder!")
-      throw BDRemuxerError.noPlaylists
+      throw ChocoError.noPlaylists
     }
   }
 
-  private func split(mpls: Mpls, temporaryDirectory: URL, language: BDRemuxerConfiguration.LanguagePreference) throws -> [BDRemuxer.WorkTask] {
+  private func split(mpls: Mpls, temporaryDirectory: URL, language: ChocoConfiguration.LanguagePreference) throws -> [ChocoMuxer.WorkTask] {
     try split(mpls: mpls, restFiles: Set(mpls.files), temporaryDirectory: temporaryDirectory, language: language)
   }
 
-  private func split(mpls: Mpls, restFiles: Set<URL>, temporaryDirectory: URL, language: BDRemuxerConfiguration.LanguagePreference) throws -> [BDRemuxer.WorkTask] {
+  private func split(mpls: Mpls, restFiles: Set<URL>, temporaryDirectory: URL, language: ChocoConfiguration.LanguagePreference) throws -> [ChocoMuxer.WorkTask] {
     print("Splitting MPLS: \(mpls.fileName)")
 
     if restFiles.count == 0 {
@@ -848,7 +848,7 @@ public struct BDMVMetadata {
     let clips = try mpls.split(chapterPath: temporaryDirectory)
     let preferedLanguages = language.generatePrimaryLanguages(with: [mpls.primaryLanguage])
 
-    return clips.flatMap { (clip) -> [BDRemuxer.WorkTask] in
+    return clips.flatMap { (clip) -> [ChocoMuxer.WorkTask] in
       if restFiles.contains(clip.m2tsPath) {
         let output: URL
         let outputBasename = "\(mpls.fileName.lastPathComponentWithoutExtension)-\(clip.baseFilename)"
@@ -903,7 +903,7 @@ fileprivate func generateSplit(splits: [Int]?, chapterCount: Int) -> MkvMerge.Gl
 //    let alternatives: [SubTask]?
 ////    let size: Int
 // }
-extension BDRemuxer {
+extension ChocoMuxer {
   public struct WorkTask {
     public let input: URL
     public let main: Converter

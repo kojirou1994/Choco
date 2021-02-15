@@ -43,17 +43,16 @@ extension LanguageSet: ExpressibleByArgument {
   }
 }
 
-extension BDRemuxerMode: ExpressibleByArgument {}
-extension BDRemuxerConfiguration.AudioPreference.AudioCodec: ExpressibleByArgument {}
-extension BDRemuxerConfiguration.VideoPreference.Codec: ExpressibleByArgument {}
-extension BDRemuxerConfiguration.VideoPreference.CodecPreset: ExpressibleByArgument {}
-extension BDRemuxerConfiguration.AudioPreference.DownmixMethod: ExpressibleByArgument {}
+extension ChocoWorkMode: ExpressibleByArgument {}
+extension ChocoConfiguration.AudioPreference.AudioCodec: ExpressibleByArgument {}
+extension ChocoConfiguration.VideoPreference.Codec: ExpressibleByArgument {}
+extension ChocoConfiguration.VideoPreference.CodecPreset: ExpressibleByArgument {}
+extension ChocoConfiguration.AudioPreference.DownmixMethod: ExpressibleByArgument {}
 
 struct ChocoCli: ParsableCommand {
 
   static let configuration: CommandConfiguration =
-    .init(commandName: "BDRemuxer-cli",
-          abstract: "Automatic remux blu-ray disc or media files.",
+    .init(abstract: "Automatic remux blu-ray disc or media files.",
           subcommands: [
             TrackInfo.self,
             TrackHash.self,
@@ -75,7 +74,7 @@ extension ChocoCli {
     @Argument(help: "path")
     var inputs: [String]
 
-    static var muxer: BDRemuxer!
+    static var muxer: ChocoMuxer!
 
     func run() throws {
       inputs.forEach { input in
@@ -109,7 +108,7 @@ extension ChocoCli {
     var temp: String = "./"
 
     @Option(help: "Remux mode")
-    var mode: BDRemuxerMode = .movie
+    var mode: ChocoWorkMode = .movie
 
     @Option(help: "Split info, number joined by ,",
             transform: {argument in
@@ -159,14 +158,14 @@ extension ChocoCli {
     @Flag(help: "Encode video.")
     var encodeVideo: Bool = false
 
-    @Option(help: "Codec for video track, available: \(BDRemuxerConfiguration.VideoPreference.Codec.allCases.map{$0.rawValue}.joined(separator: ", "))")
-    var videoCodec: BDRemuxerConfiguration.VideoPreference.Codec = .x265
+    @Option(help: "Codec for video track, available: \(ChocoConfiguration.VideoPreference.Codec.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    var videoCodec: ChocoConfiguration.VideoPreference.Codec = .x265
 
     @Option(help: "VS script template path.")
     var encodeScript: String?
 
-    @Option(help: "Codec preset for video track, available: \(BDRemuxerConfiguration.VideoPreference.CodecPreset.allCases.map{$0.rawValue}.joined(separator: ", "))")
-    var videoPreset: BDRemuxerConfiguration.VideoPreference.CodecPreset = .slow
+    @Option(help: "Codec preset for video track, available: \(ChocoConfiguration.VideoPreference.CodecPreset.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    var videoPreset: ChocoConfiguration.VideoPreference.CodecPreset = .slow
 
     @Option(help: "Codec crf for video track")
     var videoCrf: Double = 18
@@ -177,19 +176,19 @@ extension ChocoCli {
     @Flag(inversion: FlagInversion.prefixedNo, help: "Encode audio.")
     var encodeAudio: Bool = true
 
-    @Option(help: "Codec for lossless audio track, available: \(BDRemuxerConfiguration.AudioPreference.AudioCodec.allCases.map{$0.rawValue}.joined(separator: ", "))")
-    var audioCodec: BDRemuxerConfiguration.AudioPreference.AudioCodec = .flac
+    @Option(help: "Codec for lossless audio track, available: \(ChocoConfiguration.AudioPreference.AudioCodec.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    var audioCodec: ChocoConfiguration.AudioPreference.AudioCodec = .flac
 
     @Option(help: "Audio bitrate per channel")
     var audioBitrate: Int = 128
 
-    @Option(help: "Downmix method, available: \(BDRemuxerConfiguration.AudioPreference.DownmixMethod.allCases.map{$0.rawValue}.joined(separator: ", "))")
-    var downmix: BDRemuxerConfiguration.AudioPreference.DownmixMethod = .disable
+    @Option(help: "Downmix method, available: \(ChocoConfiguration.AudioPreference.DownmixMethod.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    var downmix: ChocoConfiguration.AudioPreference.DownmixMethod = .disable
 
     @Argument(help: "path")
     var inputs: [String]
 
-    static var muxer: BDRemuxer!
+    static var muxer: ChocoMuxer!
 
     func scriptTemplate() throws -> String? {
       // replace error
@@ -198,7 +197,7 @@ extension ChocoCli {
     }
 
     func run() throws {
-      let configuration = try BDRemuxerConfiguration(
+      let configuration = try ChocoConfiguration(
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
@@ -209,7 +208,7 @@ extension ChocoCli {
         keepTrueHD: keepTrueHD, keepDTSHD: keepDTSHD, fixDTS: fixDTS, removeExtraDTS: removeExtraDTS,
         ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly, keepFlac: keepFlac)
       
-      let muxer = try BDRemuxer(config: configuration, logger: .init(label: "Remuxer"))
+      let muxer = try ChocoMuxer(config: configuration, logger: .init(label: "Remuxer"))
       Self.muxer = muxer
       Signals.trap(signals: [.quit, .int, .kill, .term, .abrt]) { (_) in
         Self.muxer.terminate()

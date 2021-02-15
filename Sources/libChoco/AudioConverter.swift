@@ -6,8 +6,8 @@ import MediaTools
 struct AudioConverter: Executable {
   let input: URL
   let output: URL
-  let preference: BDRemuxerConfiguration.AudioPreference
-  let ffmpegCodecs: BDRemuxer.FFmpegCodecs
+  let preference: ChocoConfiguration.AudioPreference
+  let ffmpegCodecs: ChocoMuxer.FFmpegCodecs
   let channelCount: Int
   let trackIndex: Int
 

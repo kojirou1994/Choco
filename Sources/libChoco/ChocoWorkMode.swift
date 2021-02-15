@@ -1,4 +1,4 @@
-public enum BDRemuxerMode: String, CaseIterable, Codable {
+public enum ChocoWorkMode: String, CaseIterable, Codable {
   // direct mux all mpls
   case movie
   // split all mpls

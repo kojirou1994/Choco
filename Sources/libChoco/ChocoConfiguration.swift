@@ -1,12 +1,12 @@
 import Foundation
 
-public let BDRemuxerTempDirectoryName = "BDRemuxer-tmp"
+internal let ChocoTempDirectoryName = "choco_tmp"
 
-public struct BDRemuxerConfiguration {
+public struct ChocoConfiguration {
 
   public let outputRootDirectory: URL
   public let temperoraryDirectory: URL
-  public let mode: BDRemuxerMode
+  public let mode: ChocoWorkMode
   public let splits: [Int]?
   public let videoPreference: VideoPreference
   public let audioPreference: AudioPreference
@@ -26,7 +26,7 @@ public struct BDRemuxerConfiguration {
 
   public let keepFlac: Bool
 
-  public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: BDRemuxerMode,
+  public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: ChocoWorkMode,
               videoPreference: VideoPreference,
               audioPreference: AudioPreference,
               splits: [Int]?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet,
@@ -34,7 +34,7 @@ public struct BDRemuxerConfiguration {
               fixDTS: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool,
               keepFlac: Bool) {
     self.outputRootDirectory = outputRootDirectory
-    self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(BDRemuxerTempDirectoryName)
+    self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(ChocoTempDirectoryName)
     self.mode = mode
     self.splits = splits
     self.videoPreference = videoPreference
@@ -55,9 +55,9 @@ public struct BDRemuxerConfiguration {
 
 }
 
-extension BDRemuxerConfiguration {
+extension ChocoConfiguration {
   public struct AudioPreference {
-    public init(encodeAudio: Bool, codec: BDRemuxerConfiguration.AudioPreference.AudioCodec, lossyAudioChannelBitrate: Int, downmixMethod: BDRemuxerConfiguration.AudioPreference.DownmixMethod) {
+    public init(encodeAudio: Bool, codec: ChocoConfiguration.AudioPreference.AudioCodec, lossyAudioChannelBitrate: Int, downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod) {
       self.encodeAudio = encodeAudio
       self.codec = codec
       self.lossyAudioChannelBitrate = lossyAudioChannelBitrate
@@ -90,7 +90,6 @@ extension BDRemuxerConfiguration {
     public let preferedLanguages: LanguageSet
     public let excludeLanguages: LanguageSet
 
-    @usableFromInline
     func generatePrimaryLanguages<C>(with otherLanguages: C) -> Set<String> where C: Collection, C.Element == String {
       var result = preferedLanguages.languages
       otherLanguages.forEach { l in
@@ -104,7 +103,7 @@ extension BDRemuxerConfiguration {
   }
 
   public struct VideoPreference {
-    public init(encodeVideo: Bool, encodeScript: String?, codec: BDRemuxerConfiguration.VideoPreference.Codec, preset: BDRemuxerConfiguration.VideoPreference.CodecPreset, crf: Double, autoCrop: Bool) {
+    public init(encodeVideo: Bool, encodeScript: String?, codec: ChocoConfiguration.VideoPreference.Codec, preset: ChocoConfiguration.VideoPreference.CodecPreset, crf: Double, autoCrop: Bool) {
       self.encodeVideo = encodeVideo
       self.encodeScript = encodeScript
       self.codec = codec
@@ -136,7 +135,7 @@ extension BDRemuxerConfiguration {
 
 }
 
-extension BDRemuxerConfiguration.AudioPreference.AudioCodec {
+extension ChocoConfiguration.AudioPreference.AudioCodec {
   var outputFileExtension: String {
     switch self {
     case .flac:
@@ -149,7 +148,7 @@ extension BDRemuxerConfiguration.AudioPreference.AudioCodec {
   }
 }
 
-extension BDRemuxerConfiguration.VideoPreference.Codec {
+extension ChocoConfiguration.VideoPreference.Codec {
   var pixelFormat: String {
     switch self {
     case .x264:
