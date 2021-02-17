@@ -106,8 +106,8 @@ extension ChocoConfiguration {
   }
 
   public struct VideoPreference {
-    public init(encodeVideo: Bool, encodeScript: String?, codec: ChocoConfiguration.VideoPreference.Codec, preset: ChocoConfiguration.VideoPreference.CodecPreset, crf: Double, autoCrop: Bool) {
-      self.encodeVideo = encodeVideo
+    public init(videoProcess: VideoProcess, encodeScript: String?, codec: ChocoConfiguration.VideoPreference.Codec, preset: ChocoConfiguration.VideoPreference.CodecPreset, crf: Double, autoCrop: Bool) {
+      self.videoProcess = videoProcess
       self.encodeScript = encodeScript
       self.codec = codec
       self.preset = preset
@@ -115,12 +115,20 @@ extension ChocoConfiguration {
       self.autoCrop = autoCrop
     }
 
-    public let encodeVideo: Bool
+    public let videoProcess: VideoProcess
     public let encodeScript: String?
     public let codec: Codec
     public let preset: CodecPreset
     public let crf: Double
     public let autoCrop: Bool
+
+    public enum VideoProcess: String, CaseIterable, CustomStringConvertible {
+      case copy
+      case encode
+      case none
+
+      public var description: String { rawValue }
+    }
 
     public enum Codec: String, CaseIterable, CustomStringConvertible {
       case x265

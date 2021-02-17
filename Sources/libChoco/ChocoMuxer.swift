@@ -35,7 +35,7 @@ public final class ChocoMuxer {
   }
 
   private func checkCodecs() throws {
-    if config.videoPreference.encodeVideo {
+    if config.videoPreference.videoProcess == .encode {
       switch config.videoPreference.codec {
       case .x264:
         try preconditionOrThrow(ffmpegCodecs.x264, "no x264!")
@@ -318,6 +318,9 @@ extension ChocoMuxer {
       sizeBefore = 0
     }
 
+    let mkvinfo = try mkvinfoCache ?? readMKV(at: file)
+    let modifications = try _makeTrackModification(mkvinfo: mkvinfo, temporaryPath: temporaryPath)
+
     var trackOrder = [MkvMerge.GlobalOption.TrackOrder]()
     var videoRemovedTrackIndexes = [Int]()
     var audioRemovedTrackIndexes = [Int]()
@@ -326,9 +329,6 @@ extension ChocoMuxer {
     var videoCopiedTrackIndexes = [Int]()
     var externalTracks = [(file: URL, lang: String, trackName: String)]()
 
-    let mkvinfo = try mkvinfoCache ?? readMKV(at: file)
-
-    let modifications = try _makeTrackModification(mkvinfo: mkvinfo, temporaryPath: temporaryPath)
 
     var mainInput = MkvMerge.Input(file: file.path)
 
@@ -349,8 +349,7 @@ extension ChocoMuxer {
         case .subtitles:
           subtitleRemoveTracks.append(modify.offset)
         case .video:
-          // currently impossible
-          break
+          videoRemovedTrackIndexes.append(modify.offset)
         }
       case .replace(let type, let files, let lang, let trackName):
         switch type {
@@ -358,7 +357,7 @@ extension ChocoMuxer {
           audioRemovedTrackIndexes.append(modify.offset)
         case .subtitles:
           subtitleRemoveTracks.append(modify.offset)
-        default:
+        case .video:
           videoRemovedTrackIndexes.append(modify.offset)
         }
         files.forEach { file in
@@ -366,8 +365,13 @@ extension ChocoMuxer {
           trackOrder.append(.init(fid: externalTracks.count, tid: 0))
         }
       }
-      if !config.keepTrackName {
-        mainInput.options.append(.trackName(tid: modify.offset, name: ""))
+
+      switch modify.element {
+      case .copy, .replace:
+        if !config.keepTrackName {
+          mainInput.options.append(.trackName(tid: modify.offset, name: ""))
+        }
+      default: break
       }
     }
 
@@ -375,9 +379,18 @@ extension ChocoMuxer {
       videoCopiedTrackIndexes.forEach { mainInput.options.append(.language(tid: $0, language: "und")) }
     }
 
-    mainInput.options.append(.videoTracks(.disabledTIDs(videoRemovedTrackIndexes)))
-    mainInput.options.append(.audioTracks(.disabledTIDs(audioRemovedTrackIndexes)))
-    mainInput.options.append(.subtitleTracks(.disabledTIDs(subtitleRemoveTracks)))
+
+    func correctTrackSelection(type: MediaTrackType, removedIndexes: [Int]) -> MkvMerge.Input.InputOption.TrackSelect {
+      if mkvinfo.tracks.count(where: {$0.type == type}) == removedIndexes.count {
+        return .removeAll
+      } else {
+        return .disabledTIDs(removedIndexes)
+      }
+    }
+
+    mainInput.options.append(.videoTracks(correctTrackSelection(type: .video, removedIndexes: videoRemovedTrackIndexes)))
+    mainInput.options.append(.audioTracks(correctTrackSelection(type: .video, removedIndexes: audioRemovedTrackIndexes)))
+    mainInput.options.append(.subtitleTracks(correctTrackSelection(type: .video, removedIndexes: subtitleRemoveTracks)))
     mainInput.options.append(.attachments(.removeAll))
 
     let externalInputs = externalTracks.map { (track) -> MkvMerge.Input in
@@ -474,7 +487,8 @@ extension ChocoMuxer {
       print(currentTrack.remuxerInfo)
       switch currentTrack.type {
       case .video:
-        if config.videoPreference.encodeVideo {
+        switch config.videoPreference.videoProcess {
+        case .encode:
           let encodedTrackFile = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-encoded.mkv")
 
           let commonArguments = [
@@ -492,7 +506,7 @@ extension ChocoMuxer {
             let vspipe = AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"])
             var ffmpeg = AnyExecutable(executableName: "ffmpeg",
                                        arguments: [
-//                                        "-nostdin",
+                                        //                                        "-nostdin",
                                         "-i", "pipe:"
                                        ])
             ffmpeg.arguments.append(contentsOf: commonArguments)
@@ -530,6 +544,10 @@ extension ChocoMuxer {
           }
 
           trackModifications[currentTrackIndex] = .replace(type: .video, files: [encodedTrackFile], lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
+        case .none:
+          trackModifications[currentTrackIndex] = .remove(type: .video)
+        case .copy:
+          break // default is copy
         }
       case .audio, .subtitles:
         var embbedAC3Removed = false

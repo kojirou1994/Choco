@@ -5,6 +5,7 @@ import Foundation
 import KwiftUtility
 import libChoco
 import MediaUtility
+import Logging
 
 extension Summary {
   #if canImport(Darwin)
@@ -45,6 +46,14 @@ extension ChocoConfiguration.AudioPreference.AudioCodec: ExpressibleByArgument {
 extension ChocoConfiguration.VideoPreference.Codec: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.CodecPreset: ExpressibleByArgument {}
 extension ChocoConfiguration.AudioPreference.DownmixMethod: ExpressibleByArgument {}
+extension ChocoConfiguration.VideoPreference.VideoProcess: ExpressibleByArgument {}
+extension Logger.Level: ExpressibleByArgument {}
+
+extension CaseIterable where Self: RawRepresentable, RawValue == String {
+  static var availableValues: String {
+    "available: " + allCases.map(\.rawValue).joined(separator: ", ")
+  }
+}
 
 struct ChocoCli: ParsableCommand {
 
@@ -106,7 +115,7 @@ extension ChocoCli {
     @Option(name: .shortAndLong, help: "Root temp directory")
     var temp: String = "./"
 
-    @Option(help: "Remux mode")
+    @Option(help: "Work mode, \(ChocoWorkMode.availableValues)")
     var mode: ChocoWorkMode = .movie
 
     @Option(help: "Split info, number joined by ,",
@@ -157,16 +166,16 @@ extension ChocoCli {
     @Flag(help: "Prevent flac track from being re-encoded.")
     var keepFlac: Bool = false
 
-    @Flag(help: "Encode video.")
-    var encodeVideo: Bool = false
+    @Option(help: "Video processing method, \(ChocoConfiguration.VideoPreference.VideoProcess.availableValues).")
+    var videoProcess: ChocoConfiguration.VideoPreference.VideoProcess = .copy
 
-    @Option(help: "Codec for video track, available: \(ChocoConfiguration.VideoPreference.Codec.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    @Option(help: "Codec for video track, \(ChocoConfiguration.VideoPreference.Codec.availableValues)")
     var videoCodec: ChocoConfiguration.VideoPreference.Codec = .x265
 
     @Option(help: "VS script template path.")
     var encodeScript: String?
 
-    @Option(help: "Codec preset for video track, available: \(ChocoConfiguration.VideoPreference.CodecPreset.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    @Option(help: "Codec preset for video track, \(ChocoConfiguration.VideoPreference.CodecPreset.availableValues)")
     var videoPreset: ChocoConfiguration.VideoPreference.CodecPreset = .slow
 
     @Option(help: "Codec crf for video track")
@@ -178,14 +187,17 @@ extension ChocoCli {
     @Flag(inversion: FlagInversion.prefixedNo, help: "Encode audio.")
     var encodeAudio: Bool = true
 
-    @Option(help: "Codec for lossless audio track, available: \(ChocoConfiguration.AudioPreference.AudioCodec.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    @Option(help: "Codec for lossless audio track, \(ChocoConfiguration.AudioPreference.AudioCodec.availableValues)")
     var audioCodec: ChocoConfiguration.AudioPreference.AudioCodec = .flac
 
-    @Option(help: "Audio bitrate per channel")
+    @Option(help: "Audio kbps per channel")
     var audioBitrate: Int = 128
 
-    @Option(help: "Downmix method, available: \(ChocoConfiguration.AudioPreference.DownmixMethod.allCases.map{$0.rawValue}.joined(separator: ", "))")
+    @Option(help: "Downmix method, \(ChocoConfiguration.AudioPreference.DownmixMethod.availableValues)")
     var downmix: ChocoConfiguration.AudioPreference.DownmixMethod = .disable
+
+    @Option(help: "Log level, \(Logger.Level.availableValues)")
+    var logLevel: Logger.Level = .info
 
     @Argument(help: "path")
     var inputs: [String]
@@ -203,14 +215,16 @@ extension ChocoCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
-        videoPreference: .init(encodeVideo: encodeVideo, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, crf: videoCrf, autoCrop: autoCrop),
+        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, crf: videoCrf, autoCrop: autoCrop),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix),
         splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
         keepTrueHD: keepTrueHD, keepDTSHD: keepDTSHD, fixDTS: fixDTS, removeExtraDTS: removeExtraDTS,
         ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly, keepFlac: keepFlac)
-      
-      let muxer = try ChocoMuxer(config: configuration, logger: .init(label: "Remuxer"))
+
+      var logger = Logger(label: "choco")
+      logger.logLevel = logLevel
+      let muxer = try ChocoMuxer(config: configuration, logger: logger)
       Self.muxer = muxer
       Signals.trap(signals: [.quit, .int, .kill, .term, .abrt]) { (_) in
         Self.muxer.terminate()
