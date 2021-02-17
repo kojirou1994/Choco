@@ -374,9 +374,6 @@ extension MkvMergeIdentification.Track {
   }
 }
 
-let fm = URLFileManager.default
-var logger = Logger(label: "mkv-to-mp4")
-
 struct MkvToMp4: ParsableCommand {
 
   static var configuration: CommandConfiguration {
@@ -388,6 +385,7 @@ struct MkvToMp4: ParsableCommand {
     var inputs: [String]
 
     func run() throws {
+      let logger = Logger(label: "mkv-to-mp4")
       inputs.forEach { input in
         logger.info("Open input: \(input)")
         let succ = fm.forEachContent(in: URL(fileURLWithPath: input), handleFile: true, handleDirectory: false, skipHiddenFiles: true) { fileURL in
@@ -448,13 +446,11 @@ struct MkvToMp4: ParsableCommand {
     @Option
     var undAudioLang: String?
 
-    mutating func validate() throws {
+    func run() throws {
+      var logger = Logger(label: "mkv-to-mp4")
       if verbose {
         logger.logLevel = .debug
       }
-    }
-
-    func run() throws {
       inputs.forEach { input in
         logger.info("Open input: \(input)")
         let succ = fm.forEachContent(in: URL(fileURLWithPath: input), handleFile: true, handleDirectory: false, skipHiddenFiles: true) { fileURL in
@@ -463,7 +459,7 @@ struct MkvToMp4: ParsableCommand {
           }
           do {
             logger.info("Remuxing file: \(fileURL.path)")
-            try convert(file: fileURL)
+            try convert(file: fileURL, logger: logger)
           } catch {
             logger.error("Failed to remux! Error: \(error)")
           }
@@ -475,7 +471,7 @@ struct MkvToMp4: ParsableCommand {
 
     }
 
-    func convert(file: URL) throws {
+    func convert(file: URL, logger: Logger) throws {
       let info = try MkvMergeIdentification(url: file)
       let outputFileURL = URL(fileURLWithPath: output).appendingPathComponent(file.deletingPathExtension().lastPathComponent).appendingPathExtension("mp4")
 
@@ -487,6 +483,14 @@ struct MkvToMp4: ParsableCommand {
         tempDir
           .appendingPathComponent(UUID().uuidString)
           .appendingPathExtension(pathExtension)
+      }
+
+      var allTempFiles = [URL]()
+      defer {
+        logger.info("Removing temp files")
+        allTempFiles.forEach { fileURL in
+          try? fm.removeItem(at: fileURL)
+        }
       }
 
       let supportedTracks = info.tracks
@@ -501,15 +505,16 @@ struct MkvToMp4: ParsableCommand {
       }
 
       var extractions: [MkvExtractionMode] = [
-        .tracks(.init(outputs: zip(supportedTracks, extractedTracks)
-                        .map { .init(trackID: $0.0.offset, filename: $0.1.path) }))
+        .tracks(outputs: zip(supportedTracks, extractedTracks)
+                        .map { .init(trackID: $0.0.offset, filename: $0.1.path) })
       ]
 
       let extractedChapterFileURL: URL?
       let hasChapter = !info.chapters.isEmpty
       if hasChapter {
         extractedChapterFileURL = tempFileURL(pathExtension: "txt")
-        extractions.append(.chapter(.init(simple: true, outputFilename: extractedChapterFileURL!.path)))
+        extractions.append(.chapter(simple: true, language: nil, filename: extractedChapterFileURL!.path))
+        allTempFiles.append(extractedChapterFileURL!)
       } else {
         extractedChapterFileURL = nil
       }
@@ -521,12 +526,8 @@ struct MkvToMp4: ParsableCommand {
         filepath: file.path,
         extractions: extractions)
       let extractionResult = try extractor.launch(use: launcher)
-      defer {
-        logger.info("Removing extracted tracks")
-        extractedTracks.forEach { fileURL in
-          try? fm.removeItem(at: fileURL)
-        }
-      }
+      allTempFiles.append(contentsOf: extractedTracks)
+
       logger.debug("mkvextract output:\n\((try? extractionResult.utf8Output()) ?? "")")
 
       logger.info("Muxing...")
@@ -561,8 +562,9 @@ struct MkvToMp4: ParsableCommand {
          !chapter.isEmpty {
         let appleChapterFileURL = tempFileURL(pathExtension: "ttxt")
         try chapter.exportApple().write(to: appleChapterFileURL, atomically: true, encoding: .utf8)
-        importings.append(.init(filename: appleChapterFileURL.path, trackSelection: nil, name: "", fps: nil, group: nil, par: nil, language: nil, isChapter: true, hdlr: nil, layout: nil))
+        allTempFiles.append(appleChapterFileURL)
 
+        importings.append(.init(filename: appleChapterFileURL.path, trackSelection: nil, name: "", fps: nil, group: nil, par: nil, language: nil, isChapter: true, hdlr: nil, layout: nil))
       }
 
       let muxer = MP4Box(importings: importings,
@@ -586,5 +588,3 @@ func changeFilename(origin: String) -> String {
     return origin
   }
 }
-
-MkvToMp4.main()

@@ -12,6 +12,7 @@ public struct ChocoConfiguration {
   public let audioPreference: AudioPreference
   public let languagePreference: LanguagePreference
 
+  public let copyDirectoryFile: Bool
   public let deleteAfterRemux: Bool
   public let keepTrackName: Bool
   public let keepVideoLanguage: Bool
@@ -30,7 +31,8 @@ public struct ChocoConfiguration {
               videoPreference: VideoPreference,
               audioPreference: AudioPreference,
               splits: [Int]?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet,
-              deleteAfterRemux: Bool, keepTrackName: Bool, keepVideoLanguage: Bool, keepTrueHD: Bool, keepDTSHD: Bool,
+              copyDirectoryFile: Bool, deleteAfterRemux: Bool,
+              keepTrackName: Bool, keepVideoLanguage: Bool, keepTrueHD: Bool, keepDTSHD: Bool,
               fixDTS: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool,
               keepFlac: Bool) {
     self.outputRootDirectory = outputRootDirectory
@@ -40,6 +42,7 @@ public struct ChocoConfiguration {
     self.videoPreference = videoPreference
     self.audioPreference = audioPreference
     self.languagePreference = .init(preferedLanguages: preferedLanguages.addingUnd(), excludeLanguages: excludeLanguages)
+    self.copyDirectoryFile = copyDirectoryFile
     self.deleteAfterRemux = deleteAfterRemux
     self.keepTrackName = keepTrackName
     self.keepVideoLanguage = keepVideoLanguage

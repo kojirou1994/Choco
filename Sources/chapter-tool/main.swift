@@ -24,7 +24,7 @@ func write(chapter: MatroskaChapters, to fileURL: URL) throws {
 
 func extractChapter(from fileURL: URL) throws -> URL {
   let chapterBackupURL = fm.makeUniqueFileURL(fileURL.appendingPathExtension("backup.xml"))
-  _ = try MkvExtract(filepath: fileURL.path, extractions: [.chapter(.init(simple: false, outputFilename: chapterBackupURL.path))])
+  _ = try MkvExtract(filepath: fileURL.path, extractions: [.chapter(filename: chapterBackupURL.path)])
     .launch(use: TSCExecutableLauncher())
   return chapterBackupURL
 }

@@ -28,7 +28,7 @@ struct TrackHash: ParsableCommand {
         let tracks = info.tracks.map { _ in tmpDir.appendingPathComponent(UUID().uuidString) }
         let extractor = MkvExtract(
           filepath: file,
-          extractions: [.tracks(.init(outputs: tracks.enumerated().map { .init(trackID: $0.offset, filename: $0.element.path) }))])
+          extractions: [.tracks(outputs: tracks.enumerated().map { .init(trackID: $0.offset, filename: $0.element.path) })])
         try extractor.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
         let hashes = try tracks.map { trackFileURL -> String in
           var hash = SHA256()

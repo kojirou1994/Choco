@@ -60,16 +60,6 @@ let package = Package(
       ]
     ),
     .target(
-      name: "mkv-to-mp4",
-      dependencies: [
-        "URLFileManager",
-        .product(name: "KwiftUtility", package: "Kwift"),
-        .product(name: "ArgumentParser", package: "swift-argument-parser"),
-        .product(name: "MediaUtility", package: "MediaUtility"),
-        .product(name: "MediaTools", package: "MediaUtility"),
-        .product(name: "Logging", package: "swift-log")
-      ]),
-    .target(
       name: "chapter-tool",
       dependencies: [
         "Executable",

@@ -52,7 +52,7 @@ public final class ChocoMuxer {
 
   private let audioConvertQueue = OperationQueue()
 
-  private var runningProcess: TSCBasic.Process?
+  private var runningProcessID: Int32?
 
   let logger: Logger
 
@@ -67,7 +67,7 @@ public final class ChocoMuxer {
     }
     // check ffmpeg codecs
     ffmpegCodecs = try .init()
-    print("FFmpeg codecs:", ffmpegCodecs)
+    logger.info("FFmpeg codecs: \(ffmpegCodecs)")
     try checkCodecs()
   }
 
@@ -75,9 +75,11 @@ public final class ChocoMuxer {
     let process = try externalExecutable
       .generateProcess(use: TSCExecutableLauncher(outputRedirection: .collect))
     try process.launch()
-    runningProcess = process
+    runningProcessID = process.processID
+    defer {
+      runningProcessID = nil
+    }
     let result = try process.waitUntilExit()
-    runningProcess = nil
     return result
   }
 
@@ -102,17 +104,12 @@ public final class ChocoMuxer {
   public func terminate() {
     terminated = true
     audioConvertQueue.cancelAllOperations()
-    runningProcess?.signal(SIGTERM)
-    //        do {
-    //            try currentTemporaryPath.map { try _fm.removeItem(at: $0) }
-    //        } catch {
-    //            print("Faield to remove the temp dir at \(currentTemporaryPath!), you can delete it manually")
-    //        }
+    runningProcessID.map { _ = kill($0, SIGTERM) }
+    runningProcessID = nil
   }
 
-  @usableFromInline
   func logConverterStart(name: String, input: String, output: String) {
-    print("\n\(name):\n\(input)\n->\n\(output)")
+    logger.info("\n\(name):\n\(input)\n->\n\(output)")
   }
 
   func recursiveRun(task: WorkTask) throws -> [URL] {
@@ -278,8 +275,10 @@ public final class ChocoMuxer {
             }
           default:
           // copy
-            try _fm.createDirectory(at: outputDirectoryURL)
-            try _fm.copyItem(at: fileURL, to: outputDirectoryURL.appendingPathComponent(fileURL.lastPathComponent))
+            if config.copyDirectoryFile {
+              try _fm.createDirectory(at: outputDirectoryURL)
+              try _fm.copyItem(at: fileURL, to: outputDirectoryURL.appendingPathComponent(fileURL.lastPathComponent))
+            }
           }
         } catch {
           logger.error("Error processing file: \(error)")
@@ -406,7 +405,7 @@ extension ChocoMuxer {
       do {
         try _fm.removeItem(at: t.file)
       } catch {
-        print("Can not delete file: \(t.file)")
+        logger.warning("Can not delete temp file: \(t.file)")
       }
     }
 
@@ -414,7 +413,7 @@ extension ChocoMuxer {
       do {
         try _fm.removeItem(at: file)
       } catch {
-        print("Can not delete file: \(file)")
+        logger.warning("Can not delete original file: \(file)")
       }
     }
 
@@ -457,6 +456,7 @@ extension ChocoMuxer {
     let tracks = mkvinfo.tracks
     var audioConverters = [AudioConverter]()
     var ffmpegArguments = ["-v", "quiet", "-y", "-i", mkvinfo.fileName]
+    let defaultFFmpegArgumentsCount = ffmpegArguments.count
     var trackModifications = [TrackModification](repeating: .copy(type: .video), count: tracks.count)
 
     defer {
@@ -464,7 +464,7 @@ extension ChocoMuxer {
     }
 
     // check track one by one
-    print("Checking tracks codec")
+    logger.info("Checking tracks codec")
     var currentTrackIndex = 0
     let baseFilename = URL(fileURLWithPath: mkvinfo.fileName).lastPathComponentWithoutExtension
 
@@ -475,23 +475,60 @@ extension ChocoMuxer {
       switch currentTrack.type {
       case .video:
         if config.videoPreference.encodeVideo {
-          // encode video
           let encodedTrackFile = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-encoded.mkv")
-          ffmpegArguments
-            .append(contentsOf: [
-                      "-map", "0:\(currentTrackIndex)", "-c:v", "lib\(config.videoPreference.codec.rawValue)",
-                      "-pix_fmt", config.videoPreference.codec.pixelFormat,
-                      "-crf", "\(config.videoPreference.crf)",
-                      "-preset", config.videoPreference.preset.rawValue])
-          // autocrop
-          if config.videoPreference.autoCrop {
-            print("Calculating crop info..")
-            let cropInfo = try calculateAutoCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
-            ffmpegArguments.append("-vf")
-            ffmpegArguments.append(cropInfo.ffmpegArgument)
+
+          let commonArguments = [
+            "-c:v", "lib\(config.videoPreference.codec.rawValue)",
+            "-pix_fmt", config.videoPreference.codec.pixelFormat,
+            "-crf", "\(config.videoPreference.crf)",
+            "-preset", config.videoPreference.preset.rawValue
+          ]
+          if let encodeScript = config.videoPreference.encodeScript {
+            // use script template
+            let script = try generateScript(filePath: mkvinfo.fileName, encodeScript: encodeScript)
+            let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
+            try script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
+
+            let vspipe = AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"])
+            var ffmpeg = AnyExecutable(executableName: "ffmpeg",
+                                       arguments: [
+//                                        "-nostdin",
+                                        "-i", "pipe:"
+                                       ])
+            ffmpeg.arguments.append(contentsOf: commonArguments)
+            ffmpeg.arguments.append(encodedTrackFile.path)
+            let pipe = Pipe()
+            let vsLauncher = FPExecutableLauncher(standardOutput: .pipe(pipe))
+            let ffLauncher = FPExecutableLauncher(standardInput: .pipe(pipe))
+            let vsProcess = try vspipe.generateProcess(use: vsLauncher)
+            let ffProcess = try ffmpeg.generateProcess(use: ffLauncher)
+
+            vsProcess.launch()
+            ffProcess.launch()
+
+            runningProcessID = vsProcess.processIdentifier
+            defer {
+              runningProcessID = nil
+            }
+
+            vsProcess.waitUntilExit()
+            ffProcess.waitUntilExit()
+          } else {
+            // encode use ffmpeg
+            ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)"])
+            ffmpegArguments.append(contentsOf: commonArguments)
+            // autocrop
+            if config.videoPreference.autoCrop {
+              logger.info("Calculating crop info..")
+              let cropInfo = try calculateAutoCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
+              logger.info("Calculated: \(cropInfo)")
+              ffmpegArguments.append("-vf")
+              ffmpegArguments.append(cropInfo.ffmpegArgument)
+            } // auto crop end
+            // output
+            ffmpegArguments.append(encodedTrackFile.path)
           }
-          // output
-          ffmpegArguments.append(encodedTrackFile.path)
+
           trackModifications[currentTrackIndex] = .replace(type: .video, files: [encodedTrackFile], lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
         }
       case .audio, .subtitles:
@@ -590,7 +627,7 @@ extension ChocoMuxer {
       currentTrackIndex += 1
     }
 
-    guard trackModifications.contains(where: {mod in
+    guard trackModifications.contains(where: { mod in
       switch mod {
       case .replace: return true
       default: return false
@@ -599,13 +636,16 @@ extension ChocoMuxer {
       return trackModifications
     }
 
-    print("ffmpeg \(ffmpegArguments.joined(separator: " "))")
-
-    // file's audio tracks -> external temp flac
-    try launch(externalExecutable: FFmpeg(arguments: ffmpegArguments),
-               checkAllowedExitCodes: [0])
+    if ffmpegArguments.count != defaultFFmpegArgumentsCount {
+      // ffmpeg arguments modified, should launch ffmpeg
+      logger.info("ffmpeg \(ffmpegArguments.joined(separator: " "))")
+      // file's audio tracks -> external temp flac
+      try launch(externalExecutable: FFmpeg(arguments: ffmpegArguments),
+                 checkAllowedExitCodes: [0])
+    }
 
     // check duplicate audio track
+    #warning("use libflac to read")
     let tempFFmpegFlacFiles = audioConverters.map { $0.input }
     let flacMD5s: [String]
     do {

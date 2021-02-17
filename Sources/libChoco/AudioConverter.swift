@@ -24,7 +24,7 @@ struct AudioConverter: Executable {
     }
   }
 
-  var bitrate: Int {
+  private var bitrate: Int {
     channelCount * preference.lossyAudioChannelBitrate
   }
 
@@ -33,7 +33,6 @@ struct AudioConverter: Executable {
     case .flac:
       var flac = FlacEncoder(input: input.path, output: output.path)
       flac.level = 8
-//      flac.forceOverwrite = true
       return flac.arguments
     case .opus:
       return ["--bitrate", bitrate.description, "--discard-comments", input.path, output.path]

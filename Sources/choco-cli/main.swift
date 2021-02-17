@@ -27,15 +27,12 @@ extension Summary {
 
   var usedTimeString: String {
     #if canImport(Darwin)
-    return Self.timeFormat.string(from: startDate, to: endDate) ?? "\(usedSeconds)"
+    return Self.timeFormat.string(from: startDate, to: endDate) ?? simpleTimeString
     #else
     return simpleTimeString
     #endif
   }
 }
-
-//
-//remuxer.start()
 
 extension LanguageSet: ExpressibleByArgument {
   public init?(argument: String) {
@@ -58,7 +55,9 @@ struct ChocoCli: ParsableCommand {
             TrackHash.self,
             DumpBDMV.self,
             Crop.self,
-            Mux.self]
+            Mux.self,
+            MkvToMp4.self,
+          ]
     )
 }
 
@@ -124,6 +123,9 @@ extension ChocoCli {
 
     @Flag(help: "Delete the src after remux")
     var deleteAfterRemux: Bool = false
+
+    @Flag(help: "Copy normal files in directory mode.")
+    var copyDirectoryFile: Bool = false
 
     @Flag(help: "Keep original video track's language")
     var keepVideoLanguage: Bool = false
@@ -203,7 +205,7 @@ extension ChocoCli {
         mode: mode,
         videoPreference: .init(encodeVideo: encodeVideo, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, crf: videoCrf, autoCrop: autoCrop),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix),
-        splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages,
+        splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
         keepTrueHD: keepTrueHD, keepDTSHD: keepDTSHD, fixDTS: fixDTS, removeExtraDTS: removeExtraDTS,
         ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly, keepFlac: keepFlac)
