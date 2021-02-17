@@ -266,12 +266,7 @@ extension ChocoCli {
         }
       }
     }
-
-    func validate() throws {
-      if inputs.isEmpty {
-        throw ValidationError("No inputs!")
-      }
-    }
+    
   }
 }
 

@@ -379,7 +379,6 @@ extension ChocoMuxer {
       videoCopiedTrackIndexes.forEach { mainInput.options.append(.language(tid: $0, language: "und")) }
     }
 
-
     func correctTrackSelection(type: MediaTrackType, removedIndexes: [Int]) -> MkvMerge.Input.InputOption.TrackSelect {
       if mkvinfo.tracks.count(where: {$0.type == type}) == removedIndexes.count {
         return .removeAll
@@ -389,8 +388,8 @@ extension ChocoMuxer {
     }
 
     mainInput.options.append(.videoTracks(correctTrackSelection(type: .video, removedIndexes: videoRemovedTrackIndexes)))
-    mainInput.options.append(.audioTracks(correctTrackSelection(type: .video, removedIndexes: audioRemovedTrackIndexes)))
-    mainInput.options.append(.subtitleTracks(correctTrackSelection(type: .video, removedIndexes: subtitleRemoveTracks)))
+    mainInput.options.append(.audioTracks(correctTrackSelection(type: .audio, removedIndexes: audioRemovedTrackIndexes)))
+    mainInput.options.append(.subtitleTracks(correctTrackSelection(type: .subtitles, removedIndexes: subtitleRemoveTracks)))
     mainInput.options.append(.attachments(.removeAll))
 
     let externalInputs = externalTracks.map { (track) -> MkvMerge.Input in
