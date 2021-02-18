@@ -168,4 +168,13 @@ extension ChocoConfiguration.VideoPreference.Codec {
       return "yuv420p10le"
     }
   }
+
+  var depth: Int {
+    switch self {
+    case .x264:
+      return 8
+    case .x265:
+      return 10
+    }
+  }
 }

@@ -498,7 +498,7 @@ extension ChocoMuxer {
           ]
           if let encodeScript = config.videoPreference.encodeScript {
             // use script template
-            let script = try generateScript(filePath: mkvinfo.fileName, encodeScript: encodeScript)
+            let script = try generateScript(encodeScript: encodeScript, filePath: mkvinfo.fileName, encoderDepth: config.videoPreference.codec.depth)
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
             try script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
 
@@ -516,8 +516,8 @@ extension ChocoMuxer {
             let vsProcess = try vspipe.generateProcess(use: vsLauncher)
             let ffProcess = try ffmpeg.generateProcess(use: ffLauncher)
 
-            vsProcess.launch()
-            ffProcess.launch()
+            try vsProcess.run()
+            try ffProcess.run()
 
             runningProcessID = vsProcess.processIdentifier
             defer {
