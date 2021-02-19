@@ -294,7 +294,6 @@ public final class ChocoMuxer {
 
 extension ChocoMuxer {
 
-  @usableFromInline
   internal func readMKV(at url: URL) throws -> MkvMergeIdentification {
     try .init(url: url)
   }
@@ -365,7 +364,7 @@ extension ChocoMuxer {
       }
 
       switch modify.element {
-      case .copy, .replace:
+      case .copy:
         if !config.keepTrackName {
           mainInput.options.append(.trackName(tid: modify.offset, name: ""))
         }
