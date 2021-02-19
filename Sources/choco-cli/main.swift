@@ -181,6 +181,12 @@ extension ChocoCli {
     @Option(help: "Codec crf for video track")
     var videoCrf: Double = 18
 
+    @Option(help: "Tune for video encoder, support x265's vcb vcb-s")
+    var videoTune: String?
+
+    @Option(help: "Profile for video encoder")
+    var videoProfile: String?
+
     @Flag(help: "Auto crop video track")
     var autoCrop: Bool = false
 
@@ -215,7 +221,7 @@ extension ChocoCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
-        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, crf: videoCrf, autoCrop: autoCrop),
+        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, tune: videoTune, profile: videoProfile, crf: videoCrf, autoCrop: autoCrop),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix),
         splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,

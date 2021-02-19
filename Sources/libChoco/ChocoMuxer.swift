@@ -83,8 +83,6 @@ public final class ChocoMuxer {
     return result
   }
 
-  let verbose = true
-
   private func launch<E: Executable>(externalExecutable: E,
                       checkAllowedExitCodes codes: [CInt]) throws {
     logger.debug("Running \(externalExecutable.commandLineArguments)")
@@ -108,7 +106,7 @@ public final class ChocoMuxer {
     runningProcessID = nil
   }
 
-  func logConverterStart(name: String, input: String, output: String) {
+  private func logConverterStart(name: String, input: String, output: String) {
     logger.info("\n\(name):\n\(input)\n->\n\(output)")
   }
 
@@ -467,7 +465,9 @@ extension ChocoMuxer {
     let preferedLanguages = config.languagePreference.generatePrimaryLanguages(with: mkvinfo.primaryLanguages)
     let tracks = mkvinfo.tracks
     var audioConverters = [AudioConverter]()
-    var ffmpegArguments = ["-v", "quiet", "-y", "-i", mkvinfo.fileName]
+    var ffmpegArguments = [
+//      "-v", "quiet",
+      "-y", "-i", mkvinfo.fileName]
     let defaultFFmpegArgumentsCount = ffmpegArguments.count
     var trackModifications = [TrackModification](repeating: .copy(type: .video), count: tracks.count)
 
@@ -490,12 +490,6 @@ extension ChocoMuxer {
         case .encode:
           let encodedTrackFile = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-encoded.mkv")
 
-          let commonArguments = [
-            "-c:v", "lib\(config.videoPreference.codec.rawValue)",
-            "-pix_fmt", config.videoPreference.codec.pixelFormat,
-            "-crf", "\(config.videoPreference.crf)",
-            "-preset", config.videoPreference.preset.rawValue
-          ]
           if let encodeScript = config.videoPreference.encodeScript {
             // use script template
             let script = try generateScript(encodeScript: encodeScript, filePath: mkvinfo.fileName, encoderDepth: config.videoPreference.codec.depth)
@@ -508,7 +502,7 @@ extension ChocoMuxer {
                                         //                                        "-nostdin",
                                         "-i", "pipe:"
                                        ])
-            ffmpeg.arguments.append(contentsOf: commonArguments)
+            ffmpeg.arguments.append(contentsOf: config.videoPreference.ffmpegArguments)
             ffmpeg.arguments.append(encodedTrackFile.path)
             let pipe = Pipe()
             let vsLauncher = FPExecutableLauncher(standardOutput: .pipe(pipe))
@@ -529,7 +523,7 @@ extension ChocoMuxer {
           } else {
             // encode use ffmpeg
             ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)"])
-            ffmpegArguments.append(contentsOf: commonArguments)
+            ffmpegArguments.append(contentsOf: config.videoPreference.ffmpegArguments)
             // autocrop
             if config.videoPreference.autoCrop {
               logger.info("Calculating crop info..")
