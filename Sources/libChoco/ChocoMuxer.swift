@@ -73,7 +73,7 @@ public final class ChocoMuxer {
 
   private func launch<E: Executable>(externalExecutable: E) throws -> ProcessResult {
     let process = try externalExecutable
-      .generateProcess(use: TSCExecutableLauncher(outputRedirection: .collect))
+      .generateProcess(use: TSCExecutableLauncher(outputRedirection: .none))
     try process.launch()
     runningProcessID = process.processID
     defer {

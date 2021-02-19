@@ -20,6 +20,7 @@ enum Mp4TrackCodec: CaseIterable {
   case srt
   case trueHD
   case mp3
+  case pcm
 
   static func matched(codec: String) -> Self? {
     allCases.first(where: { $0.match(codec: codec) })
@@ -45,6 +46,8 @@ enum Mp4TrackCodec: CaseIterable {
       return ["TrueHD Atmos"]
     case .mp3:
       return ["MP3"]
+    case .pcm:
+      return ["PCM"]
     }
   }
 
@@ -59,6 +62,7 @@ enum Mp4TrackCodec: CaseIterable {
     case .srt: return "srt"
     case .trueHD: return "mlp"
     case .mp3: return "mp3"
+    case .pcm: return "wav"
     }
   }
 
