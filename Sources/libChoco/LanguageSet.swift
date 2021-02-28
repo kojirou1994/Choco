@@ -1,26 +1,38 @@
 import Foundation
+import ISOCodes
 
-public struct LanguageSet: Codable, CustomStringConvertible {
+extension Language {
+  public init?(argument: String) {
+    if let v = Language(alpha2Code: argument) {
+      self = v
+    } else if let v = Language(alpha3Code: argument) {
+      self = v
+    } else {
+      return nil
+    }
+  }
+}
 
-  internal var languages: Set<String>
-
-  public init(languages: Set<String>) {
+public struct LanguageSet {
+  internal init(languages: Set<Language>) {
     self.languages = languages
   }
 
-  public static let defaultLanguages: Set<String> = ["und", "chi", "jpn"]
+  var languages: Set<Language>
+
+  public init?(argument: String) {
+    languages = Set(argument.components(separatedBy: ",").compactMap { str in
+      if let code = Language(alpha3Code: str) {
+        return code
+      } else {
+        print("Invalid language code: \(str), ignored.")
+        return nil
+      }
+    })
+  }
 
   public static var `default`: Self {
-    .init(languages: defaultLanguages)
+    .init(languages: [.und, .chi, .jpn])
   }
 
-  public func addingUnd() -> Self {
-    var v = self
-    v.languages.insert("und")
-    return v
-  }
-
-  public var description: String {
-    languages.sorted().description
-  }
 }

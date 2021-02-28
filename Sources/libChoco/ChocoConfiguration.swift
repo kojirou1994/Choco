@@ -1,4 +1,6 @@
 import Foundation
+import ISOCodes
+import Logging
 
 internal let ChocoTempDirectoryName = "choco_tmp"
 
@@ -30,7 +32,7 @@ public struct ChocoConfiguration {
   public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: ChocoWorkMode,
               videoPreference: VideoPreference,
               audioPreference: AudioPreference,
-              splits: [Int]?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet,
+              splits: [Int]?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?,
               copyDirectoryFile: Bool, deleteAfterRemux: Bool,
               keepTrackName: Bool, keepVideoLanguage: Bool, keepTrueHD: Bool, keepDTSHD: Bool,
               fixDTS: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool,
@@ -41,7 +43,7 @@ public struct ChocoConfiguration {
     self.splits = splits
     self.videoPreference = videoPreference
     self.audioPreference = audioPreference
-    self.languagePreference = .init(preferedLanguages: preferedLanguages.addingUnd(), excludeLanguages: excludeLanguages)
+    self.languagePreference = .init(preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages)
     self.copyDirectoryFile = copyDirectoryFile
     self.deleteAfterRemux = deleteAfterRemux
     self.keepTrackName = keepTrackName
@@ -59,7 +61,7 @@ public struct ChocoConfiguration {
 }
 
 extension ChocoConfiguration {
-  public struct AudioPreference {
+  public struct AudioPreference: CustomStringConvertible {
     public init(encodeAudio: Bool, codec: ChocoConfiguration.AudioPreference.AudioCodec, lossyAudioChannelBitrate: Int, downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod) {
       self.encodeAudio = encodeAudio
       self.codec = codec
@@ -71,6 +73,20 @@ extension ChocoConfiguration {
     public let codec: AudioCodec
     public let lossyAudioChannelBitrate: Int
     public let downmixMethod: DownmixMethod
+
+    public var description: String {
+      if !encodeAudio {
+        return "Copy"
+      } else {
+        var str = "Encode(codec: \(codec)"
+        if codec != .flac {
+          str.append(", bitrate per channel: \(lossyAudioChannelBitrate)k")
+        }
+        str.append(", downmix: \(downmixMethod)")
+        str.append(")")
+        return str
+      }
+    }
 
     public enum AudioCodec: String, CaseIterable, CustomStringConvertible {
       case flac
@@ -90,22 +106,33 @@ extension ChocoConfiguration {
   }
 
   public struct LanguagePreference {
-    public let preferedLanguages: LanguageSet
-    public let excludeLanguages: LanguageSet
+    public init(preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?) {
+      self.preferedLanguages = preferedLanguages
+      self.excludeLanguages = excludeLanguages
+    }
 
-    func generatePrimaryLanguages<C>(with otherLanguages: C) -> Set<String> where C: Collection, C.Element == String {
+    private let preferedLanguages: LanguageSet
+    private let excludeLanguages: LanguageSet?
+
+    func generatePrimaryLanguages<C>(with otherLanguages: C, addUnd: Bool, logger: Logger? = nil) -> Set<Language> where C: Collection, C.Element == Language {
       var result = preferedLanguages.languages
+      if addUnd {
+        result.insert(.und)
+      }
       otherLanguages.forEach { l in
         result.insert(l)
       }
-      excludeLanguages.languages.forEach { l in
+      excludeLanguages?.languages.forEach { l in
+        if l == .und {
+          logger?.warning("Warning: excluding und language!")
+        }
         result.remove(l)
       }
       return result
     }
   }
 
-  public struct VideoPreference {
+  public struct VideoPreference: CustomStringConvertible {
     public init(videoProcess: VideoProcess, encodeScript: String?,
                 codec: Codec,
                 preset: CodecPreset,
@@ -129,6 +156,31 @@ extension ChocoConfiguration {
     public let preset: CodecPreset
     public let crf: Double
     public let autoCrop: Bool
+
+    public var description: String {
+      switch videoProcess {
+      case .none:
+        return "Disabled"
+      case .copy:
+        return "Copy"
+      case .encode:
+        var str = "Encode(codec: \(codec), crf: \(crf), preset: \(preset)"
+        if let v = profile {
+          str.append(", profile: \(v)")
+        }
+        if let v = tune {
+          str.append(", tune: \(v)")
+        }
+        if autoCrop {
+          str.append(", autocrop")
+        }
+        if encodeScript != nil {
+          str.append(", vapoursynth script template loaded")
+        }
+        str.append(")")
+        return str
+      }
+    }
 
     public enum VideoProcess: String, CaseIterable, CustomStringConvertible {
       case copy

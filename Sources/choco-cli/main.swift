@@ -35,11 +35,7 @@ extension Summary {
   }
 }
 
-extension LanguageSet: ExpressibleByArgument {
-  public init?(argument: String) {
-    self.init(languages: Set(argument.components(separatedBy: ",")))
-  }
-}
+extension LanguageSet: ExpressibleByArgument {}
 
 extension ChocoWorkMode: ExpressibleByArgument {}
 extension ChocoConfiguration.AudioPreference.AudioCodec: ExpressibleByArgument {}
@@ -82,24 +78,17 @@ extension ChocoCli {
     @Argument(help: "path")
     var inputs: [String]
 
-    static var muxer: ChocoMuxer!
-
     func run() throws {
+      let logger = Logger(label: "choco-cli")
       inputs.forEach { input in
         let inputURL = URL(fileURLWithPath: input)
         let task = BDMVMetadata(rootPath: inputURL, mode: .direct,
-                                mainOnly: mainOnly, splits: nil)
+                                mainOnly: mainOnly, splits: nil, logger: logger)
         do {
           try task.dumpInfo()
         } catch {
-          print("Failed to read BDMV at \(input)")
+          logger.error("Failed to read BDMV at \(input)")
         }
-      }
-    }
-
-    func validate() throws {
-      if inputs.isEmpty {
-        throw ValidationError("No inputs!")
       }
     }
   }
@@ -128,7 +117,7 @@ extension ChocoCli {
     var preferedLanguages: LanguageSet = .default//"und"
 
     @Option(help: "Exclude languages")
-    var excludeLanguages: LanguageSet = .init(languages: [])//"und"
+    var excludeLanguages: LanguageSet?
 
     @Flag(help: "Delete the src after remux")
     var deleteAfterRemux: Bool = false

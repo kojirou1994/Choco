@@ -1,8 +1,32 @@
 import Foundation
 @_exported import MediaTools
 @_exported import MediaUtility
+import ISOCodes
+
+extension MkvMerge.Input.InputOption.TrackSelect {
+  static func enabledLANGs(_ langs: Set<Language>) -> Self {
+    .enabledLANGs(Set(langs.map(\.alpha3BibliographicCode)))
+  }
+}
+
+extension MkvMergeIdentification {
+  var primaryLanguageCodes: [Language] {
+    primaryLanguages.compactMap { str in
+      if let v = Language(argument: str) {
+        return v
+      } else {
+        print("Unknown language code in mkvinfo: \(str)")
+        return nil
+      }
+    }
+  }
+}
 
 extension MkvMergeIdentification.Track {
+
+  public var trackLanguageCode: Language {
+    properties.language.flatMap { Language(alpha3Code: $0) } ?? .und
+  }
 
   public var isFlac: Bool {
     codec == "FLAC"

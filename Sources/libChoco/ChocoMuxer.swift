@@ -7,6 +7,7 @@ import Rainbow
 import TSCBasic
 import URLFileManager
 import Logging
+import ISOCodes
 
 let _fm = URLFileManager.default
 
@@ -48,6 +49,11 @@ public final class ChocoMuxer {
     }
   }
 
+  private func logConfig() {
+    logger.info("Video config: \(config.videoPreference)")
+    logger.info("Audio config: \(config.audioPreference)")
+  }
+
   private let allowedExitCodes: [CInt]
 
   private let audioConvertQueue = OperationQueue()
@@ -69,6 +75,7 @@ public final class ChocoMuxer {
     ffmpegCodecs = try .init()
     logger.info("FFmpeg codecs: \(ffmpegCodecs)")
     try checkCodecs()
+    logConfig()
   }
 
   private func launch<E: Executable>(externalExecutable: E) throws -> ProcessResult {
@@ -155,8 +162,8 @@ public final class ChocoMuxer {
     var sizeBefore: UInt64 = 0
     var sizeAfter: UInt64 = 0
 
-    let task = BDMVMetadata(rootPath: bdmvPath, mode: mode,// temporaryDirectory: temporaryPath,
-                            mainOnly: config.mainTitleOnly, splits: config.splits)
+    let task = BDMVMetadata(rootPath: bdmvPath, mode: mode,
+                            mainOnly: config.mainTitleOnly, splits: config.splits, logger: logger)
     let finalOutputPath = config.outputRootDirectory.appendingPathComponent(task.getBlurayTitle())
     if _fm.fileExistance(at: finalOutputPath).exists {
       throw ChocoError.outputExist
@@ -324,8 +331,7 @@ extension ChocoMuxer {
     var subtitleRemoveTracks = [Int]()
     /// copied video tracks
     var videoCopiedTrackIndexes = [Int]()
-    var externalTracks = [(file: URL, lang: String, trackName: String)]()
-
+    var externalTracks = [(file: URL, lang: Language, trackName: String)]()
 
     var mainInput = MkvMerge.Input(file: file.path)
 
@@ -339,7 +345,7 @@ extension ChocoMuxer {
         default:
           break
         }
-      case .remove(let type):
+      case .remove(let type, _):
         switch type {
         case .audio:
           audioRemovedTrackIndexes.append(modify.offset)
@@ -390,7 +396,7 @@ extension ChocoMuxer {
     mainInput.options.append(.attachments(.removeAll))
 
     let externalInputs = externalTracks.map { (track) -> MkvMerge.Input in
-      var options: [MkvMerge.Input.InputOption] = [.language(tid: 0, language: track.lang)]
+      var options: [MkvMerge.Input.InputOption] = [.language(tid: 0, language: track.lang.alpha3BibliographicCode)]
       options.append(.trackName(tid: 0, name: config.keepTrackName ? track.trackName : ""))
       options.append(.noGlobalTags)
       options.append(.noChapters)
@@ -453,19 +459,21 @@ extension ChocoMuxer {
   }
 
   private func display(modiifcations: [TrackModification]) {
-    print("Track modifications: ")
+    logger.info("Track modifications: ")
     for m in modiifcations.enumerated() {
-      print("\(m.offset): \(m.element)")
+      logger.info("\(m.offset): \(m.element)")
     }
   }
 
   private func _makeTrackModification(mkvinfo: MkvMergeIdentification,
                                       temporaryPath: URL) throws -> [TrackModification] {
-    let preferedLanguages = config.languagePreference.generatePrimaryLanguages(with: mkvinfo.primaryLanguages)
+    let preferedLanguages = config.languagePreference.generatePrimaryLanguages(with: mkvinfo.primaryLanguageCodes, addUnd: true, logger: logger)
+    
     let tracks = mkvinfo.tracks
     var audioConverters = [AudioConverter]()
     var ffmpegArguments = [
 //      "-v", "quiet",
+      "-hide_banner",
       "-y", "-i", mkvinfo.fileName]
     let defaultFFmpegArgumentsCount = ffmpegArguments.count
     var trackModifications = [TrackModification](repeating: .copy(type: .video), count: tracks.count)
@@ -481,8 +489,8 @@ extension ChocoMuxer {
 
     while currentTrackIndex < tracks.count {
       let currentTrack = tracks[currentTrackIndex]
-      let trackLanguage = currentTrack.properties.language ?? "und"
-      print(currentTrack.remuxerInfo)
+      let trackLanguage = currentTrack.trackLanguageCode
+      logger.info("\(currentTrack.remuxerInfo)")
       switch currentTrack.type {
       case .video:
         switch config.videoPreference.videoProcess {
@@ -498,6 +506,7 @@ extension ChocoMuxer {
             let vspipe = AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"])
             var ffmpeg = AnyExecutable(executableName: "ffmpeg",
                                        arguments: [
+                                        "-hide_banner",
                                         //                                        "-nostdin",
                                         "-i", "pipe:"
                                        ])
@@ -537,7 +546,7 @@ extension ChocoMuxer {
 
           trackModifications[currentTrackIndex] = .replace(type: .video, files: [encodedTrackFile], lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
         case .none:
-          trackModifications[currentTrackIndex] = .remove(type: .video)
+          trackModifications[currentTrackIndex] = .remove(type: .video, reason: .trackTypeDisabled)
         case .copy:
           break // default is copy
         }
@@ -562,14 +571,14 @@ extension ChocoMuxer {
               if compareTrack.isTrueHD,
                  compareTrack.properties.language == currentTrack.properties.language,
                  compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
-                trackModifications[currentTrackIndex] = .remove(type: .audio)
+                trackModifications[currentTrackIndex] = .remove(type: .audio, reason: .extraDTSHD)
                 fixed = true
                 // remove the ac3 after
                 if !embbedAC3Removed, currentTrackIndex + 1 < tracks.count,
                    case let nextTrack = tracks[currentTrackIndex + 1],
                    nextTrack.isAC3, nextTrack.properties.language == currentTrack.properties.language {
                   // Remove TRUEHD embed-in AC-3 track
-                  trackModifications[currentTrackIndex + 1] = .remove(type: .audio)
+                  trackModifications[currentTrackIndex + 1] = .remove(type: .audio, reason: .embedAC3InTrueHD)
                   currentTrackIndex += 1
                   embbedAC3Removed = true
                 }
@@ -580,7 +589,7 @@ extension ChocoMuxer {
               if compareTrack.isTrueHD,
                  compareTrack.properties.language == currentTrack.properties.language,
                  compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
-                trackModifications[currentTrackIndex] = .remove(type: .audio)
+                trackModifications[currentTrackIndex] = .remove(type: .audio, reason: .extraDTSHD)
                 fixed = true
               }
             }
@@ -621,7 +630,8 @@ extension ChocoMuxer {
             trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
           }
         } else {
-          trackModifications[currentTrackIndex] = .remove(type: currentTrack.type)
+          // invalid language
+          trackModifications[currentTrackIndex] = .remove(type: currentTrack.type, reason: .invalidLanguage(trackLanguage))
         }
 
         // handle truehd
@@ -629,7 +639,7 @@ extension ChocoMuxer {
            case let nextTrack = tracks[currentTrackIndex + 1],
            nextTrack.isAC3 {
           // Remove TRUEHD embed-in AC-3 track
-          trackModifications[currentTrackIndex + 1] = .remove(type: .audio)
+          trackModifications[currentTrackIndex + 1] = .remove(type: .audio, reason: .embedAC3InTrueHD)
           currentTrackIndex += 1
         }
       }
@@ -672,14 +682,14 @@ extension ChocoMuxer {
     // verify duplicate audios
     let md5Set = Set(flacMD5s)
     if md5Set.count < flacMD5s.count {
-      print("Has duplicate tracks")
+      logger.info("Has duplicate tracks")
 
       // remove extra duplicate tracks
       for md5 in md5Set {
         let indexes = flacMD5s.indexes(of: md5)
         precondition(indexes.count > 0)
         if indexes.count > 1 {
-          indexes.dropFirst().forEach { trackModifications[audioConverters[$0].trackIndex].remove() }
+          indexes.dropFirst().forEach { trackModifications[audioConverters[$0].trackIndex].remove(reason: .duplicateAudioHash) }
         }
       }
 
@@ -706,16 +716,24 @@ extension ChocoMuxer {
 
 enum TrackModification: CustomStringConvertible {
   case copy(type: MediaTrackType)
-  case replace(type: MediaTrackType, files: [URL], lang: String, trackName: String)
-  case remove(type: MediaTrackType)
+  case replace(type: MediaTrackType, files: [URL], lang: Language, trackName: String)
+  case remove(type: MediaTrackType, reason: RemoveReason)
 
-  mutating func remove() {
+  enum RemoveReason {
+    case duplicateAudioHash
+    case trackTypeDisabled
+    case embedAC3InTrueHD
+    case extraDTSHD
+    case invalidLanguage(Language)
+  }
+
+  mutating func remove(reason: RemoveReason) {
     switch self {
     case .replace(type: let type, files: let files, lang: _, trackName: _):
       files.forEach{ try? _fm.removeItem(at: $0) }
-      self = .remove(type: type)
+      self = .remove(type: type, reason: reason)
     case .copy(type: let type):
-      self = .remove(type: type)
+      self = .remove(type: type, reason: reason)
     case .remove(type: _):
       return
     }
@@ -727,7 +745,7 @@ enum TrackModification: CustomStringConvertible {
       return type
     case .copy(type: let type):
       return type
-    case .remove(type: let type):
+    case .remove(type: let type, reason: _):
       return type
     }
   }
@@ -738,29 +756,27 @@ enum TrackModification: CustomStringConvertible {
       return "replace(type: \(type), files: \(files.map(\.path)), lang: \(lang), trackName: \(trackName))"
     case .copy(type: let type):
       return "copy(type: \(type))"
-    case .remove(type: let type):
-      return "remove(type: \(type))"
+    case .remove(type: let type, reason: let reason):
+      return "remove(type: \(type), reason: \(reason)"
     }
   }
 }
 
 public struct BDMVMetadata {
-  public init(rootPath: URL, mode: MplsRemuxMode, mainOnly: Bool,
-              //                language: BDRemuxerConfiguration.LanguagePreference,
-              splits: [Int]?) {
+  public init(rootPath: URL, mode: MplsRemuxMode, mainOnly: Bool, splits: [Int]?, logger: Logger) {
     self.rootPath = rootPath
     self.mode = mode
     self.mainOnly = mainOnly
-    //        self.language = language
     self.splits = splits
+    self.logger = logger
   }
+
 
   let rootPath: URL
   let mode: MplsRemuxMode
-  //    let temporaryDirectory: URL
   let mainOnly: Bool
-  //    let language: BDRemuxerConfiguration.LanguagePreference
   let splits: [Int]?
+  let logger: Logger
 
   public func parse(temporaryDirectory: URL, language: ChocoConfiguration.LanguagePreference) throws -> [ChocoMuxer.WorkTask] {
     let mplsList = try scan(removeDuplicate: true)
@@ -782,7 +798,7 @@ public struct BDMVMetadata {
         if mpls.useFFmpeg || mpls.compressed { /* || mpls.remuxMode == .split*/
           tasks.append(contentsOf: try split(mpls: mpls, temporaryDirectory: temporaryDirectory, language: language))
         } else {
-          let preferedLanguages = language.generatePrimaryLanguages(with: [mpls.primaryLanguage])
+          let preferedLanguages = language.generatePrimaryLanguages(with: CollectionOfOne(mpls.primaryLanguage), addUnd: true, logger: logger)
           let outputFilename = generateFilename(mpls: mpls)
           let output = temporaryDirectory.appendingPathComponent(outputFilename + ".mkv")
           let parsedMpls = try MplsPlaylist.parse(mplsURL: mpls.fileName)
@@ -814,19 +830,18 @@ public struct BDMVMetadata {
   }
 
   public func dumpInfo() throws {
-    print("Blu-ray title: \(getBlurayTitle())")
+    logger.info("Blu-ray title: \(getBlurayTitle())")
     let mplsList = try scan(removeDuplicate: true)
-    print("MPLS List:\n")
+    logger.info("MPLS List:\n")
     mplsList.forEach { print($0); print() }
   }
 
-  @usableFromInline
   func getBlurayTitle() -> String {
     rootPath.lastPathComponent.safeFilename().trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   private func scan(removeDuplicate: Bool) throws -> [Mpls] {
-    print("Start scanning BD folder: \(rootPath.path)")
+    logger.info("Start scanning BD folder: \(rootPath.path)")
     let playlistPath = rootPath.appendingPathComponent("BDMV/PLAYLIST", isDirectory: true)
 
     if mainOnly {
@@ -844,7 +859,7 @@ public struct BDMVMetadata {
         do {
           return try .init(filePath: mplsPath.path)
         } catch {
-          print("Invalid file: \(mplsPath), error: \(error)")
+          logger.error("Invalid file: \(mplsPath), error: \(error)")
           return nil
         }
       }
@@ -879,7 +894,7 @@ public struct BDMVMetadata {
         return allMpls
       }
     } else {
-      print("No PLAYLIST Folder!")
+      logger.error("No PLAYLIST Folder!")
       throw ChocoError.noPlaylists
     }
   }
@@ -896,7 +911,7 @@ public struct BDMVMetadata {
     }
 
     let clips = try mpls.split(chapterPath: temporaryDirectory)
-    let preferedLanguages = language.generatePrimaryLanguages(with: [mpls.primaryLanguage])
+    let preferedLanguages = language.generatePrimaryLanguages(with: CollectionOfOne(mpls.primaryLanguage), addUnd: true, logger: logger)
 
     return clips.flatMap { (clip) -> [ChocoMuxer.WorkTask] in
       if restFiles.contains(clip.m2tsPath) {

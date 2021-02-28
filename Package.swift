@@ -9,6 +9,7 @@ let package = Package(
   ],
   products: [
     .library(name: "MplsParser", targets: ["MplsParser"]),
+    .library(name: "libChoco", targets: ["libChoco"]),
   ],
   dependencies: [
     .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.8.0"),
@@ -21,6 +22,7 @@ let package = Package(
     .package(url: "https://github.com/kojirou1994/BufferUtility.git", .branch("main")),
     .package(url: "https://github.com/AlwaysRightInstitute/mustache.git", .upToNextMajor(from: "1.0.0")),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
+    .package(url: "https://github.com/kojirou1994/ISOCodes.git", .exact("0.1.0")),
   ],
   targets: [
     .systemLibrary(
@@ -42,6 +44,7 @@ let package = Package(
         "MplsParser",
         "Rainbow",
         "URLFileManager",
+        "ISOCodes",
         .product(name: "mustache", package: "mustache"),
         .product(name: "KwiftUtility", package: "Kwift"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
@@ -72,7 +75,7 @@ let package = Package(
       name: "MplsParserTests",
       dependencies: ["MplsParser"]),
     .testTarget(
-      name: "RemuxerTests",
+      name: "ChocoTests",
       dependencies: ["libChoco"]),
   ]
 )

@@ -1,6 +1,7 @@
 import Foundation
 import MediaTools
 import MplsParser
+import ISOCodes
 
 extension MplsClip {
 
@@ -23,15 +24,15 @@ extension Mpls {
 
   public var useFFmpeg: Bool {
     //        MplsClip.
-    return trackLangs.count == 0
+    trackLangs.count == 0
   }
 
-  public var primaryLanguage: String {
-    return trackLangs.first(where: {$0 != "und"}) ?? "und"
+  public var primaryLanguage: Language {
+    trackLangs.first(where: {$0 != "und"}).flatMap{ Language(argument: $0) } ?? .und
   }
 
   public var isSingle: Bool {
-    return files.count == 1
+    files.count == 1
   }
 
   /*
