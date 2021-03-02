@@ -7,7 +7,10 @@ public struct CropInfo {
   public let right: Int
 
   public init<S: StringProtocol>(str: S) throws {
-    let numbers = try str.split(separator: "/").map { try Int($0).unwrap("Invalid number: \($0)") }
+    let numbers = try str
+      .split(separator: "/")
+      .map { try Int($0).unwrap("Invalid number in crop info: \($0), full string: \(str)") }
+
     try preconditionOrThrow(numbers.count == 4, "CropInfo must have 4 numbers")
     top = numbers[0]
     bottom = numbers[1]

@@ -15,15 +15,17 @@ func sysTempDir() -> String {
   return fm.temporaryDirectory.path
 }
 
-enum OutputFormat: String, ExpressibleByArgument {
+enum OutputFormat: String, ExpressibleByArgument, CaseIterable, CustomStringConvertible {
   case text
   case ffmpeg
   case origin
+
+  var description: String { rawValue }
 }
 
 struct Crop: ParsableCommand {
 
-  @Option()
+  @Option(help: "Available: \(OutputFormat.allCases)")
   var format: OutputFormat = .text
 
   @Option(help: "How many preview images are generated")

@@ -54,5 +54,5 @@ public func calculateAutoCrop(at path: String, previews: Int,
     }
   }
   
-  fatalError()
+  throw ChocoError.noHBCropInfo
 }

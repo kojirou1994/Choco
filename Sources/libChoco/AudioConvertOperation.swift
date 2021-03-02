@@ -11,7 +11,7 @@ class AudioConvertOperation: Operation {
   let errorHandler: (Error) -> Void
 
   init(converter: AudioConverter, errorHandler: @escaping (Error) -> Void) {
-    self.process = try! converter
+    self.process = try! converter.executable
       .generateProcess(use: TSCExecutableLauncher(outputRedirection: .collect))
     self.converter = converter
     self.errorHandler = errorHandler

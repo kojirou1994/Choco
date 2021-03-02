@@ -33,6 +33,10 @@ public final class ChocoMuxer {
       libopus = options.contains("--enable-libopus")
       vapoursynth = options.contains("--enable-vapoursynth")
     }
+
+    var aacCodec: String {
+      fdkAAC ? "libfdk_aac" : "aac"
+    }
   }
 
   private func checkCodecs() throws {
@@ -555,7 +559,7 @@ extension ChocoMuxer {
         if preferedLanguages.contains(trackLanguage) {
           var trackDone = false
           // keep true-hd
-          if currentTrack.isTrueHD, config.keepTrueHD {
+          if currentTrack.isTrueHD, config.audioPreference.shouldCopy(.truehd) {
             trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
             trackDone = true
           }
@@ -597,13 +601,13 @@ extension ChocoMuxer {
           }
 
           // keep flac
-          if !trackDone && currentTrack.isFlac && config.keepFlac {
+          if !trackDone && currentTrack.isFlac && config.audioPreference.shouldCopy(.flac) {
             trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
             trackDone = true
           }
 
           // lossless audio -> flac, or fix garbage dts
-          if !trackDone && (currentTrack.isLosslessAudio || (config.fixDTS && currentTrack.isGarbageDTS)) {
+          if !trackDone && (currentTrack.isLosslessAudio || (config.audioPreference.shouldFix(.dts) && currentTrack.isGarbageDTS)) {
             // add to ffmpeg arguments
             let tempFFmpegOutputFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
             let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(config.audioPreference.codec.outputFileExtension)")
@@ -697,7 +701,7 @@ extension ChocoMuxer {
 
     // external temp flac -> final audio tracks
     audioConverters.forEach { converter in
-      self.logConverterStart(name: converter.executableName, input: converter.input.path, output: converter.output.path)
+      self.logConverterStart(name: converter.executable.executableName, input: converter.input.path, output: converter.output.path)
 
       let operation = AudioConvertOperation(converter: converter) { error in
         print("Audio convert error: \(error)")

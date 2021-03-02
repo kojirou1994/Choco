@@ -14,4 +14,5 @@ public enum ChocoError: Error {
   case mkvmergeMux(Error)
   case parseBDMV(Error)
   case terminated
+  case noHBCropInfo
 }

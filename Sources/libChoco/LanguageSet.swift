@@ -13,7 +13,7 @@ extension Language {
   }
 }
 
-public struct LanguageSet {
+public struct LanguageSet: CustomStringConvertible {
   internal init(languages: Set<Language>) {
     self.languages = languages
   }
@@ -33,6 +33,10 @@ public struct LanguageSet {
 
   public static var `default`: Self {
     .init(languages: [.und, .chi, .jpn])
+  }
+
+  public var description: String {
+    languages.map(\.alpha3BibliographicCode).joined(separator: ", ")
   }
 
 }

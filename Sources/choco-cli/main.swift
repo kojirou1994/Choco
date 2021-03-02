@@ -45,6 +45,18 @@ extension ChocoConfiguration.AudioPreference.DownmixMethod: ExpressibleByArgumen
 extension ChocoConfiguration.VideoPreference.VideoProcess: ExpressibleByArgument {}
 extension Logger.Level: ExpressibleByArgument {}
 
+extension ChocoConfiguration.AudioPreference.LosslessAudioCodec: EnumerableFlag {
+  public static func name(for value: Self) -> NameSpecification {
+    .customLong("keep-\(value.rawValue)")
+  }
+}
+
+extension ChocoConfiguration.AudioPreference.GrossLossyAudioCodec: EnumerableFlag {
+  public static func name(for value: Self) -> NameSpecification {
+    .customLong("fix-\(value.rawValue)")
+  }
+}
+
 extension CaseIterable where Self: RawRepresentable, RawValue == String {
   static var availableValues: String {
     "available: " + allCases.map(\.rawValue).joined(separator: ", ")
@@ -68,9 +80,9 @@ struct ChocoCli: ParsableCommand {
 
 extension ChocoCli {
   struct DumpBDMV: ParsableCommand {
-    static var configuration: CommandConfiguration {
-      .init(commandName: "dumpBDMV", abstract: "", discussion: "")
-    }
+//    static var configuration: CommandConfiguration {
+//      .init(commandName: "dumpBDMV", abstract: "", discussion: "")
+//    }
 
     @Option(help: "Main title only in bluray.")
     var mainOnly: Bool = false
@@ -94,9 +106,9 @@ extension ChocoCli {
   }
 
   struct Mux: ParsableCommand {
-    static var configuration: CommandConfiguration {
-      .init(commandName: "mux", abstract: "", discussion: "")
-    }
+//    static var configuration: CommandConfiguration {
+//      .init(commandName: "mux", abstract: "", discussion: "")
+//    }
 
     @Option(name: .shortAndLong, help: "Root output directory")
     var output: String = "./"
@@ -114,7 +126,7 @@ extension ChocoCli {
     var splits: [Int]?
 
     @Option(help: "Valid languages")
-    var preferedLanguages: LanguageSet = .default//"und"
+    var preferedLanguages: LanguageSet = .default
 
     @Option(help: "Exclude languages")
     var excludeLanguages: LanguageSet?
@@ -131,11 +143,11 @@ extension ChocoCli {
     @Flag(help: "Keep original track name")
     var keepTrackName: Bool = false
 
-    @Flag(help: "Keep TrueHD track")
-    var keepTrueHD: Bool = false
+    @Flag
+    var protectedCodecs: [ChocoConfiguration.AudioPreference.LosslessAudioCodec] = []
 
-    @Flag(help: "Keep DTS-HD track")
-    var keepDTSHD: Bool = false
+    @Flag
+    var fixCodecs: [ChocoConfiguration.AudioPreference.GrossLossyAudioCodec] = []
 
     @Flag(help: "Ignore mkvmerge warning")
     var ignoreWarning: Bool = false
@@ -143,19 +155,13 @@ extension ChocoCli {
     @Flag(help: "Remove dts when another same spec truehd exists")
     var removeExtraDTS: Bool = false
 
-    @Flag(help: "Fix garbage DTS.")
-    var fixDTS: Bool = false
-
     @Flag(help: "Organize the output files to sub folders, not work for file mode")
     var organize: Bool = false
 
     @Flag(help: "Main file only in bluray.")
     var mainOnly: Bool = false
 
-    @Flag(help: "Prevent flac track from being re-encoded.")
-    var keepFlac: Bool = false
-
-    @Option(help: "Video processing method, \(ChocoConfiguration.VideoPreference.VideoProcess.availableValues).")
+    @Option(name: [.customShort("v"), .long], help: "Video processing method, \(ChocoConfiguration.VideoPreference.VideoProcess.availableValues).")
     var videoProcess: ChocoConfiguration.VideoPreference.VideoProcess = .copy
 
     @Option(help: "Codec for video track, \(ChocoConfiguration.VideoPreference.Codec.availableValues)")
@@ -211,11 +217,11 @@ extension ChocoCli {
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
         videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, tune: videoTune, profile: videoProfile, crf: videoCrf, autoCrop: autoCrop),
-        audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix),
+        audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
-        keepTrueHD: keepTrueHD, keepDTSHD: keepDTSHD, fixDTS: fixDTS, removeExtraDTS: removeExtraDTS,
-        ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly, keepFlac: keepFlac)
+        removeExtraDTS: removeExtraDTS,
+        ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly)
 
       var logger = Logger(label: "choco")
       logger.logLevel = logLevel

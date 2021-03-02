@@ -18,25 +18,18 @@ public struct ChocoConfiguration {
   public let deleteAfterRemux: Bool
   public let keepTrackName: Bool
   public let keepVideoLanguage: Bool
-  public let keepTrueHD: Bool
-  public let keepDTSHD: Bool
-  public let fixDTS: Bool
   public let removeExtraDTS: Bool
 
   public let ignoreWarning: Bool
   public let organizeOutput: Bool
   public let mainTitleOnly: Bool
 
-  public let keepFlac: Bool
-
   public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: ChocoWorkMode,
               videoPreference: VideoPreference,
               audioPreference: AudioPreference,
               splits: [Int]?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?,
               copyDirectoryFile: Bool, deleteAfterRemux: Bool,
-              keepTrackName: Bool, keepVideoLanguage: Bool, keepTrueHD: Bool, keepDTSHD: Bool,
-              fixDTS: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool,
-              keepFlac: Bool) {
+              keepTrackName: Bool, keepVideoLanguage: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool) {
     self.outputRootDirectory = outputRootDirectory
     self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(ChocoTempDirectoryName)
     self.mode = mode
@@ -48,31 +41,51 @@ public struct ChocoConfiguration {
     self.deleteAfterRemux = deleteAfterRemux
     self.keepTrackName = keepTrackName
     self.keepVideoLanguage = keepVideoLanguage
-    self.keepTrueHD = keepTrueHD
-    self.keepDTSHD = keepDTSHD
-    self.fixDTS = fixDTS
     self.removeExtraDTS = removeExtraDTS
     self.ignoreWarning = ignoreWarning
     self.organizeOutput = organize
     self.mainTitleOnly = mainTitleOnly
-    self.keepFlac = keepFlac
   }
 
 }
 
 extension ChocoConfiguration {
+
+  public struct MetaPreference: CustomStringConvertible {
+    public var description: String {
+      ""
+    }
+  }
+}
+
+extension ChocoConfiguration {
+
   public struct AudioPreference: CustomStringConvertible {
-    public init(encodeAudio: Bool, codec: ChocoConfiguration.AudioPreference.AudioCodec, lossyAudioChannelBitrate: Int, downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod) {
+    public init(encodeAudio: Bool, codec: ChocoConfiguration.AudioPreference.AudioCodec, lossyAudioChannelBitrate: Int, downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod, preferedTool: ChocoConfiguration.AudioPreference.PreferedTool, protectedCodecs: Set<ChocoConfiguration.AudioPreference.LosslessAudioCodec>, fixCodecs: Set<ChocoConfiguration.AudioPreference.GrossLossyAudioCodec>) {
       self.encodeAudio = encodeAudio
       self.codec = codec
       self.lossyAudioChannelBitrate = lossyAudioChannelBitrate
       self.downmixMethod = downmixMethod
+      self.preferedTool = preferedTool
+      self.protectedCodecs = protectedCodecs
+      self.fixCodecs = fixCodecs
     }
 
     public let encodeAudio: Bool
     public let codec: AudioCodec
     public let lossyAudioChannelBitrate: Int
     public let downmixMethod: DownmixMethod
+    public let preferedTool: PreferedTool
+    public let protectedCodecs: Set<LosslessAudioCodec>
+    public let fixCodecs: Set<GrossLossyAudioCodec>
+
+    func shouldCopy(_ codec: LosslessAudioCodec) -> Bool {
+      protectedCodecs.contains(codec)
+    }
+
+    func shouldFix(_ codec: GrossLossyAudioCodec) -> Bool {
+      fixCodecs.contains(codec)
+    }
 
     public var description: String {
       if !encodeAudio {
@@ -83,9 +96,36 @@ extension ChocoConfiguration {
           str.append(", bitrate per channel: \(lossyAudioChannelBitrate)k")
         }
         str.append(", downmix: \(downmixMethod)")
+        if !protectedCodecs.isEmpty {
+          str.append(", protected: \(protectedCodecs)")
+        }
+        if !fixCodecs.isEmpty {
+          str.append(", fixing: \(fixCodecs)")
+        }
         str.append(")")
         return str
       }
+    }
+
+    public enum PreferedTool: String, CaseIterable, CustomStringConvertible {
+      case ffmpeg
+      case official
+
+      public var description: String { rawValue }
+    }
+
+    public enum LosslessAudioCodec: String, CaseIterable, CustomStringConvertible {
+      case flac
+      case dtshd
+      case truehd
+
+      public var description: String { rawValue }
+    }
+
+    public enum GrossLossyAudioCodec: String, CaseIterable, CustomStringConvertible {
+      case dts
+
+      public var description: String { rawValue }
     }
 
     public enum AudioCodec: String, CaseIterable, CustomStringConvertible {
