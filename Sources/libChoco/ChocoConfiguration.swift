@@ -9,11 +9,12 @@ public struct ChocoConfiguration {
   public let outputRootDirectory: URL
   public let temperoraryDirectory: URL
   public let mode: ChocoWorkMode
-  public let splits: [Int]?
+  public let split: ChocoSplit?
   public let videoPreference: VideoPreference
   public let audioPreference: AudioPreference
   public let languagePreference: LanguagePreference
 
+  public let ignoreInputPrimaryLang: Bool
   public let copyDirectoryFile: Bool
   public let deleteAfterRemux: Bool
   public let keepTrackName: Bool
@@ -27,16 +28,18 @@ public struct ChocoConfiguration {
   public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: ChocoWorkMode,
               videoPreference: VideoPreference,
               audioPreference: AudioPreference,
-              splits: [Int]?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?,
+              split: ChocoSplit?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?,
+              ignoreInputPrimaryLang: Bool,
               copyDirectoryFile: Bool, deleteAfterRemux: Bool,
               keepTrackName: Bool, keepVideoLanguage: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool) {
     self.outputRootDirectory = outputRootDirectory
     self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(ChocoTempDirectoryName)
     self.mode = mode
-    self.splits = splits
+    self.split = split
     self.videoPreference = videoPreference
     self.audioPreference = audioPreference
     self.languagePreference = .init(preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages)
+    self.ignoreInputPrimaryLang = ignoreInputPrimaryLang
     self.copyDirectoryFile = copyDirectoryFile
     self.deleteAfterRemux = deleteAfterRemux
     self.keepTrackName = keepTrackName

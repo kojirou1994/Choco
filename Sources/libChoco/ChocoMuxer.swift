@@ -54,6 +54,7 @@ public final class ChocoMuxer {
   }
 
   private func logConfig() {
+    logger.info("FFmpeg codecs: \(ffmpegCodecs)")
     logger.info("Video config: \(config.videoPreference)")
     logger.info("Audio config: \(config.audioPreference)")
   }
@@ -77,9 +78,8 @@ public final class ChocoMuxer {
     }
     // check ffmpeg codecs
     ffmpegCodecs = try .init()
-    logger.info("FFmpeg codecs: \(ffmpegCodecs)")
-    try checkCodecs()
     logConfig()
+    try checkCodecs()
   }
 
   private func launch<E: Executable>(externalExecutable: E) throws -> ProcessResult {
@@ -95,7 +95,7 @@ public final class ChocoMuxer {
   }
 
   private func launch<E: Executable>(externalExecutable: E,
-                      checkAllowedExitCodes codes: [CInt]) throws {
+                                     checkAllowedExitCodes codes: [CInt]) throws {
     logger.debug("Running \(externalExecutable.commandLineArguments)")
     let result = try launch(externalExecutable: externalExecutable)
     switch result.exitStatus {
@@ -161,61 +161,63 @@ public final class ChocoMuxer {
     }
   }
 
-  func remuxBDMV(at bdmvPath: URL, mode: MplsRemuxMode, temporaryPath: URL) throws -> Summary {
+  func remuxBDMV(at bdmvPath: URL, mplsMode: MplsRemuxMode, temporaryDirectoryURL: URL,
+                 remuxToOutputDirectory: Bool) throws -> Summary {
     let startDate = Date()
     var sizeBefore: UInt64 = 0
     var sizeAfter: UInt64 = 0
 
-    let task = BDMVMetadata(rootPath: bdmvPath, mode: mode,
-                            mainOnly: config.mainTitleOnly, splits: config.splits, logger: logger)
-    let finalOutputPath = config.outputRootDirectory.appendingPathComponent(task.getBlurayTitle())
-    if _fm.fileExistance(at: finalOutputPath).exists {
+    let task = BDMVMetadata(rootPath: bdmvPath, mode: mplsMode,
+                            mainOnly: config.mainTitleOnly, split: config.split, logger: logger)
+    let finalOutputDirectoryURL = config.outputRootDirectory.appendingPathComponent(task.getBlurayTitle())
+    if _fm.fileExistance(at: finalOutputDirectoryURL).exists {
       throw ChocoError.outputExist
     }
+    try _fm.createDirectory(at: finalOutputDirectoryURL)
+    
     let converters: [WorkTask]
+    let mplsOutputDirectoryURL = remuxToOutputDirectory ? temporaryDirectoryURL : finalOutputDirectoryURL
     do {
-      converters = try task.parse(temporaryDirectory: temporaryPath, language: config.languagePreference)
+      converters = try task.generateMuxTasks(outputDirectoryURL: mplsOutputDirectoryURL)
     } catch {
       throw ChocoError.parseBDMV(error)
     }
-    var tempFiles = [URL]()
+
     for converter in converters {
-      tempFiles.append(contentsOf: try recursiveRun(task: converter))
-      //            do {
-      //            } catch {
-      //                throw BDRemuxerError.mplsToMKV(converter, error)
-      //            }
-    }
+      let tempFiles = try recursiveRun(task: converter)
+      if remuxToOutputDirectory {
+        for tempFile in tempFiles {
+          let mkvinfo = try readMKV(at: tempFile)
 
-    for tempFile in tempFiles {
-      let mkvinfo = try readMKV(at: tempFile)
+          let duration = Timestamp(ns: UInt64(mkvinfo.container.properties?.duration ?? 0))
+          let subFolder: String
+          if config.organizeOutput {
+            if duration > Timestamp.hour {
+              // big
+              subFolder = ""
+            } else if duration > Timestamp.minute * 10 {
+              // > 10 min
+              subFolder = "medium"
+            } else if duration > Timestamp.minute {
+              // > 1 min
+              subFolder = "small"
+            } else {
+              subFolder = "garbage"
+            }
+          } else {
+            subFolder = ""
+          }
 
-      let duration = Timestamp(ns: UInt64(mkvinfo.container.properties?.duration ?? 0))
-      let subFolder: String
-      if config.organizeOutput {
-        if duration > Timestamp.hour {
-          // big
-          subFolder = ""
-        } else if duration > Timestamp.minute * 10 {
-          // > 10 min
-          subFolder = "medium"
-        } else if duration > Timestamp.minute {
-          // > 1 min
-          subFolder = "small"
-        } else {
-          subFolder = "garbage"
+          let summary = try _remux(file: tempFile,
+                                   outputDirectoryURL: finalOutputDirectoryURL.appendingPathComponent(subFolder), temporaryPath: temporaryDirectoryURL,
+                                   deleteAfterRemux: true, mkvinfoCache: mkvinfo)
+
+          sizeBefore += summary.sizeBefore
+          sizeAfter += summary.sizeAfter
         }
-      } else {
-        subFolder = ""
       }
-
-      let summary = try _remux(file: tempFile,
-                               outputDirectoryURL: finalOutputPath.appendingPathComponent(subFolder), temporaryPath: temporaryPath,
-                               deleteAfterRemux: true, mkvinfoCache: mkvinfo)
-
-      sizeBefore += summary.sizeBefore
-      sizeAfter += summary.sizeAfter
     }
+
     if config.deleteAfterRemux {
       try? _fm.removeItem(at: bdmvPath)
     }
@@ -241,10 +243,11 @@ public final class ChocoMuxer {
     }
 
     switch config.mode {
-    case .episodes, .movie:
+    case .splitBDMV, .movieBDMV, .directBDMV:
       return try withTemporaryDirectory { tempDirectory in
-        let mode: MplsRemuxMode = config.mode == .episodes ? .split : .direct
-        return try remuxBDMV(at: input, mode: mode, temporaryPath: tempDirectory)
+        let mode: MplsRemuxMode = config.mode == .splitBDMV ? .split : .direct
+        let remuxToOutputDirectory = config.mode != .directBDMV
+        return try remuxBDMV(at: input, mplsMode: mode, temporaryDirectoryURL: tempDirectory, remuxToOutputDirectory: remuxToOutputDirectory)
       }
     case .file:
       return try withTemporaryDirectory { tempDirectory in
@@ -283,7 +286,7 @@ public final class ChocoMuxer {
               sizeAfter += subSummary.sizeAfter
             }
           default:
-          // copy
+            // copy
             if config.copyDirectoryFile {
               try _fm.createDirectory(at: outputDirectoryURL)
               try _fm.copyItem(at: fileURL, to: outputDirectoryURL.appendingPathComponent(fileURL.lastPathComponent))
@@ -407,9 +410,11 @@ extension ChocoMuxer {
       options.append(.trackTags(.removeAll))
       return .init(file: track.file.path, options: options)
     }
-    let splitInfo = generateSplit(splits: config.splits, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
+    let splitInfo = generateMkvmergeSplit(split: config.split, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
+    let mkvGlobal = MkvMerge.GlobalOption(quiet: true, trackOrder: trackOrder, split: splitInfo, experimentalFeatures: [.append_and_split_flac])
+
     let mkvmerge = MkvMerge(
-      global: .init(quiet: true, split: splitInfo, trackOrder: trackOrder),
+      global: mkvGlobal,
       output: outputURL.path, inputs: [mainInput] + externalInputs)
     logger.debug("\(mkvmerge.commandLineArguments.joined(separator: " "))")
 
@@ -453,8 +458,7 @@ extension ChocoMuxer {
       do {
         try _fm.removeItem(at: uniqueTempDirectory)
       } catch {
-        print("cannot create/remove temp directory: \(uniqueTempDirectory.path)")
-        print(error)
+        logger.error("cannot create/remove temp directory: \(uniqueTempDirectory.path), error: \(error)")
       }
     }
     self.currentTemporaryPath = uniqueTempDirectory
@@ -476,7 +480,7 @@ extension ChocoMuxer {
     let tracks = mkvinfo.tracks
     var audioConverters = [AudioConverter]()
     var ffmpegArguments = [
-//      "-v", "quiet",
+      //      "-v", "quiet",
       "-hide_banner",
       "-y", "-i", mkvinfo.fileName]
     let defaultFFmpegArgumentsCount = ffmpegArguments.count
@@ -507,31 +511,24 @@ extension ChocoMuxer {
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
             try script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
 
-            let vspipe = AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"])
-            var ffmpeg = AnyExecutable(executableName: "ffmpeg",
-                                       arguments: [
-                                        "-hide_banner",
-                                        //                                        "-nostdin",
-                                        "-i", "pipe:"
-                                       ])
+            let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"]))
+
+            var ffmpeg = AnyExecutable(
+              executableName: "ffmpeg",
+              arguments: [ "-hide_banner","-i", "pipe:"])
             ffmpeg.arguments.append(contentsOf: config.videoPreference.ffmpegArguments)
             ffmpeg.arguments.append(encodedTrackFile.path)
-            let pipe = Pipe()
-            let vsLauncher = FPExecutableLauncher(standardOutput: .pipe(pipe))
-            let ffLauncher = FPExecutableLauncher(standardInput: .pipe(pipe))
-            let vsProcess = try vspipe.generateProcess(use: vsLauncher)
-            let ffProcess = try ffmpeg.generateProcess(use: ffLauncher)
 
-            try vsProcess.run()
-            try ffProcess.run()
+            try pipeline.append(ffmpeg)
 
-            runningProcessID = vsProcess.processIdentifier
+            try pipeline.run()
+
+            runningProcessID = pipeline.processes.first?.processIdentifier
             defer {
               runningProcessID = nil
             }
 
-            vsProcess.waitUntilExit()
-            ffProcess.waitUntilExit()
+            pipeline.waitUntilExit()
           } else {
             // encode use ffmpeg
             ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)"])
@@ -669,42 +666,42 @@ extension ChocoMuxer {
     }
 
     // check duplicate audio track
-    #warning("use libflac to read")
-    let tempFFmpegFlacFiles = audioConverters.map { $0.input }
-    let flacMD5s: [String]
+    // TODO: use libflac to read md5
     do {
-      if tempFFmpegFlacFiles.isEmpty {
-        flacMD5s = .init()
-      } else {
-        flacMD5s = try FlacMD5.calculate(inputs: tempFFmpegFlacFiles.map { $0.path })
-      }
-    } catch {
-      throw ChocoError.validateFlacMD5(error)
-    }
-    precondition(tempFFmpegFlacFiles.count == flacMD5s.count, "Flac MD5 count dont match")
+      let tempFFmpegFlacFiles = audioConverters.map { $0.input }
+      if !tempFFmpegFlacFiles.isEmpty {
+        let flacMD5s: [String]
+        do {
+          flacMD5s = try FlacMD5.calculate(inputs: tempFFmpegFlacFiles.map { $0.path })
+        } catch {
+          throw ChocoError.validateFlacMD5(error)
+        }
 
-    // verify duplicate audios
-    let md5Set = Set(flacMD5s)
-    if md5Set.count < flacMD5s.count {
-      logger.info("Has duplicate tracks")
+        precondition(tempFFmpegFlacFiles.count == flacMD5s.count, "Flac MD5 count dont match")
 
-      // remove extra duplicate tracks
-      for md5 in md5Set {
-        let indexes = flacMD5s.indexes(of: md5)
-        precondition(indexes.count > 0)
-        if indexes.count > 1 {
-          indexes.dropFirst().forEach { trackModifications[audioConverters[$0].trackIndex].remove(reason: .duplicateAudioHash) }
+        // verify duplicate audios
+        let md5Set = Set(flacMD5s)
+        if md5Set.count < flacMD5s.count {
+          logger.info("Has duplicate tracks")
+
+          // remove extra duplicate tracks
+          for md5 in md5Set {
+            let indexes = flacMD5s.indexes(of: md5)
+            precondition(indexes.count > 0)
+            if indexes.count > 1 {
+              indexes.dropFirst().forEach { trackModifications[audioConverters[$0].trackIndex].remove(reason: .duplicateAudioHash) }
+            }
+          }
         }
       }
-
-    }
+    } // end of duplicated audio check
 
     // external temp flac -> final audio tracks
     audioConverters.forEach { converter in
       self.logConverterStart(name: converter.executable.executableName, input: converter.input.path, output: converter.output.path)
 
-      let operation = AudioConvertOperation(converter: converter) { error in
-        print("Audio convert error: \(error)")
+      let operation = AudioConvertOperation(converter: converter) { [logger] error in
+        logger.error("Audio convert error: \(error)")
       }
 
       audioConvertQueue.addOperation(operation)
@@ -767,22 +764,21 @@ enum TrackModification: CustomStringConvertible {
 }
 
 public struct BDMVMetadata {
-  public init(rootPath: URL, mode: MplsRemuxMode, mainOnly: Bool, splits: [Int]?, logger: Logger) {
+  public init(rootPath: URL, mode: MplsRemuxMode, mainOnly: Bool, split: ChocoSplit?, logger: Logger) {
     self.rootPath = rootPath
     self.mode = mode
     self.mainOnly = mainOnly
-    self.splits = splits
+    self.split = split
     self.logger = logger
   }
-
 
   let rootPath: URL
   let mode: MplsRemuxMode
   let mainOnly: Bool
-  let splits: [Int]?
+  let split: ChocoSplit?
   let logger: Logger
 
-  public func parse(temporaryDirectory: URL, language: ChocoConfiguration.LanguagePreference) throws -> [ChocoMuxer.WorkTask] {
+  public func generateMuxTasks(outputDirectoryURL: URL) throws -> [ChocoMuxer.WorkTask] {
     let mplsList = try scan(removeDuplicate: true)
 
     // TODO: check conflict
@@ -792,7 +788,7 @@ public struct BDMVMetadata {
     if mode == .split {
       var allFiles = Set(mplsList.flatMap { $0.files })
       try mplsList.forEach { mpls in
-        tasks.append(contentsOf: try split(mpls: mpls, restFiles: allFiles, temporaryDirectory: temporaryDirectory, language: language))
+        tasks.append(contentsOf: try split(mpls: mpls, restFiles: allFiles, temporaryDirectory: outputDirectoryURL))
         mpls.files.forEach { usedFile in
           allFiles.remove(usedFile)
         }
@@ -800,14 +796,13 @@ public struct BDMVMetadata {
     } else if mode == .direct {
       try mplsList.forEach { mpls in
         if mpls.useFFmpeg || mpls.compressed { /* || mpls.remuxMode == .split*/
-          tasks.append(contentsOf: try split(mpls: mpls, temporaryDirectory: temporaryDirectory, language: language))
+          tasks.append(contentsOf: try split(mpls: mpls, temporaryDirectory: outputDirectoryURL))
         } else {
-          let preferedLanguages = language.generatePrimaryLanguages(with: CollectionOfOne(mpls.primaryLanguage), addUnd: true, logger: logger)
           let outputFilename = generateFilename(mpls: mpls)
-          let output = temporaryDirectory.appendingPathComponent(outputFilename + ".mkv")
+          let output = outputDirectoryURL.appendingPathComponent(outputFilename + ".mkv")
           let parsedMpls = try MplsPlaylist.parse(mplsURL: mpls.fileName)
           let chapter = parsedMpls.convert()
-          let chapterFile = temporaryDirectory.appendingPathComponent("\(mpls.fileName.lastPathComponentWithoutExtension).txt")
+          let chapterFile = outputDirectoryURL.appendingPathComponent("\(mpls.fileName.lastPathComponentWithoutExtension).txt")
           let chapterPath: String?
           if !chapter.isEmpty {
             try chapter.exportOgm().write(toFile: chapterFile.path, atomically: true, encoding: .utf8)
@@ -816,12 +811,12 @@ public struct BDMVMetadata {
             chapterPath = nil
           }
 
-          if splits != nil {
-            tasks.append(.init(input: mpls.fileName, main: .init(MkvMerge(global: .init(quiet: true, split: generateSplit(splits: splits, chapterCount: mpls.chapterCount), chapterFile: chapterPath), output: output.path, inputs: [.init(file: mpls.fileName.path, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages))])])), chapterSplit: true, canBeIgnored: false))
+          if split != nil {
+            tasks.append(.init(input: mpls.fileName, main: .init(MkvMerge(global: .init(quiet: true, chapterFile: chapterPath, split: generateMkvmergeSplit(split: split, chapterCount: mpls.chapterCount)), output: output.path, inputs: [.init(file: mpls.fileName.path)])), chapterSplit: true, canBeIgnored: false))
           } else {
-            let splitWorkers = try split(mpls: mpls, temporaryDirectory: temporaryDirectory, language: language).map { $0.main }
-            let main = MkvMerge(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: mpls.files.enumerated().map { MkvMerge.Input(file: $0.element.path, append: $0.offset != 0, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages))]) })
-            let joinWorker = MkvMerge(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: splitWorkers.enumerated().map { MkvMerge.Input(file: $0.element.outputURL.path, append: $0.offset != 0, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages)), .noChapters]) })
+            let splitWorkers = try split(mpls: mpls, temporaryDirectory: outputDirectoryURL).map { $0.main }
+            let main = MkvMerge(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: mpls.files.enumerated().map { MkvMerge.Input(file: $0.element.path, append: $0.offset != 0) })
+            let joinWorker = MkvMerge(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: splitWorkers.enumerated().map { MkvMerge.Input(file: $0.element.outputURL.path, append: $0.offset != 0, options: [.noChapters]) })
             tasks.append(.init(input: mpls.fileName,
                                main: .init(main), chapterSplit: false,
                                splitWorkers: splitWorkers, joinWorker: .init(joinWorker)))
@@ -903,19 +898,18 @@ public struct BDMVMetadata {
     }
   }
 
-  private func split(mpls: Mpls, temporaryDirectory: URL, language: ChocoConfiguration.LanguagePreference) throws -> [ChocoMuxer.WorkTask] {
-    try split(mpls: mpls, restFiles: Set(mpls.files), temporaryDirectory: temporaryDirectory, language: language)
+  private func split(mpls: Mpls, temporaryDirectory: URL) throws -> [ChocoMuxer.WorkTask] {
+    try split(mpls: mpls, restFiles: Set(mpls.files), temporaryDirectory: temporaryDirectory)
   }
 
-  private func split(mpls: Mpls, restFiles: Set<URL>, temporaryDirectory: URL, language: ChocoConfiguration.LanguagePreference) throws -> [ChocoMuxer.WorkTask] {
-    print("Splitting MPLS: \(mpls.fileName)")
+  private func split(mpls: Mpls, restFiles: Set<URL>, temporaryDirectory: URL) throws -> [ChocoMuxer.WorkTask] {
+    logger.info("Splitting MPLS: \(mpls.fileName.lastPathComponent)")
 
     if restFiles.count == 0 {
       return []
     }
 
     let clips = try mpls.split(chapterPath: temporaryDirectory)
-    let preferedLanguages = language.generatePrimaryLanguages(with: CollectionOfOne(mpls.primaryLanguage), addUnd: true, logger: logger)
 
     return clips.flatMap { (clip) -> [ChocoMuxer.WorkTask] in
       if restFiles.contains(clip.m2tsPath) {
@@ -925,8 +919,8 @@ public struct BDMVMetadata {
           return [
             .init(input: clip.fileName,
                   main: .init(FFmpegCopyMuxer(input: clip.m2tsPath.path,
-                                    output: temporaryDirectory.appendingPathComponent("\(outputBasename)-ffmpeg-video.mkv").path,
-                                    mode: .video)), chapterSplit: false, canBeIgnored: true),
+                                              output: temporaryDirectory.appendingPathComponent("\(outputBasename)-ffmpeg-video.mkv").path,
+                                              mode: .video)), chapterSplit: false, canBeIgnored: true),
             .init(input: clip.fileName,
                   main: .init(FFmpegCopyMuxer(input: clip.m2tsPath.path,
                                               output: temporaryDirectory.appendingPathComponent("\(outputBasename)-ffmpeg-audio.mkv").path, mode: .audio)), chapterSplit: false, canBeIgnored: true)
@@ -934,11 +928,11 @@ public struct BDMVMetadata {
         } else {
           let outputFilename = "\(outputBasename).mkv"
           output = temporaryDirectory.appendingPathComponent(outputFilename)
-          return [.init(input: clip.fileName, main: .init(MkvMerge(global: .init(quiet: true, chapterFile: clip.chapterPath?.path), output: output.path, inputs: [.init(file: clip.m2tsPath.path, options: [.audioTracks(.enabledLANGs(preferedLanguages)), .subtitleTracks(.enabledLANGs(preferedLanguages))])])), chapterSplit: false, canBeIgnored: false)]
+          return [.init(input: clip.fileName, main: .init(MkvMerge(global: .init(quiet: true, chapterFile: clip.chapterPath?.path), output: output.path, inputs: [.init(file: clip.m2tsPath.path)])), chapterSplit: false, canBeIgnored: false)]
         }
 
       } else {
-        print("Skipping clip: \(clip)")
+        logger.info("Skipping clip: \(clip)")
         return []
       }
     }
@@ -949,21 +943,32 @@ public struct BDMVMetadata {
   }
 }
 
-fileprivate func generateSplit(splits: [Int]?, chapterCount: Int) -> MkvMerge.GlobalOption.Split? {
-  guard let splits = splits, splits.count > 0 else {
+fileprivate func generateMkvmergeSplit(split: ChocoSplit?, chapterCount: Int) -> MkvMerge.GlobalOption.Split? {
+  guard let split = split else {
     return nil
   }
-  let totalChaps = splits.reduce(0, +)
-  if totalChaps == chapterCount {
+  func calculateChapIndex(_ block: () -> Int?) -> MkvMerge.GlobalOption.Split? {
     var chapIndex = [Int]()
     var chapCount = 0
-    splits.forEach { chap in
-      chapIndex.append(chap + 1 + chapCount)
-      chapCount += chap
+    while let nextChapCount = block() {
+      let nextChapIndex = nextChapCount + 1 + chapCount
+      if nextChapIndex > chapterCount {
+        break
+      }
+      chapIndex.append(nextChapIndex)
+      chapCount += nextChapCount
     }
-    return .chapters(.numbers(chapIndex.dropLast()))
-  } else {
-    return nil
+    guard !chapIndex.isEmpty else {
+      return nil
+    }
+    return .chapters(.numbers(chapIndex))
+  }
+  switch split {
+  case .everyChap(let everyChapCount):
+    return calculateChapIndex { everyChapCount }
+  case .eachChap(let eachChaps):
+    var iterator = eachChaps.makeIterator()
+    return calculateChapIndex { iterator.next() }
   }
 }
 

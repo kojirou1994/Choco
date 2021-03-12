@@ -44,6 +44,7 @@ extension ChocoConfiguration.VideoPreference.CodecPreset: ExpressibleByArgument 
 extension ChocoConfiguration.AudioPreference.DownmixMethod: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.VideoProcess: ExpressibleByArgument {}
 extension Logger.Level: ExpressibleByArgument {}
+extension ChocoSplit: ExpressibleByArgument {}
 
 extension ChocoConfiguration.AudioPreference.LosslessAudioCodec: EnumerableFlag {
   public static func name(for value: Self) -> NameSpecification {
@@ -80,9 +81,6 @@ struct ChocoCli: ParsableCommand {
 
 extension ChocoCli {
   struct DumpBDMV: ParsableCommand {
-//    static var configuration: CommandConfiguration {
-//      .init(commandName: "dumpBDMV", abstract: "", discussion: "")
-//    }
 
     @Option(help: "Main title only in bluray.")
     var mainOnly: Bool = false
@@ -95,7 +93,7 @@ extension ChocoCli {
       inputs.forEach { input in
         let inputURL = URL(fileURLWithPath: input)
         let task = BDMVMetadata(rootPath: inputURL, mode: .direct,
-                                mainOnly: mainOnly, splits: nil, logger: logger)
+                                mainOnly: mainOnly, split: nil, logger: logger)
         do {
           try task.dumpInfo()
         } catch {
@@ -106,9 +104,6 @@ extension ChocoCli {
   }
 
   struct Mux: ParsableCommand {
-//    static var configuration: CommandConfiguration {
-//      .init(commandName: "mux", abstract: "", discussion: "")
-//    }
 
     @Option(name: .shortAndLong, help: "Root output directory")
     var output: String = "./"
@@ -116,20 +111,20 @@ extension ChocoCli {
     @Option(name: .shortAndLong, help: "Root temp directory")
     var temp: String = "./"
 
-    @Option(help: "Work mode, \(ChocoWorkMode.availableValues)")
-    var mode: ChocoWorkMode = .movie
+    @Option(name: .shortAndLong, help: "Work mode, \(ChocoWorkMode.availableValues)")
+    var mode: ChocoWorkMode
 
-    @Option(help: "Split info, number joined by ,",
-            transform: {argument in
-              try argument.split(separator: ",").map {try Int($0).unwrap() }
-            })
-    var splits: [Int]?
+    @Option(help: "Split info")
+    var split: ChocoSplit?
 
     @Option(help: "Valid languages")
     var preferedLanguages: LanguageSet = .default
 
     @Option(help: "Exclude languages")
     var excludeLanguages: LanguageSet?
+
+    @Flag(help: "Ignore input file's primary language")
+    var ignoreInputPrimaryLang: Bool = false
 
     @Flag(help: "Delete the src after remux")
     var deleteAfterRemux: Bool = false
@@ -218,7 +213,7 @@ extension ChocoCli {
         mode: mode,
         videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, tune: videoTune, profile: videoProfile, crf: videoCrf, autoCrop: autoCrop),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
-        splits: splits, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, copyDirectoryFile: copyDirectoryFile,
+        split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
         removeExtraDTS: removeExtraDTS,
         ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly)
