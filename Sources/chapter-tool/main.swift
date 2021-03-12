@@ -41,11 +41,14 @@ struct ChapterTool: ParsableCommand {
 
   struct AutoRename: ParsableCommand {
 
-    @Option()
+    @Option(name: .shortAndLong)
     var language: String
 
     @Option()
     var chapterFormat: String = "txt"
+
+    @Option(help: "Specific chapter file path")
+    var chapter: String?
 
     @Flag(inversion: FlagInversion.prefixedNo, help: "Remove the chapter file if success")
     var removeChapFile: Bool = false
@@ -60,7 +63,8 @@ struct ChapterTool: ParsableCommand {
       inputs.forEach { input in
         let succ = fm.forEachContent(in: URL(fileURLWithPath: input), handleFile: true, handleDirectory: false, skipHiddenFiles: true) { fileURL in
           do {
-            let chapterFileURL = fileURL.deletingPathExtension().appendingPathExtension(chapterFormat)
+            let chapterFileURL = chapter.map { URL(fileURLWithPath: $0) }
+            ?? fileURL.deletingPathExtension().appendingPathExtension(chapterFormat)
             
             guard fileURL.pathExtension.lowercased() == "mkv",
                   fm.fileExistance(at: chapterFileURL).exists else {
@@ -125,8 +129,8 @@ struct ChapterTool: ParsableCommand {
     var language: String
 
     func run() throws {
-      
       let fileURL = URL(fileURLWithPath: filePath)
+
       let chapterBackupURL = try extractChapter(from: fileURL)
 
       var chapter = try MatroskaChapters(data: .init(contentsOf: chapterBackupURL))
@@ -168,47 +172,70 @@ struct ChapterTool: ParsableCommand {
     @Flag()
     var removeTitle: Bool = false
 
+    @Flag(name: .shortAndLong)
+    var recursive: Bool = false
+
     static let minChapterInterval = Timestamp.second * 3
 
     func run() throws {
       inputs.forEach { path in
-        do {
-          print("Cleaning \(path)")
-          let fileURL = URL(fileURLWithPath: path)
-          let chapterBackupURL = try extractChapter(from: fileURL)
-
-          var chapter = try MatroskaChapters(data: .init(contentsOf: chapterBackupURL))
-
-          precondition(chapter.entries.count == 1)
-
-          var cleanChapterAtoms: [MatroskaChapters.EditionEntry.ChapterAtom] = []
-
-          func append(node: MatroskaChapters.EditionEntry.ChapterAtom) {
-            var copy = node
-            if removeTitle {
-              copy.chapterDisplays = nil
-            }
-            cleanChapterAtoms.append(copy)
+        let fileURL = URL(fileURLWithPath: path)
+        switch fm.fileExistance(at: fileURL) {
+        case .directory:
+          if recursive {
+            _ = fm.forEachContent(in: fileURL, handleFile: true, handleDirectory: false, skipHiddenFiles: true, body: { url in
+              clean(fileURL: url)
+            })
+          } else {
+            print("\(path) is directory! add -r option")
           }
-          for node in chapter.entries[0].chapterAtoms {
-            precondition(node.timestamp != nil, "Invalid timestamp \(node.chapterTimeStart)")
-            precondition(node.timestamp!.toString(displayNanoSecond: true) == node.chapterTimeStart, "Invalid timestamp \(node.chapterTimeStart) decoded: \(Timestamp(string: node.chapterTimeStart)!)")
-            if let last = cleanChapterAtoms.last {
-              let interval = node.timestamp! - last.timestamp!
-              if interval >= Self.minChapterInterval {
-                append(node: node)
-              }
-            } else {
+        case .file:
+          clean(fileURL: fileURL)
+        case .none:
+          print("\(path) does not exist!")
+        }
+      }
+    }
+
+    func clean(fileURL: URL) {
+      do {
+        guard fileURL.pathExtension.lowercased() == "mkv" else {
+          return
+        }
+        print("Cleaning \(fileURL.path)")
+        let chapterBackupURL = try extractChapter(from: fileURL)
+
+        var chapter = try MatroskaChapters(data: .init(contentsOf: chapterBackupURL))
+
+        precondition(chapter.entries.count == 1)
+
+        var cleanChapterAtoms: [MatroskaChapters.EditionEntry.ChapterAtom] = []
+
+        func append(node: MatroskaChapters.EditionEntry.ChapterAtom) {
+          var copy = node
+          if removeTitle {
+            copy.chapterDisplays = nil
+          }
+          cleanChapterAtoms.append(copy)
+        }
+        for node in chapter.entries[0].chapterAtoms {
+          precondition(node.timestamp != nil, "Invalid timestamp \(node.chapterTimeStart)")
+          precondition(node.timestamp!.toString(displayNanoSecond: true) == node.chapterTimeStart, "Invalid timestamp \(node.chapterTimeStart) decoded: \(Timestamp(string: node.chapterTimeStart)!)")
+          if let last = cleanChapterAtoms.last {
+            let interval = node.timestamp! - last.timestamp!
+            if interval >= Self.minChapterInterval {
               append(node: node)
             }
+          } else {
+            append(node: node)
           }
-
-          chapter.entries[0].chapterAtoms = cleanChapterAtoms
-          try write(chapter: chapter, to: fileURL)
-
-        } catch {
-          print("Error \(error)")
         }
+
+        chapter.entries[0].chapterAtoms = cleanChapterAtoms
+        try write(chapter: chapter, to: fileURL)
+
+      } catch {
+        print("Error \(error)")
       }
     }
   }
