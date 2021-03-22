@@ -4,30 +4,10 @@ import ExecutableLauncher
 import ArgumentParser
 import MediaTools
 import URLFileManager
+import Precondition
 
 let fm = URLFileManager.default
-
-func write(chapter: MatroskaChapters, to fileURL: URL) throws {
-  func write(chap: String, file: URL) throws {
-    _ = try AnyExecutable(executableName: "mkvpropedit", arguments: [file.path, "-c", chap])
-      .launch(use: TSCExecutableLauncher())
-  }
-  if chapter.entries[0].chapterAtoms.isEmpty || (chapter.entries[0].chapterAtoms.count == 1 && chapter.entries[0].chapterAtoms[0].timestamp!.value == 0) {
-    try write(chap: "", file: fileURL)
-  } else {
-    let newChapterURL = fm.makeUniqueFileURL(fileURL.appendingPathExtension("new_chapter.xml"))
-    try chapter.exportXML().write(to: newChapterURL)
-
-    try write(chap: newChapterURL.path, file: fileURL)
-  }
-}
-
-func extractChapter(from fileURL: URL) throws -> URL {
-  let chapterBackupURL = fm.makeUniqueFileURL(fileURL.appendingPathExtension("backup.xml"))
-  _ = try MkvExtract(filepath: fileURL.path, extractions: [.chapter(filename: chapterBackupURL.path)])
-    .launch(use: TSCExecutableLauncher())
-  return chapterBackupURL
-}
+let utility = ChapterUtility()
 
 struct ChapterTool: ParsableCommand {
 
@@ -35,7 +15,8 @@ struct ChapterTool: ParsableCommand {
     .init(subcommands: [
       Rename.self,
       Clean.self,
-      AutoRename.self
+      AutoRename.self,
+      ChangeLang.self
     ])
   }
 
@@ -70,9 +51,8 @@ struct ChapterTool: ParsableCommand {
                   fm.fileExistance(at: chapterFileURL).exists else {
               return
             }
-            let chapterBackupURL = try extractChapter(from: fileURL)
 
-            var chapter = try MatroskaChapters(data: .init(contentsOf: chapterBackupURL))
+            var chapter = try utility.extractAndReadChapter(from: fileURL, keepChapterFile: true)
 
             precondition(chapter.entries.count == 1)
 
@@ -106,7 +86,7 @@ struct ChapterTool: ParsableCommand {
 
             chapter.entries[0].chapterAtoms = chapterAtoms
 
-            try write(chapter: chapter, to: fileURL)
+            try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
           } catch {
             print("Error: ", error, fileURL)
           }
@@ -131,9 +111,7 @@ struct ChapterTool: ParsableCommand {
     func run() throws {
       let fileURL = URL(fileURLWithPath: filePath)
 
-      let chapterBackupURL = try extractChapter(from: fileURL)
-
-      var chapter = try MatroskaChapters(data: .init(contentsOf: chapterBackupURL))
+      var chapter = try utility.extractAndReadChapter(from: fileURL, keepChapterFile: true)
 
       precondition(chapter.entries.count == 1)
 
@@ -160,7 +138,7 @@ struct ChapterTool: ParsableCommand {
 
       chapter.entries[0].chapterAtoms = chapterAtoms
 
-      try write(chapter: chapter, to: fileURL)
+      try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
 
     }
   }
@@ -203,11 +181,10 @@ struct ChapterTool: ParsableCommand {
           return
         }
         print("Cleaning \(fileURL.path)")
-        let chapterBackupURL = try extractChapter(from: fileURL)
 
-        var chapter = try MatroskaChapters(data: .init(contentsOf: chapterBackupURL))
+        var chapter = try utility.extractAndReadChapter(from: fileURL, keepChapterFile: true)
 
-        precondition(chapter.entries.count == 1)
+        try preconditionOrThrow(chapter.entries.count == 1, "Unsupported chapter entry count: \(chapter.entries.count)")
 
         var cleanChapterAtoms: [MatroskaChapters.EditionEntry.ChapterAtom] = []
 
@@ -232,7 +209,93 @@ struct ChapterTool: ParsableCommand {
         }
 
         chapter.entries[0].chapterAtoms = cleanChapterAtoms
-        try write(chapter: chapter, to: fileURL)
+        try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
+
+      } catch {
+        print("Error \(error)")
+      }
+    }
+  }
+
+  struct ChangeLang: ParsableCommand {
+
+    @Option()
+    var from: String
+
+    @Option()
+    var to: String
+
+    @Flag(name: .shortAndLong)
+    var recursive: Bool = false
+
+    @Flag(name: .shortAndLong)
+    var overwrite: Bool = false
+
+    @Argument
+    var inputs: [String]
+
+    func validate() throws {
+      try preconditionOrThrow(from != to, ValidationError("from and to must be different"))
+    }
+
+    func run() throws {
+      inputs.forEach { path in
+        let fileURL = URL(fileURLWithPath: path)
+        switch fm.fileExistance(at: fileURL) {
+        case .directory:
+          if recursive {
+            _ = fm.forEachContent(in: fileURL, handleFile: true, handleDirectory: false, skipHiddenFiles: true, body: { url in
+              handle(fileURL: url)
+            })
+          } else {
+            print("\(path) is directory! add -r option")
+          }
+        case .file:
+          handle(fileURL: fileURL)
+        case .none:
+          print("\(path) does not exist!")
+        }
+      }
+    }
+
+    func handle(fileURL: URL) {
+      do {
+        guard fileURL.pathExtension.lowercased() == "mkv" else {
+          return
+        }
+        print("Handling \(fileURL.path)")
+
+        var chapter = try utility.extractAndReadChapter(from: fileURL, keepChapterFile: true)
+
+        for entryIndex in chapter.entries.indices {
+          var entry = chapter.entries[entryIndex]
+          for atomIndex in entry.chapterAtoms.indices {
+            var atom = entry.chapterAtoms[atomIndex]
+            guard var chapterDisplays = atom.chapterDisplays,
+                  !chapterDisplays.isEmpty else {
+              continue
+            }
+            if let fromDisplayIndex = chapterDisplays.firstIndex(where: { $0.chapterLanguage == from }) {
+              let fromDisplay = chapterDisplays[fromDisplayIndex]
+              chapterDisplays.remove(at: fromDisplayIndex)
+              if let toDisplayIndex = chapterDisplays.firstIndex(where: { $0.chapterLanguage == to }) {
+                if overwrite {
+                  chapterDisplays[toDisplayIndex].chapterLanguage = to
+                } else {
+                  print("\(to) existed skip this display")
+                  continue
+                }
+              } else {
+                chapterDisplays.append(.init(chapterString: fromDisplay.chapterString, chapterLanguage: to))
+              }
+            }
+            atom.chapterDisplays = chapterDisplays
+            entry.chapterAtoms[atomIndex] = atom
+          }
+          chapter.entries[entryIndex] = entry
+        }
+
+        try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
 
       } catch {
         print("Error \(error)")

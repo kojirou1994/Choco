@@ -186,6 +186,9 @@ extension ChocoCli {
     @Option(help: "Codec for lossless audio track, \(ChocoConfiguration.AudioPreference.AudioCodec.availableValues)")
     var audioCodec: ChocoConfiguration.AudioPreference.AudioCodec = .flac
 
+    @Option(help: "Codec for fixsing lossy audio track, \(ChocoConfiguration.AudioPreference.AudioCodec.availableValues)")
+    var audioLossyCodec: ChocoConfiguration.AudioPreference.AudioCodec?
+
     @Option(help: "Audio kbps per channel")
     var audioBitrate: Int = 128
 
@@ -212,7 +215,7 @@ extension ChocoCli {
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
         videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, tune: videoTune, profile: videoProfile, crf: videoCrf, autoCrop: autoCrop),
-        audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
+        audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
         removeExtraDTS: removeExtraDTS,

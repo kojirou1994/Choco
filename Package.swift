@@ -67,6 +67,7 @@ let package = Package(
       dependencies: [
         "Executable",
         "URLFileManager",
+        .product(name: "Logging", package: "swift-log"),
         .product(name: "MediaUtility", package: "MediaUtility"),
         .product(name: "MediaTools", package: "MediaUtility"),
         .product(name: "ArgumentParser", package: "swift-argument-parser")

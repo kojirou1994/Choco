@@ -64,9 +64,11 @@ extension ChocoConfiguration {
 extension ChocoConfiguration {
 
   public struct AudioPreference: CustomStringConvertible {
-    public init(encodeAudio: Bool, codec: ChocoConfiguration.AudioPreference.AudioCodec, lossyAudioChannelBitrate: Int, downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod, preferedTool: ChocoConfiguration.AudioPreference.PreferedTool, protectedCodecs: Set<ChocoConfiguration.AudioPreference.LosslessAudioCodec>, fixCodecs: Set<ChocoConfiguration.AudioPreference.GrossLossyAudioCodec>) {
+    public init(encodeAudio: Bool, codec: ChocoConfiguration.AudioPreference.AudioCodec,
+                codecForLossyAudio: AudioCodec?, lossyAudioChannelBitrate: Int, downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod, preferedTool: ChocoConfiguration.AudioPreference.PreferedTool, protectedCodecs: Set<ChocoConfiguration.AudioPreference.LosslessAudioCodec>, fixCodecs: Set<ChocoConfiguration.AudioPreference.GrossLossyAudioCodec>) {
       self.encodeAudio = encodeAudio
       self.codec = codec
+      self.codecForLossyAudio = codecForLossyAudio ?? codec
       self.lossyAudioChannelBitrate = lossyAudioChannelBitrate
       self.downmixMethod = downmixMethod
       self.preferedTool = preferedTool
@@ -76,6 +78,7 @@ extension ChocoConfiguration {
 
     public let encodeAudio: Bool
     public let codec: AudioCodec
+    public let codecForLossyAudio: AudioCodec
     public let lossyAudioChannelBitrate: Int
     public let downmixMethod: DownmixMethod
     public let preferedTool: PreferedTool
@@ -100,10 +103,10 @@ extension ChocoConfiguration {
         }
         str.append(", downmix: \(downmixMethod)")
         if !protectedCodecs.isEmpty {
-          str.append(", protected: \(protectedCodecs)")
+          str.append(", protectedAudio: \(protectedCodecs)")
         }
         if !fixCodecs.isEmpty {
-          str.append(", fixing: \(fixCodecs)")
+          str.append(", fixingAudio: \(fixCodecs), lossyAudioCodec: \(codecForLossyAudio)")
         }
         str.append(")")
         return str

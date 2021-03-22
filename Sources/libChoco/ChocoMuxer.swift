@@ -605,21 +605,43 @@ extension ChocoMuxer {
 
           // lossless audio -> flac, or fix garbage dts
           if !trackDone && (currentTrack.isLosslessAudio || (config.audioPreference.shouldFix(.dts) && currentTrack.isGarbageDTS)) {
+            let codec = currentTrack.isLosslessAudio ? config.audioPreference.codec : config.audioPreference.codecForLossyAudio
             // add to ffmpeg arguments
             let tempFFmpegOutputFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
-            let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(config.audioPreference.codec.outputFileExtension)")
+            let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(codec.outputFileExtension)")
             ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", tempFFmpegOutputFlac.path])
 
-            audioConverters.append(.init(input: tempFFmpegOutputFlac, output: finalOutputAudioTrack, preference: config.audioPreference, ffmpegCodecs: ffmpegCodecs, channelCount: currentTrack.properties.audioChannels!, trackIndex: currentTrackIndex))
+            audioConverters.append(
+              .init(
+                input: tempFFmpegOutputFlac,
+                output: finalOutputAudioTrack,
+                codec: codec,
+                lossyAudioChannelBitrate: config.audioPreference.lossyAudioChannelBitrate,
+                preferedTool: config.audioPreference.preferedTool,
+                ffmpegCodecs: ffmpegCodecs,
+                channelCount: currentTrack.properties.audioChannels!,
+                trackIndex: currentTrackIndex)
+            )
 
             var replaceFiles = [finalOutputAudioTrack]
             // Optionally down mix
             if config.audioPreference.downmixMethod == .all, currentTrack.properties.audioChannels! > 2 {
               let tempFFmpegMixdownFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg-downmix.flac")
-              let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(config.audioPreference.codec.outputFileExtension)")
+              let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(codec.outputFileExtension)")
               ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", "-ac", "2", tempFFmpegMixdownFlac.path])
 
-              audioConverters.append(.init(input: tempFFmpegMixdownFlac, output: finalDownmixAudioTrack, preference: config.audioPreference, ffmpegCodecs: ffmpegCodecs, channelCount: 2, trackIndex: currentTrackIndex))
+              audioConverters.append(
+                .init(
+                  input: tempFFmpegMixdownFlac,
+                  output: finalDownmixAudioTrack,
+                  codec: codec,
+                  lossyAudioChannelBitrate: config.audioPreference.lossyAudioChannelBitrate,
+                  preferedTool: config.audioPreference.preferedTool,
+                  ffmpegCodecs: ffmpegCodecs,
+                  channelCount: 2,
+                  trackIndex: currentTrackIndex)
+              )
+
               replaceFiles.insert(finalDownmixAudioTrack, at: 0)
             }
 

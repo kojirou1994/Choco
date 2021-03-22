@@ -6,14 +6,17 @@ import MediaTools
 struct AudioConverter {
   let input: URL
   let output: URL
-  let preference: ChocoConfiguration.AudioPreference
+  let codec: ChocoConfiguration.AudioPreference.AudioCodec
+  let lossyAudioChannelBitrate: Int
+//  let downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod
+  let preferedTool: ChocoConfiguration.AudioPreference.PreferedTool
   let ffmpegCodecs: ChocoMuxer.FFmpegCodecs
   let channelCount: Int
   let trackIndex: Int
 
   private var ffmpeg: AnyExecutable {
     let arguments: [String]
-    switch preference.codec {
+    switch codec {
     case .flac:
       arguments = ["-nostdin", "-i", input.path, output.path]
     case .opus:
@@ -37,9 +40,9 @@ struct AudioConverter {
   }
 
   var executable: AnyExecutable {
-    switch preference.preferedTool {
+    switch preferedTool {
     case .official:
-      switch preference.codec {
+      switch codec {
       case .flac:
         var flac = FlacEncoder(input: input.path, output: output.path)
         flac.level = 8
@@ -55,6 +58,6 @@ struct AudioConverter {
   }
 
   private var bitrate: Int {
-    channelCount * preference.lossyAudioChannelBitrate
+    channelCount * lossyAudioChannelBitrate
   }
 }
