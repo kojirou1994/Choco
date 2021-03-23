@@ -47,11 +47,17 @@ public final class ChocoMuxer {
     if config.videoPreference.videoProcess == .encode {
       switch config.videoPreference.codec {
       case .x264:
-        try preconditionOrThrow(ffmpegCodecs.x264, "no x264!")
+        try preconditionOrThrow(ffmpegCodecs.x264, "ffmpeg no x264!")
       case .x265:
-        try preconditionOrThrow(ffmpegCodecs.x265, "no x265!")
+        try preconditionOrThrow(ffmpegCodecs.x265, "ffmpeg no x265!")
       case .h264VT:
-        try preconditionOrThrow(ffmpegCodecs.videotoolbox, "no videotoolbox")
+        try preconditionOrThrow(ffmpegCodecs.videotoolbox, "ffmpeg no videotoolbox!")
+        switch config.videoPreference.quality {
+        case .crf:
+          try preconditionOrThrow(config.videoPreference.codec.supportsCrf, "Codec \(config.videoPreference.codec) doesn't support crf mode!")
+        default:
+          break
+        }
       }
       if config.videoPreference.encodeScript != nil {
         try preconditionOrThrow(ffmpegCodecs.vapoursynth, "no vapoursynth!")

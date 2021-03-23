@@ -43,6 +43,7 @@ extension ChocoConfiguration.VideoPreference.Codec: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.CodecPreset: ExpressibleByArgument {}
 extension ChocoConfiguration.AudioPreference.DownmixMethod: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.VideoProcess: ExpressibleByArgument {}
+extension ChocoConfiguration.VideoPreference.VideoQuality: ExpressibleByArgument {}
 extension Logger.Level: ExpressibleByArgument {}
 extension ChocoSplit: ExpressibleByArgument {}
 

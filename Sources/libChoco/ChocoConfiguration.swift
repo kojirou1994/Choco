@@ -183,12 +183,12 @@ extension ChocoConfiguration {
                 codec: Codec,
                 preset: CodecPreset,
                 tune: String?, profile: String?,
-                crf: Double, autoCrop: Bool) {
+                quality: VideoQuality, autoCrop: Bool) {
       self.videoProcess = videoProcess
       self.encodeScript = encodeScript
       self.codec = codec
       self.preset = preset
-      self.crf = crf
+      self.quality = quality
       self.autoCrop = autoCrop
       self.tune = tune
       self.profile = profile
@@ -200,7 +200,7 @@ extension ChocoConfiguration {
     public let tune: String?
     public let profile: String?
     public let preset: CodecPreset
-    public let crf: Double
+    public let quality: VideoQuality
     public let autoCrop: Bool
     public let allowSoftVT: Bool = true
 
@@ -211,7 +211,7 @@ extension ChocoConfiguration {
       case .copy:
         return "Copy"
       case .encode:
-        var str = "Encode(codec: \(codec), crf: \(crf), preset: \(preset)"
+        var str = "Encode(codec: \(codec), quality: \(quality), preset: \(preset)"
         if let v = profile {
           str.append(", profile: \(v)")
         }
@@ -227,6 +227,42 @@ extension ChocoConfiguration {
         str.append(")")
         return str
       }
+    }
+
+    public enum VideoQuality: RawRepresentable, CustomStringConvertible {
+      case crf(Double)
+      case bitrate(String)
+
+      public init?(rawValue: String) {
+        guard let (left, right) = rawValue.splitTwoPart(":") else {
+          return nil
+        }
+        switch left {
+        case "crf":
+          guard let crf = Double(right) else {
+            return nil
+          }
+          self = .crf(crf)
+        case "bitrate":
+          guard !right.isEmpty else {
+            return nil
+          }
+          self = .bitrate(String(right))
+        default:
+          return nil
+        }
+      }
+
+      public var rawValue: String {
+        switch self {
+        case .crf(let crf):
+          return "crf:\(crf)"
+        case .bitrate(let bitrate):
+          return "bitrate:\(bitrate)"
+        }
+      }
+
+      public var description: String { rawValue }
     }
 
     public enum VideoProcess: String, CaseIterable, CustomStringConvertible {
@@ -269,9 +305,30 @@ extension ChocoConfiguration.AudioPreference.AudioCodec {
 }
 
 extension ChocoConfiguration.VideoPreference.Codec {
-  var pixelFormat: String {
+
+  var supportsCrf: Bool {
+    switch self {
+    case .h264VT:
+      return false
+    default:
+      return true
+    }
+  }
+
+  var ffCodec: String {
     switch self {
     case .x264:
+      return "libx264"
+    case .x265:
+      return "libx265"
+    case .h264VT:
+      return "h264_videotoolbox"
+    }
+  }
+
+  var pixelFormat: String {
+    switch self {
+    case .x264, .h264VT:
       return "yuv420p"
     case .x265:
       return "yuv420p10le"
@@ -280,7 +337,7 @@ extension ChocoConfiguration.VideoPreference.Codec {
 
   var depth: Int {
     switch self {
-    case .x264:
+    case .x264, .h264VT:
       return 8
     case .x265:
       return 10
@@ -301,9 +358,16 @@ extension ChocoConfiguration.VideoPreference {
     var args = [
       "-c:v", codec.ffCodec,
       "-pix_fmt", codec.pixelFormat,
-      "-crf", "\(crf)",
       "-preset", preset.rawValue
     ]
+    switch quality {
+    case .crf(let crf):
+      args.append("-crf")
+      args.append(crf.description)
+    case .bitrate(let bitrate):
+      args.append("-b")
+      args.append(bitrate)
+    }
     /*
      -profile 2 for hevcVT
      */
