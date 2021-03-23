@@ -465,17 +465,40 @@ extension ChocoMuxer {
 
   private func withTemporaryDirectory<T>(_ body: (URL) throws -> T) throws -> T {
     let uniqueTempDirectory = config.temperoraryDirectory.appendingPathComponent(UUID().uuidString)
-    try _fm.createDirectory(at: uniqueTempDirectory)
+    logger.info("Creating temp dir at: \(uniqueTempDirectory.path)")
+    do {
+      try _fm.createDirectory(at: uniqueTempDirectory)
+    } catch {
+      logger.error("Failed to create.")
+      throw error
+    }
+    var taskSuccess = false
     defer {
-      do {
-        try _fm.removeItem(at: uniqueTempDirectory)
-      } catch {
-        logger.error("cannot create/remove temp directory: \(uniqueTempDirectory.path), error: \(error)")
+      let needRemove: Bool
+      switch (config.keepTempMethod, taskSuccess) {
+      case (.always, _),
+           (.failed, false):
+        needRemove = false
+      default:
+        needRemove = true
+      }
+      if needRemove {
+        do {
+          try _fm.removeItem(at: uniqueTempDirectory)
+        } catch {
+          logger.error("cannot remove temp directory: \(uniqueTempDirectory.path), error: \(error)")
+        }
       }
     }
     self.currentTemporaryPath = uniqueTempDirectory
     defer { self.currentTemporaryPath = nil }
-    return try body(uniqueTempDirectory)
+    do {
+      let result = try body(uniqueTempDirectory)
+      taskSuccess = true
+      return result
+    } catch {
+      throw error
+    }
   }
 
   private func display(modiifcations: [TrackModification]) {

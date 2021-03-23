@@ -24,6 +24,7 @@ public struct ChocoConfiguration {
   public let ignoreWarning: Bool
   public let organizeOutput: Bool
   public let mainTitleOnly: Bool
+  public let keepTempMethod: KeepTempMethod
 
   public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: ChocoWorkMode,
               videoPreference: VideoPreference,
@@ -31,7 +32,8 @@ public struct ChocoConfiguration {
               split: ChocoSplit?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?,
               ignoreInputPrimaryLang: Bool,
               copyDirectoryFile: Bool, deleteAfterRemux: Bool,
-              keepTrackName: Bool, keepVideoLanguage: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool) {
+              keepTrackName: Bool, keepVideoLanguage: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool,
+              keepTempMethod: KeepTempMethod) {
     self.outputRootDirectory = outputRootDirectory
     self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(ChocoTempDirectoryName)
     self.mode = mode
@@ -48,6 +50,7 @@ public struct ChocoConfiguration {
     self.ignoreWarning = ignoreWarning
     self.organizeOutput = organize
     self.mainTitleOnly = mainTitleOnly
+    self.keepTempMethod = keepTempMethod
   }
 
 }
@@ -57,6 +60,16 @@ extension ChocoConfiguration {
   public struct MetaPreference: CustomStringConvertible {
     public var description: String {
       ""
+    }
+  }
+
+  public enum KeepTempMethod: String, CaseIterable, CustomStringConvertible {
+    case always
+    case failed
+    case never
+
+    public var description: String {
+      rawValue
     }
   }
 }

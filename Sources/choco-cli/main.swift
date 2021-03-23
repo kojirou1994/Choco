@@ -38,6 +38,7 @@ extension Summary {
 extension LanguageSet: ExpressibleByArgument {}
 
 extension ChocoWorkMode: ExpressibleByArgument {}
+extension ChocoConfiguration.KeepTempMethod: ExpressibleByArgument {}
 extension ChocoConfiguration.AudioPreference.AudioCodec: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.Codec: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.CodecPreset: ExpressibleByArgument {}
@@ -130,6 +131,9 @@ extension ChocoCli {
     @Flag(help: "Delete the src after remux")
     var deleteAfterRemux: Bool = false
 
+    @Option(help: "Keep temp dir method, \(ChocoConfiguration.KeepTempMethod.availableValues)")
+    var keepTemp: ChocoConfiguration.KeepTempMethod = .never
+
     @Flag(help: "Copy normal files in directory mode.")
     var copyDirectoryFile: Bool = false
 
@@ -220,7 +224,7 @@ extension ChocoCli {
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
         removeExtraDTS: removeExtraDTS,
-        ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly)
+        ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly, keepTempMethod: .never)
 
       var logger = Logger(label: "choco")
       logger.logLevel = logLevel
