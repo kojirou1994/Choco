@@ -215,7 +215,7 @@ extension ChocoCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
-        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, tune: videoTune, profile: videoProfile, crf: videoCrf, autoCrop: autoCrop),
+        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
