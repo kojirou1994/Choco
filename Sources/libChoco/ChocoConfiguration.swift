@@ -371,14 +371,13 @@ extension ChocoConfiguration.VideoPreference {
     var args = [
       "-c:v", codec.ffCodec,
       "-pix_fmt", codec.pixelFormat,
-      "-preset", preset.rawValue
     ]
     switch quality {
     case .crf(let crf):
       args.append("-crf")
       args.append(crf.description)
     case .bitrate(let bitrate):
-      args.append("-b")
+      args.append("-b:v")
       args.append(bitrate)
     }
     /*
@@ -388,9 +387,11 @@ extension ChocoConfiguration.VideoPreference {
     case .h264VT:
       if allowSoftVT {
         args.append("-allow_sw")
+        args.append("1")
       }
-    default:
-      break
+    case .x265, .x264:
+      args.append("-preset")
+      args.append(preset.rawValue)
     }
 
     if let tune = self.tune {
