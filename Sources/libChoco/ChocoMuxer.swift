@@ -21,6 +21,8 @@ public final class ChocoMuxer {
     let x264: Bool
     let fdkAAC: Bool
     let libopus: Bool
+    let videotoolbox: Bool
+    let audiotoolbox: Bool
     let vapoursynth: Bool
 
     init() throws {
@@ -31,6 +33,8 @@ public final class ChocoMuxer {
       x264 = options.contains("--enable-libx264")
       fdkAAC = options.contains("--enable-libfdk-aac")
       libopus = options.contains("--enable-libopus")
+      videotoolbox = options.contains("--enable-videotoolbox")
+      audiotoolbox = options.contains("--enable-audiotoolbox")
       vapoursynth = options.contains("--enable-vapoursynth")
     }
 
@@ -46,6 +50,8 @@ public final class ChocoMuxer {
         try preconditionOrThrow(ffmpegCodecs.x264, "no x264!")
       case .x265:
         try preconditionOrThrow(ffmpegCodecs.x265, "no x265!")
+      case .h264VT:
+        try preconditionOrThrow(ffmpegCodecs.videotoolbox, "no videotoolbox")
       }
       if config.videoPreference.encodeScript != nil {
         try preconditionOrThrow(ffmpegCodecs.vapoursynth, "no vapoursynth!")

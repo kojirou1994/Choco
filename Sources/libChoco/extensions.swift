@@ -156,4 +156,12 @@ extension Array where Element == Mpls {
 
 }
 
-
+extension String {
+  @inlinable
+  func splitTwoPart(_ separator: Character) -> (Substring, Substring)? {
+    guard let sepIndex = firstIndex(of: separator) else {
+      return nil
+    }
+    return (self[..<sepIndex], self[self.index(after: sepIndex)...])
+  }
+}

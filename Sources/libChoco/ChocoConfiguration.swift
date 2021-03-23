@@ -202,6 +202,7 @@ extension ChocoConfiguration {
     public let preset: CodecPreset
     public let crf: Double
     public let autoCrop: Bool
+    public let allowSoftVT: Bool = true
 
     public var description: String {
       switch videoProcess {
@@ -239,6 +240,8 @@ extension ChocoConfiguration {
     public enum Codec: String, CaseIterable, CustomStringConvertible {
       case x265
       case x264
+      case h264VT
+//      case hevcVT
 
       public var description: String { rawValue }
     }
@@ -296,11 +299,22 @@ extension ChocoConfiguration.VideoPreference {
 
   var ffmpegArguments: [String] {
     var args = [
-      "-c:v", "lib\(codec.rawValue)",
+      "-c:v", codec.ffCodec,
       "-pix_fmt", codec.pixelFormat,
       "-crf", "\(crf)",
       "-preset", preset.rawValue
     ]
+    /*
+     -profile 2 for hevcVT
+     */
+    switch codec {
+    case .h264VT:
+      if allowSoftVT {
+        args.append("-allow_sw")
+      }
+    default:
+      break
+    }
 
     if let tune = self.tune {
       if codec == .x265, let chocoTune = ChocoX265Tune(rawValue: tune) {
