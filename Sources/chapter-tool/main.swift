@@ -16,8 +16,49 @@ struct ChapterTool: ParsableCommand {
       Rename.self,
       Clean.self,
       AutoRename.self,
-      ChangeLang.self
+      ChangeLang.self,
+      ConvertLosslessCut.self,
     ])
+  }
+
+  struct ConvertLosslessCut: ParsableCommand {
+
+    @Argument
+    var input: String
+
+
+    func convert(_ v: Double) -> String {
+      let timestamp = Timestamp(ns: UInt64(v * 1_000_000_000))
+      return timestamp.toString(displayNanoSecond: true)
+    }
+
+    func run() throws {
+      let lines = try String(contentsOfFile: input)
+        .split(separator: "\n")
+
+      let uidStorage: [UInt]
+      do {
+        var uids = Set<UInt>()
+        let uidCount = lines.count + 1
+        uids.reserveCapacity(uidCount)
+        while uids.count != uidCount {
+          uids.insert(.random(in: UInt.min...UInt.max))
+        }
+        uidStorage = Array(uids)
+      }
+
+      let segments = try zip(lines, uidStorage).map { line, uid -> MatroskaChapters.EditionEntry.ChapterAtom in
+        let parts = line.split(separator: ",")
+        try preconditionOrThrow(parts.count > 1, "Invalid line: \(line)")
+        let start = try Double(parts[0]).unwrap()
+        let end = try Double(parts[1]).unwrap()
+        return MatroskaChapters.EditionEntry.ChapterAtom(uid: uid, startTime: convert(start), endTime: convert(end), isHidden: true, displays: nil)
+      }
+
+      let chapter = MatroskaChapters(entries: [.init(uid: uidStorage.last!, isHidden: true, isManaged: nil, isOrdered: true, isDefault: true, chapters: segments)])
+      let outputURL = fm.makeUniqueFileURL(URL(fileURLWithPath: input).appendingPathExtension("xml"))
+      try chapter.exportXML().write(to: outputURL)
+    }
   }
 
   struct AutoRename: ParsableCommand {
@@ -54,37 +95,36 @@ struct ChapterTool: ParsableCommand {
 
             var chapter = try utility.extractAndReadChapter(from: fileURL, keepChapterFile: true)
 
-            precondition(chapter.entries.count == 1)
+            try preconditionOrThrow(chapter.entries.count == 1, "File must have only 1 chapter edition entry")
 
             let titles = try String(contentsOf: chapterFileURL).components(separatedBy: .newlines)
 
-            var chapterAtoms = chapter.entries[0].chapterAtoms
+            var chapterAtoms = chapter.entries[0].chapters
             if chapterAtoms.count > titles.count {
               if removeExtraChapter {
                 chapterAtoms.removeLast(chapterAtoms.count - titles.count)
               } else {
                 throw ValidationError("Chapter count mismatch")
               }
-            }
-            if chapterAtoms.count < titles.count {
+            } else if chapterAtoms.count < titles.count {
               throw ValidationError("Chapter count mismatch, titles over flow")
             }
 
             for index in titles.indices {
               let chapterString = titles[index]
-              if var chapterDisplays = chapterAtoms[index].chapterDisplays {
-                if let displayIndex = chapterDisplays.firstIndex(where: {$0.chapterLanguage == language}) {
-                  chapterDisplays[displayIndex].chapterString = chapterString
+              if var chapterDisplays = chapterAtoms[index].displays {
+                if let displayIndex = chapterDisplays.firstIndex(where: {$0.language == language}) {
+                  chapterDisplays[displayIndex].string = chapterString
                 } else {
-                  chapterDisplays.append(.init(chapterString: chapterString, chapterLanguage: language))
+                  chapterDisplays.append(.init(string: chapterString, language: language))
                 }
-                chapterAtoms[index].chapterDisplays = chapterDisplays
+                chapterAtoms[index].displays = chapterDisplays
               } else {
-                chapterAtoms[index].chapterDisplays = [.init(chapterString: chapterString, chapterLanguage: language)]
+                chapterAtoms[index].displays = [.init(string: chapterString, language: language)]
               }
             }
 
-            chapter.entries[0].chapterAtoms = chapterAtoms
+            chapter.entries[0].chapters = chapterAtoms
 
             try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
           } catch {
@@ -117,26 +157,26 @@ struct ChapterTool: ParsableCommand {
 
       let titles = try String(contentsOfFile: chapterPath).components(separatedBy: .newlines)
 
-      var chapterAtoms = chapter.entries[0].chapterAtoms
+      var chapterAtoms = chapter.entries[0].chapters
       guard chapterAtoms.count == titles.count else {
         throw ValidationError("Chapter count mismatch")
       }
 
       for index in chapterAtoms.indices {
         let chapterString = titles[index]
-        if var chapterDisplays = chapterAtoms[index].chapterDisplays {
-          if let displayIndex = chapterDisplays.firstIndex(where: {$0.chapterLanguage == language}) {
-            chapterDisplays[displayIndex].chapterString = chapterString
+        if var chapterDisplays = chapterAtoms[index].displays {
+          if let displayIndex = chapterDisplays.firstIndex(where: {$0.language == language}) {
+            chapterDisplays[displayIndex].string = chapterString
           } else {
-            chapterDisplays.append(.init(chapterString: chapterString, chapterLanguage: language))
+            chapterDisplays.append(.init(string: chapterString, language: language))
           }
-          chapterAtoms[index].chapterDisplays = chapterDisplays
+          chapterAtoms[index].displays = chapterDisplays
         } else {
-          chapterAtoms[index].chapterDisplays = [.init(chapterString: chapterString, chapterLanguage: language)]
+          chapterAtoms[index].displays = [.init(string: chapterString, language: language)]
         }
       }
 
-      chapter.entries[0].chapterAtoms = chapterAtoms
+      chapter.entries[0].chapters = chapterAtoms
 
       try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
 
@@ -184,33 +224,18 @@ struct ChapterTool: ParsableCommand {
 
         var chapter = try utility.extractAndReadChapter(from: fileURL, keepChapterFile: true)
 
-        try preconditionOrThrow(chapter.entries.count == 1, "Unsupported chapter entry count: \(chapter.entries.count)")
+        chapter.entries.mutateEach { entry in
+          entry.chapters.mutateEach { chapter in
+            precondition(chapter.timestamp != nil, "Invalid timestamp \(chapter.startTime)")
+            precondition(chapter.timestamp!.toString(displayNanoSecond: true) == chapter.startTime, "Invalid timestamp \(chapter.startTime) decoded: \(Timestamp(string: chapter.startTime)!)")
 
-        var cleanChapterAtoms: [MatroskaChapters.EditionEntry.ChapterAtom] = []
-
-        func append(node: MatroskaChapters.EditionEntry.ChapterAtom) {
-          var copy = node
-          if removeTitle {
-            copy.chapterDisplays = nil
-          }
-          cleanChapterAtoms.append(copy)
-        }
-        for node in chapter.entries[0].chapterAtoms {
-          precondition(node.timestamp != nil, "Invalid timestamp \(node.chapterTimeStart)")
-          precondition(node.timestamp!.toString(displayNanoSecond: true) == node.chapterTimeStart, "Invalid timestamp \(node.chapterTimeStart) decoded: \(Timestamp(string: node.chapterTimeStart)!)")
-          if let last = cleanChapterAtoms.last {
-            let interval = node.timestamp! - last.timestamp!
-            if interval >= Self.minChapterInterval {
-              append(node: node)
+            if removeTitle {
+              chapter.displays = nil
             }
-          } else {
-            append(node: node)
           }
         }
 
-        chapter.entries[0].chapterAtoms = cleanChapterAtoms
         try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
-
       } catch {
         print("Error \(error)")
       }
@@ -267,32 +292,28 @@ struct ChapterTool: ParsableCommand {
 
         var chapter = try utility.extractAndReadChapter(from: fileURL, keepChapterFile: true)
 
-        for entryIndex in chapter.entries.indices {
-          var entry = chapter.entries[entryIndex]
-          for atomIndex in entry.chapterAtoms.indices {
-            var atom = entry.chapterAtoms[atomIndex]
-            guard var chapterDisplays = atom.chapterDisplays,
+        chapter.entries.mutateEach { entry in
+          entry.chapters.mutateEach { atom in
+            guard var chapterDisplays = atom.displays,
                   !chapterDisplays.isEmpty else {
-              continue
+              return
             }
-            if let fromDisplayIndex = chapterDisplays.firstIndex(where: { $0.chapterLanguage == from }) {
+            if let fromDisplayIndex = chapterDisplays.firstIndex(where: { $0.language == from }) {
               let fromDisplay = chapterDisplays[fromDisplayIndex]
               chapterDisplays.remove(at: fromDisplayIndex)
-              if let toDisplayIndex = chapterDisplays.firstIndex(where: { $0.chapterLanguage == to }) {
+              if let toDisplayIndex = chapterDisplays.firstIndex(where: { $0.language == to }) {
                 if overwrite {
-                  chapterDisplays[toDisplayIndex].chapterLanguage = to
+                  chapterDisplays[toDisplayIndex].language = to
                 } else {
                   print("\(to) existed skip this display")
-                  continue
+                  return
                 }
               } else {
-                chapterDisplays.append(.init(chapterString: fromDisplay.chapterString, chapterLanguage: to))
+                chapterDisplays.append(.init(string: fromDisplay.string, language: to))
               }
             }
-            atom.chapterDisplays = chapterDisplays
-            entry.chapterAtoms[atomIndex] = atom
+            atom.displays = chapterDisplays
           }
-          chapter.entries[entryIndex] = entry
         }
 
         try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)

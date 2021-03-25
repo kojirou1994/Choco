@@ -46,10 +46,8 @@ struct ChapterUtility {
       _ = try MkvPropEdit(parseMode: nil, file: path, actions: [.chapter(filename: chap)])
         .launch(use: TSCExecutableLauncher())
     }
-    if chapter.entries.isEmpty {
-      try write(chap: "", file: fileURL)
-    } else if let entry = chapter.entries.first,
-              entry.isEmpty {
+    if chapter.entries.allSatisfy({ $0.isEmpty }) {
+      // no valid chapters
       try write(chap: "", file: fileURL)
     } else {
       let newChapterURL = fm.makeUniqueFileURL(fileURL.appendingPathExtension("new_chapter.xml"))
