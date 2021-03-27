@@ -49,10 +49,10 @@ struct ChapterTool: ParsableCommand {
 
       let segments = try zip(lines, uidStorage).map { line, uid -> MatroskaChapters.EditionEntry.ChapterAtom in
         let parts = line.split(separator: ",")
-        try preconditionOrThrow(parts.count > 1, "Invalid line: \(line)")
-        let start = try Double(parts[0]).unwrap()
-        let end = try Double(parts[1]).unwrap()
-        return MatroskaChapters.EditionEntry.ChapterAtom(uid: uid, startTime: convert(start), endTime: convert(end), isHidden: true, displays: nil)
+        try preconditionOrThrow(parts.count > 0, "Invalid line: \(line)")
+        let start = convert(try Double(parts[0]).unwrap())
+        let end = parts.count == 1 ? nil : convert(try Double(parts[1]).unwrap())
+        return MatroskaChapters.EditionEntry.ChapterAtom(uid: uid, startTime: start, endTime: end, isHidden: true, displays: nil)
       }
 
       let chapter = MatroskaChapters(entries: [.init(uid: uidStorage.last!, isHidden: true, isManaged: nil, isOrdered: true, isDefault: true, chapters: segments)])
