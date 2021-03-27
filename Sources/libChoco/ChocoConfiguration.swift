@@ -195,12 +195,14 @@ extension ChocoConfiguration {
     public init(videoProcess: VideoProcess, encodeScript: String?,
                 codec: Codec,
                 preset: CodecPreset,
+                colorPreset: ColorPreset?,
                 tune: String?, profile: String?,
                 quality: VideoQuality, autoCrop: Bool) {
       self.videoProcess = videoProcess
       self.encodeScript = encodeScript
       self.codec = codec
       self.preset = preset
+      self.colorPreset = colorPreset
       self.quality = quality
       self.autoCrop = autoCrop
       self.tune = tune
@@ -213,6 +215,7 @@ extension ChocoConfiguration {
     public let tune: String?
     public let profile: String?
     public let preset: CodecPreset
+    public let colorPreset: ColorPreset?
     public let quality: VideoQuality
     public let autoCrop: Bool
     public let allowSoftVT: Bool = true
@@ -295,6 +298,17 @@ extension ChocoConfiguration {
       public var description: String { rawValue }
     }
 
+    public enum ColorPreset: String, CaseIterable, CustomStringConvertible {
+      case bt709
+
+      var ffmpegName: String {
+        rawValue
+      }
+
+      public var description: String { rawValue }
+    }
+
+
     public enum CodecPreset: String, CaseIterable, CustomStringConvertible {
       case ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo
 
@@ -372,6 +386,13 @@ extension ChocoConfiguration.VideoPreference {
       "-c:v", codec.ffCodec,
       "-pix_fmt", codec.pixelFormat,
     ]
+    colorPreset.map { colorPreset in
+      args.append(contentsOf: [
+        "-colorspace:v", colorPreset.ffmpegName,
+        "-color_primaries:v", colorPreset.ffmpegName,
+        "-color_trc:v", colorPreset.ffmpegName,
+      ])
+    }
     switch quality {
     case .crf(let crf):
       args.append("-crf")

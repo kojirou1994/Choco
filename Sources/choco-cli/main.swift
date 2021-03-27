@@ -42,6 +42,7 @@ extension ChocoConfiguration.KeepTempMethod: ExpressibleByArgument {}
 extension ChocoConfiguration.AudioPreference.AudioCodec: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.Codec: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.CodecPreset: ExpressibleByArgument {}
+extension ChocoConfiguration.VideoPreference.ColorPreset: ExpressibleByArgument {}
 extension ChocoConfiguration.AudioPreference.DownmixMethod: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.VideoProcess: ExpressibleByArgument {}
 extension ChocoConfiguration.VideoPreference.VideoQuality: ExpressibleByArgument {}
@@ -167,6 +168,9 @@ extension ChocoCli {
     @Option(help: "Codec for video track, \(ChocoConfiguration.VideoPreference.Codec.availableValues)")
     var videoCodec: ChocoConfiguration.VideoPreference.Codec = .x265
 
+    @Option(help: "Color preset for video track, \(ChocoConfiguration.VideoPreference.ColorPreset.availableValues)")
+    var videoColor: ChocoConfiguration.VideoPreference.ColorPreset?
+
     @Option(help: "VS script template path.")
     var encodeScript: String?
 
@@ -219,7 +223,7 @@ extension ChocoCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
-        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop),
+        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
