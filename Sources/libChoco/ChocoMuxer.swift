@@ -554,7 +554,7 @@ extension ChocoMuxer {
             ffmpeg.arguments.append(contentsOf: config.videoPreference.ffmpegArguments)
             ffmpeg.arguments.append(encodedTrackFile.path)
 
-            try pipeline.append(ffmpeg)
+            try pipeline.append(ffmpeg, isLast: true)
 
             try pipeline.run()
 
