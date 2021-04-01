@@ -557,7 +557,7 @@ extension ChocoMuxer {
 
             try pipeline.run()
 
-            runningProcessID = pipeline.processes.first?.processIdentifier
+            runningProcessID = pipeline.processes[0].processIdentifier
             defer {
               runningProcessID = nil
             }
