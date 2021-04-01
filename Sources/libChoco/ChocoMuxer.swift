@@ -717,9 +717,9 @@ extension ChocoMuxer {
       return trackModifications
     }
 
-    if ffmpeg.ios.contains(where: { !$0.isInput }) {
-      // ffmpeg arguments modified, should launch ffmpeg
-      logger.info("ffmpeg \(ffmpeg.arguments.joined(separator: " "))")
+    if ffmpeg.ios.contains(where: { $0.isOutput }) {
+      // ffmpeg has output, should launch ffmpeg
+      logger.info("\(ffmpeg.commandLineArguments)")
       // file's audio tracks -> external temp flac
       try launch(externalExecutable: ffmpeg,
                  checkAllowedExitCodes: [0])

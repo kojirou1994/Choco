@@ -306,6 +306,13 @@ extension ChocoConfiguration {
         rawValue
       }
 
+      var colorRange: String {
+        switch self {
+        case .bt709:
+          return "tv"
+        }
+      }
+
       public var description: String { rawValue }
     }
 
@@ -386,13 +393,18 @@ extension ChocoConfiguration.VideoPreference {
     var options = [FFmpeg.InputOutputOption]()
     options.append(.codec(codec.ffCodec, streamSpecifier: .streamType(.video)))
     options.append(.pixelFormat(codec.pixelFormat, streamSpecifier: nil))
+
+    // color
     colorPreset.map { colorPreset in
       options.append(contentsOf: [
         .colorspace(colorPreset.ffmpegName, streamSpecifier: .streamType(.video)),
         .colorPrimaries(colorPreset.ffmpegName, streamSpecifier: .streamType(.video)),
-        .colorTransferCharacteristics(colorPreset.ffmpegName, streamSpecifier: .streamType(.video))
+        .colorTransferCharacteristics(colorPreset.ffmpegName, streamSpecifier: .streamType(.video)),
+        .avOption(name: "color_range", value: colorPreset.colorRange, streamSpecifier: .streamType(.video)),
       ])
     }
+
+    // quality
     switch quality {
     case .crf(let crf):
       options.append(.avOption(name: "crf", value: crf.description, streamSpecifier: nil))
@@ -415,12 +427,10 @@ extension ChocoConfiguration.VideoPreference {
     if let tune = self.tune {
       if codec == .x265, let chocoTune = ChocoX265Tune(rawValue: tune) {
         options.append(.avOption(name: "x265-params",
-                                 value: chocoTune.parameterDictionary.map { param in
-                                  //          if param.value.isEmpty {
-                                  //            return param.key
-                                  //          }
-                                  return "\(param.key)=\(param.value)"
-                                 }.joined(separator: ":"),
+                                 value: chocoTune.parameterDictionary
+                                  .map { param in
+                                    "\(param.key)=\(param.value)"
+                                  }.joined(separator: ":"),
                                  streamSpecifier: nil))
       } else {
         options.append(.avOption(name: "tune", value: tune, streamSpecifier: nil))
