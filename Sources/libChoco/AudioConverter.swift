@@ -8,37 +8,37 @@ struct AudioConverter {
   let output: URL
   let codec: ChocoConfiguration.AudioPreference.AudioCodec
   let lossyAudioChannelBitrate: Int
-//  let downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod
+  //  let downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod
   let preferedTool: ChocoConfiguration.AudioPreference.PreferedTool
   let ffmpegCodecs: ChocoMuxer.FFmpegCodecs
   let channelCount: Int
   let trackIndex: Int
-
+  
   private var ffmpeg: AnyExecutable {
-    let arguments: [String]
+    var options = [FFmpeg.InputOutputOption]()
     switch codec {
     case .flac:
-      arguments = ["-nostdin", "-i", input.path, output.path]
+      break
     case .opus:
+      let codec: String
       if ffmpegCodecs.libopus {
-        arguments = ["-nostdin",
-                     "-i", input.path,
-                     "-c:a", "libopus",
-                     "-b:a", "\(bitrate)k", output.path]
+        codec = "libopus"
       } else {
-        arguments = ["-nostdin", "-strict", "-2",
-                     "-i", input.path,
-                     "-c:a", "opus",
-                     "-b:a", "\(bitrate)k", output.path]
+        codec = "opus"
+        options.append(.strict(level: .experimental))
       }
+      options.append(.codec(codec, streamSpecifier: .streamType(.audio)))
     case .aac:
-      arguments = ["-nostdin", "-i", input.path,
-                   "-c:a", ffmpegCodecs.aacCodec,
-                   "-b:a", "\(bitrate)k", output.path]
+      options.append(.codec(ffmpegCodecs.aacCodec, streamSpecifier: .streamType(.audio)))
     }
-    return .init(executableName: "ffmpeg", arguments: arguments)
+    options.append(.bitrate("\(bitrate)k", streamSpecifier: .streamType(.audio)))
+    return FFmpeg(global: .init(enableStdin: false), ios: [
+      .input(url: input.path),
+      .output(url: output.path, options: options)
+    ])
+    .eraseToAnyExecutable()
   }
-
+  
   var executable: AnyExecutable {
     switch preferedTool {
     case .official:
@@ -56,7 +56,7 @@ struct AudioConverter {
       return ffmpeg
     }
   }
-
+  
   private var bitrate: Int {
     channelCount * lossyAudioChannelBitrate
   }

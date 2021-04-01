@@ -1,6 +1,7 @@
 import Foundation
 import ISOCodes
 import Logging
+import MediaTools
 
 internal let ChocoTempDirectoryName = "choco_tmp"
 
@@ -381,121 +382,123 @@ extension ChocoConfiguration.VideoPreference {
     case littlepoxPlus = "littlepox++"
   }
 
-  var ffmpegArguments: [String] {
-    var args = [
-      "-c:v", codec.ffCodec,
-      "-pix_fmt", codec.pixelFormat,
-    ]
+  var ffmpegIOOption: [FFmpeg.InputOutputOption] {
+    var options = [FFmpeg.InputOutputOption]()
+    options.append(.codec(codec.ffCodec, streamSpecifier: .streamType(.video)))
+    options.append(.pixelFormat(codec.pixelFormat, streamSpecifier: nil))
     colorPreset.map { colorPreset in
-      args.append(contentsOf: [
-        "-colorspace:v", colorPreset.ffmpegName,
-        "-color_primaries:v", colorPreset.ffmpegName,
-        "-color_trc:v", colorPreset.ffmpegName,
+      options.append(contentsOf: [
+        .colorspace(colorPreset.ffmpegName, streamSpecifier: .streamType(.video)),
+        .colorPrimaries(colorPreset.ffmpegName, streamSpecifier: .streamType(.video)),
+        .colorTransferCharacteristics(colorPreset.ffmpegName, streamSpecifier: .streamType(.video))
       ])
     }
     switch quality {
     case .crf(let crf):
-      args.append("-crf")
-      args.append(crf.description)
+      options.append(.avOption(name: "crf", value: crf.description, streamSpecifier: nil))
     case .bitrate(let bitrate):
-      args.append("-b:v")
-      args.append(bitrate)
+      options.append(.bitrate(bitrate, streamSpecifier: .streamType(.video)))
     }
+
     /*
      -profile 2 for hevcVT
      */
     switch codec {
     case .h264VT:
       if allowSoftVT {
-        args.append("-allow_sw")
-        args.append("1")
+        options.append(.avOption(name: "allow_sw", value: "1", streamSpecifier: nil))
       }
     case .x265, .x264:
-      args.append("-preset")
-      args.append(preset.rawValue)
+      options.append(.avOption(name: "preset", value: preset.rawValue, streamSpecifier: nil))
     }
 
     if let tune = self.tune {
       if codec == .x265, let chocoTune = ChocoX265Tune(rawValue: tune) {
-
-        var x265Params = [String : String]()
-
-        x265Params["merange"] = "25"
-        x265Params["aq-strength"] = "0.8"
-        x265Params["rd"] = "4"
-        //        if (param->rdLevel < 4) param->rdLevel = 4;
-        x265Params["rdoq-level"] = "2"
-        x265Params["sao"] = "0"
-        x265Params["strong-intra-smoothing"] = "0"
-
-        //        if (param->bframes + 1 < param->lookaheadDepth) param->bframes++;
-        //        if (param->bframes + 1 < param->lookaheadDepth) param->bframes++; //from tune animation
-        //        if (param->tuQTMaxInterDepth > 3) param->tuQTMaxInterDepth--;
-        //        if (param->tuQTMaxIntraDepth > 3) param->tuQTMaxIntraDepth--;
-        //        if (param->maxNumMergeCand > 3) param->maxNumMergeCand--;
-        //        if (param->subpelRefine < 3) param->subpelRefine = 3;
-        x265Params["min-keyint"] = "1"
-        x265Params["keyint"] = "360"
-        x265Params["open-gop"] = "0"
-
-        //        param->deblockingFilterBetaOffset = -1;
-        //        param->deblockingFilterTCOffset = -1;
-        x265Params["ctu"] = "32"
-        x265Params["max-tu-size"] = "32"
-        x265Params["qg-size"] = "8"
-        x265Params["cbqpoffs"] = "-2"
-        x265Params["crqpoffs"] = "-2"
-        x265Params["pbratio"] = "1.2"
-        x265Params["weightb"] = "1"
-
-        switch chocoTune {
-        case .littlepox, .littlepoxPlus:
-          // Mid bitrate anime
-//          param->rc.rfConstant = 20;
-          x265Params["psy-rd"] = "1.5"
-          x265Params["psy-rdoq"] = "0.8"
-
-          if chocoTune == .littlepoxPlus {
-//            if (param->maxNumReferences < 2) param->maxNumReferences = 2;
-            x265Params["subme"] = "3"
-//            if (param->lookaheadDepth < 60) param->lookaheadDepth = 60;
-            x265Params["merange"] = "38"
-          }
-        case .vcbs, .vcbsPlus:
-          // High bitrate anime (bluray) or film
-//          param->rc.rfConstant = 18;
-          x265Params["psy-rd"] = "1.8"
-          x265Params["psy-rdoq"] = "1.0"
-
-          if chocoTune == .vcbsPlus {
-//            if (param->maxNumReferences < 3) param->maxNumReferences = 3;
-            x265Params["subme"] = "3"
-            x265Params["b-intra"] = "1"
-            x265Params["rect"] = "1"
-            x265Params["limit-tu"] = "4"
-//            if (param->lookaheadDepth < 60) param->lookaheadDepth = 60;
-            x265Params["merange"] = "38"
-          }
-        }
-
-        args.append("-x265-params")
-        args.append(x265Params.map { param in
-//          if param.value.isEmpty {
-//            return param.key
-//          }
-          return "\(param.key)=\(param.value)"
-        }.joined(separator: ":"))
+        options.append(.avOption(name: "x265-params",
+                                 value: chocoTune.parameterDictionary.map { param in
+                                  //          if param.value.isEmpty {
+                                  //            return param.key
+                                  //          }
+                                  return "\(param.key)=\(param.value)"
+                                 }.joined(separator: ":"),
+                                 streamSpecifier: nil))
       } else {
-        args.append("-tune")
-        args.append(tune)
+        options.append(.avOption(name: "tune", value: tune, streamSpecifier: nil))
       }
     }
 
     if let profile = self.profile {
-      args.append("-profile")
-      args.append(profile)
+      options.append(.avOption(name: "profile", value: profile, streamSpecifier: nil))
     }
 
-    return args
+    return options
+  }
+
+}
+
+
+extension ChocoConfiguration.VideoPreference.ChocoX265Tune {
+  var parameterDictionary: [String : String] {
+    var x265Params = [String : String]()
+
+    x265Params["merange"] = "25"
+    x265Params["aq-strength"] = "0.8"
+    x265Params["rd"] = "4"
+    //        if (param->rdLevel < 4) param->rdLevel = 4;
+    x265Params["rdoq-level"] = "2"
+    x265Params["sao"] = "0"
+    x265Params["strong-intra-smoothing"] = "0"
+
+    //        if (param->bframes + 1 < param->lookaheadDepth) param->bframes++;
+    //        if (param->bframes + 1 < param->lookaheadDepth) param->bframes++; //from tune animation
+    //        if (param->tuQTMaxInterDepth > 3) param->tuQTMaxInterDepth--;
+    //        if (param->tuQTMaxIntraDepth > 3) param->tuQTMaxIntraDepth--;
+    //        if (param->maxNumMergeCand > 3) param->maxNumMergeCand--;
+    //        if (param->subpelRefine < 3) param->subpelRefine = 3;
+    x265Params["min-keyint"] = "1"
+    x265Params["keyint"] = "360"
+    x265Params["open-gop"] = "0"
+
+    //        param->deblockingFilterBetaOffset = -1;
+    //        param->deblockingFilterTCOffset = -1;
+    x265Params["ctu"] = "32"
+    x265Params["max-tu-size"] = "32"
+    x265Params["qg-size"] = "8"
+    x265Params["cbqpoffs"] = "-2"
+    x265Params["crqpoffs"] = "-2"
+    x265Params["pbratio"] = "1.2"
+    x265Params["weightb"] = "1"
+
+    switch self {
+    case .littlepox, .littlepoxPlus:
+      // Mid bitrate anime
+      //          param->rc.rfConstant = 20;
+      x265Params["psy-rd"] = "1.5"
+      x265Params["psy-rdoq"] = "0.8"
+
+      if self == .littlepoxPlus {
+        //            if (param->maxNumReferences < 2) param->maxNumReferences = 2;
+        x265Params["subme"] = "3"
+        //            if (param->lookaheadDepth < 60) param->lookaheadDepth = 60;
+        x265Params["merange"] = "38"
+      }
+    case .vcbs, .vcbsPlus:
+      // High bitrate anime (bluray) or film
+      //          param->rc.rfConstant = 18;
+      x265Params["psy-rd"] = "1.8"
+      x265Params["psy-rdoq"] = "1.0"
+
+      if self == .vcbsPlus {
+        //            if (param->maxNumReferences < 3) param->maxNumReferences = 3;
+        x265Params["subme"] = "3"
+        x265Params["b-intra"] = "1"
+        x265Params["rect"] = "1"
+        x265Params["limit-tu"] = "4"
+        //            if (param->lookaheadDepth < 60) param->lookaheadDepth = 60;
+        x265Params["merange"] = "38"
+      }
+    }
+
+    return x265Params
   }
 }

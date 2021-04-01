@@ -15,7 +15,7 @@ let package = Package(
     .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.8.0"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "0.3.0"),
     .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
-    .package(url: "https://github.com/kojirou1994/MediaUtility.git", from: "0.2.0"),
+    .package(url: "https://github.com/kojirou1994/MediaUtility.git", .branch("master")),
     .package(url: "https://github.com/kojirou1994/Executable.git", from: "0.4.0"),
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),

@@ -47,15 +47,15 @@ struct ChapterTool: ParsableCommand {
         uidStorage = Array(uids)
       }
 
-      let segments = try zip(lines, uidStorage).map { line, uid -> MatroskaChapters.EditionEntry.ChapterAtom in
+      let segments = try zip(lines, uidStorage).map { line, uid -> MatroskaChapter.EditionEntry.ChapterAtom in
         let parts = line.split(separator: ",")
         try preconditionOrThrow(parts.count > 0, "Invalid line: \(line)")
         let start = convert(try Double(parts[0]).unwrap())
         let end = parts.count == 1 ? nil : convert(try Double(parts[1]).unwrap())
-        return MatroskaChapters.EditionEntry.ChapterAtom(uid: uid, startTime: start, endTime: end, isHidden: true, displays: nil)
+        return MatroskaChapter.EditionEntry.ChapterAtom(uid: uid, startTime: start, endTime: end, isHidden: true, displays: nil)
       }
 
-      let chapter = MatroskaChapters(entries: [.init(uid: uidStorage.last!, isHidden: true, isManaged: nil, isOrdered: true, isDefault: true, chapters: segments)])
+      let chapter = MatroskaChapter(entries: [.init(uid: uidStorage.last!, isHidden: true, isManaged: nil, isOrdered: true, isDefault: true, chapters: segments)])
       let outputURL = fm.makeUniqueFileURL(URL(fileURLWithPath: input).appendingPathExtension("xml"))
       try chapter.exportXML().write(to: outputURL)
     }

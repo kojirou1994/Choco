@@ -16,7 +16,7 @@ struct ChapterUtility {
     logger = .init(label: "ChapterUtility")
   }
 
-  func extractAndReadChapter(from fileURL: URL, keepChapterFile: Bool) throws -> MatroskaChapters {
+  func extractAndReadChapter(from fileURL: URL, keepChapterFile: Bool) throws -> MatroskaChapter {
     let chapterBackupURL = fm.makeUniqueFileURL(fileURL.appendingPathExtension("chapter.xml"))
     _ = try MkvExtract(filepath: fileURL.path, extractions: [.chapter(filename: chapterBackupURL.path)])
       .launch(use: TSCExecutableLauncher())
@@ -32,10 +32,10 @@ struct ChapterUtility {
         }
       }
     }
-    return try MatroskaChapters(data: .init(contentsOf: chapterBackupURL))
+    return try MatroskaChapter(data: .init(contentsOf: chapterBackupURL))
   }
 
-  func write(chapter: MatroskaChapters, to fileURL: URL, keepChapterFile: Bool) throws {
+  func write(chapter: MatroskaChapter, to fileURL: URL, keepChapterFile: Bool) throws {
     func write(chap: String, file: URL) throws {
       let path = fileURL.path
       if chap.isEmpty {

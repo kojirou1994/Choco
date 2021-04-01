@@ -26,7 +26,7 @@ public final class ChocoMuxer {
     let vapoursynth: Bool
 
     init() throws {
-      let options = try FFmpeg(arguments: [])
+      let options = try FFmpeg(global: .init(enableStdin: false))
         .launch(use: TSCExecutableLauncher(outputRedirection: .collect), options: .init(checkNonZeroExitCode: false))
         .utf8stderrOutput()
       x265 = options.contains("--enable-libx265")
@@ -514,11 +514,11 @@ extension ChocoMuxer {
     
     let tracks = mkvinfo.tracks
     var audioConverters = [AudioConverter]()
-    var ffmpegArguments = [
-      //      "-v", "quiet",
-      "-hide_banner",
-      "-y", "-i", mkvinfo.fileName]
-    let defaultFFmpegArgumentsCount = ffmpegArguments.count
+    var ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false),
+                        ios: [
+                          .input(url: mkvinfo.fileName)
+                        ])
+
     var trackModifications = [TrackModification](repeating: .copy(type: .video), count: tracks.count)
 
     defer {
@@ -548,13 +548,12 @@ extension ChocoMuxer {
 
             let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"]))
 
-            var ffmpeg = AnyExecutable(
-              executableName: "ffmpeg",
-              arguments: [ "-hide_banner","-i", "pipe:"])
-            ffmpeg.arguments.append(contentsOf: config.videoPreference.ffmpegArguments)
-            ffmpeg.arguments.append(encodedTrackFile.path)
+            let vspipeFFmpeg = FFmpeg(global: .init(hideBanner: true), ios: [
+              .input(url: "pipe:"),
+              .output(url: encodedTrackFile.path, options: config.videoPreference.ffmpegIOOption)
+            ])
 
-            try pipeline.append(ffmpeg, isLast: true)
+            try pipeline.append(vspipeFFmpeg, isLast: true)
 
             try pipeline.run()
 
@@ -566,18 +565,19 @@ extension ChocoMuxer {
             pipeline.waitUntilExit()
           } else {
             // encode use ffmpeg
-            ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)"])
-            ffmpegArguments.append(contentsOf: config.videoPreference.ffmpegArguments)
+            var outputOptions: [FFmpeg.InputOutputOption] = [
+              .map(inputFileID: 0, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false)
+            ]
+            outputOptions.append(contentsOf: config.videoPreference.ffmpegIOOption)
             // autocrop
             if config.videoPreference.autoCrop {
               logger.info("Calculating crop info..")
               let cropInfo = try calculateAutoCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
               logger.info("Calculated: \(cropInfo)")
-              ffmpegArguments.append("-vf")
-              ffmpegArguments.append(cropInfo.ffmpegArgument)
+              outputOptions.append(.filter(filtergraph: cropInfo.ffmpegArgument, streamSpecifier: .streamType(.video, additional: nil)))
             } // auto crop end
             // output
-            ffmpegArguments.append(encodedTrackFile.path)
+            ffmpeg.ios.append(.output(url: encodedTrackFile.path, options: outputOptions))
           }
 
           trackModifications[currentTrackIndex] = .replace(type: .video, files: [encodedTrackFile], lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
@@ -644,7 +644,7 @@ extension ChocoMuxer {
             // add to ffmpeg arguments
             let tempFFmpegOutputFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
             let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(codec.outputFileExtension)")
-            ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", tempFFmpegOutputFlac.path])
+            ffmpeg.ios.append(.output(url: tempFFmpegOutputFlac.path, options: [.map(inputFileID: 0, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false)]))
 
             audioConverters.append(
               .init(
@@ -663,7 +663,10 @@ extension ChocoMuxer {
             if config.audioPreference.downmixMethod == .all, currentTrack.properties.audioChannels! > 2 {
               let tempFFmpegMixdownFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg-downmix.flac")
               let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(codec.outputFileExtension)")
-              ffmpegArguments.append(contentsOf: ["-map", "0:\(currentTrackIndex)", "-ac", "2", tempFFmpegMixdownFlac.path])
+              ffmpeg.ios.append(.output(url: tempFFmpegMixdownFlac.path, options: [
+                .map(inputFileID: 0, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false),
+                .audioChannels(2, streamSpecifier: nil)
+              ]))
 
               audioConverters.append(
                 .init(
@@ -714,11 +717,11 @@ extension ChocoMuxer {
       return trackModifications
     }
 
-    if ffmpegArguments.count != defaultFFmpegArgumentsCount {
+    if ffmpeg.ios.contains(where: { !$0.isInput }) {
       // ffmpeg arguments modified, should launch ffmpeg
-      logger.info("ffmpeg \(ffmpegArguments.joined(separator: " "))")
+      logger.info("ffmpeg \(ffmpeg.arguments.joined(separator: " "))")
       // file's audio tracks -> external temp flac
-      try launch(externalExecutable: FFmpeg(arguments: ffmpegArguments),
+      try launch(externalExecutable: ffmpeg,
                  checkAllowedExitCodes: [0])
     }
 
