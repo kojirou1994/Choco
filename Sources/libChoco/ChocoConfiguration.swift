@@ -427,7 +427,7 @@ extension ChocoConfiguration.VideoPreference {
     if let tune = self.tune {
       if codec == .x265, let chocoTune = ChocoX265Tune(rawValue: tune) {
         options.append(.avOption(name: "x265-params",
-                                 value: chocoTune.parameterDictionary
+                                 value: chocoTune.parameterDictionary(preset: preset.rawValue)
                                   .map { param in
                                     "\(param.key)=\(param.value)"
                                   }.joined(separator: ":"),
@@ -446,25 +446,47 @@ extension ChocoConfiguration.VideoPreference {
 
 }
 
+import CX265
 
 extension ChocoConfiguration.VideoPreference.ChocoX265Tune {
-  var parameterDictionary: [String : String] {
+  func parameterDictionary(preset: String) -> [String : String] {
+
+    var libx265Param = x265_param()
+    x265_param_default_preset(&libx265Param, preset, nil)
+
     var x265Params = [String : String]()
 
     x265Params["merange"] = "25"
     x265Params["aq-strength"] = "0.8"
-    x265Params["rd"] = "4"
-    //        if (param->rdLevel < 4) param->rdLevel = 4;
+    if libx265Param.rdLevel < 4 {
+      x265Params["rd"] = "4"
+    }
     x265Params["rdoq-level"] = "2"
     x265Params["sao"] = "0"
     x265Params["strong-intra-smoothing"] = "0"
 
-    //        if (param->bframes + 1 < param->lookaheadDepth) param->bframes++;
-    //        if (param->bframes + 1 < param->lookaheadDepth) param->bframes++; //from tune animation
-    //        if (param->tuQTMaxInterDepth > 3) param->tuQTMaxInterDepth--;
-    //        if (param->tuQTMaxIntraDepth > 3) param->tuQTMaxIntraDepth--;
-    //        if (param->maxNumMergeCand > 3) param->maxNumMergeCand--;
-    //        if (param->subpelRefine < 3) param->subpelRefine = 3;
+    for _ in 1...2 {
+      if libx265Param.bframes + 1 < libx265Param.lookaheadDepth {
+        libx265Param.bframes += 1
+      }
+    }
+    x265Params["bframes"] = libx265Param.bframes.description
+    if libx265Param.tuQTMaxInterDepth > 3 {
+      libx265Param.tuQTMaxInterDepth -= 1
+      x265Params["tu-inter-depth"] = libx265Param.tuQTMaxInterDepth.description
+    }
+    if libx265Param.tuQTMaxIntraDepth > 3 {
+      libx265Param.tuQTMaxIntraDepth -= 1
+      x265Params["tu-intra-depth"] = libx265Param.tuQTMaxIntraDepth.description
+    }
+    if libx265Param.maxNumMergeCand > 3 {
+      libx265Param.maxNumMergeCand -= 1
+      x265Params["max-merge"] = libx265Param.maxNumMergeCand.description
+    }
+    if libx265Param.subpelRefine < 3 {
+      libx265Param.subpelRefine = 3
+      x265Params["subme"] = "3"
+    }
     x265Params["min-keyint"] = "1"
     x265Params["keyint"] = "360"
     x265Params["open-gop"] = "0"
@@ -482,29 +504,39 @@ extension ChocoConfiguration.VideoPreference.ChocoX265Tune {
     switch self {
     case .littlepox, .littlepoxPlus:
       // Mid bitrate anime
-      //          param->rc.rfConstant = 20;
       x265Params["psy-rd"] = "1.5"
       x265Params["psy-rdoq"] = "0.8"
 
       if self == .littlepoxPlus {
-        //            if (param->maxNumReferences < 2) param->maxNumReferences = 2;
+        if libx265Param.maxNumReferences < 2 {
+          libx265Param.maxNumReferences = 2
+          x265Params["ref"] = "2"
+        }
         x265Params["subme"] = "3"
-        //            if (param->lookaheadDepth < 60) param->lookaheadDepth = 60;
+        if libx265Param.lookaheadDepth < 60 {
+          libx265Param.lookaheadDepth = 60
+          x265Params["rc-lookahead"] = "60"
+        }
         x265Params["merange"] = "38"
       }
     case .vcbs, .vcbsPlus:
       // High bitrate anime (bluray) or film
-      //          param->rc.rfConstant = 18;
       x265Params["psy-rd"] = "1.8"
       x265Params["psy-rdoq"] = "1.0"
 
       if self == .vcbsPlus {
-        //            if (param->maxNumReferences < 3) param->maxNumReferences = 3;
+        if libx265Param.maxNumReferences < 3 {
+          libx265Param.maxNumReferences = 3
+          x265Params["ref"] = "3"
+        }
         x265Params["subme"] = "3"
         x265Params["b-intra"] = "1"
         x265Params["rect"] = "1"
         x265Params["limit-tu"] = "4"
-        //            if (param->lookaheadDepth < 60) param->lookaheadDepth = 60;
+        if libx265Param.lookaheadDepth < 60 {
+          libx265Param.lookaheadDepth = 60
+          x265Params["rc-lookahead"] = "60"
+        }
         x265Params["merange"] = "38"
       }
     }

@@ -23,6 +23,7 @@ let package = Package(
     .package(url: "https://github.com/AlwaysRightInstitute/mustache.git", .upToNextMajor(from: "1.0.0")),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
     .package(url: "https://github.com/kojirou1994/ISOCodes.git", .exact("0.1.0")),
+    .package(url: "https://github.com/kojirou1994/CX265.git", .branch("main")),
   ],
   targets: [
     .systemLibrary(
@@ -41,6 +42,7 @@ let package = Package(
       name: "libChoco",
       dependencies: [
         "CBluray",
+        .product(name: "CX265", package: "CX265"),
         "MplsParser",
         "Rainbow",
         "URLFileManager",
