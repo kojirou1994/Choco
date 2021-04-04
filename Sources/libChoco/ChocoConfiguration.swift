@@ -428,8 +428,8 @@ extension ChocoConfiguration.VideoPreference {
       if codec == .x265, let chocoTune = ChocoX265Tune(rawValue: tune) {
         options.append(.avOption(name: "x265-params",
                                  value: chocoTune.parameterDictionary(preset: preset.rawValue)
-                                  .map { param in
-                                    "\(param.key)=\(param.value)"
+                                  .map { (key, value) in
+                                    "\(key.rawValue)=\(String(describing: value))"
                                   }.joined(separator: ":"),
                                  streamSpecifier: nil))
       } else {
@@ -449,95 +449,123 @@ extension ChocoConfiguration.VideoPreference {
 import CX265
 
 extension ChocoConfiguration.VideoPreference.ChocoX265Tune {
-  func parameterDictionary(preset: String) -> [String : String] {
+
+  enum X265ParameterKey: String {
+    case merange
+    case aqStrength = "aq-strength"
+    case rd
+    case rdoqLevel = "rdoq-level"
+    case sao
+    case bframes
+    case strongIntraSmoothing = "strong-intra-smoothing"
+    case tuQTMaxInterDepth = "tu-inter-depth"
+    case tuQTMaxIntraDepth = "tu-intra-depth"
+    case maxNumMergeCand = "max-merge"
+    case subme
+    case keyint
+    case minKeyint = "min-keyint"
+    case openGOP = "open-gop"
+    case ctu
+    case maxTuSize = "max-tu-size"
+    case qgSize = "qg-size"
+    case cbqpoffs, crqpoffs, pbratio, weightb,
+         ref, rect
+    case psyRd = "psy-rd"
+    case psyRdoq = "psy-rdoq"
+    case lookaheadDepth = "rc-lookahead"
+    case bIntra = "b-intra"
+    case limitTu = "limit-tu"
+  }
+
+  func parameterDictionary(preset: String) -> [X265ParameterKey : Any] {
 
     var libx265Param = x265_param()
     x265_param_default_preset(&libx265Param, preset, nil)
 
-    var x265Params = [String : String]()
+    var x265Params = [X265ParameterKey : Any]()
 
-    x265Params["merange"] = "25"
-    x265Params["aq-strength"] = "0.8"
+    x265Params[.merange] = 25
+    x265Params[.aqStrength] = 0.8
     if libx265Param.rdLevel < 4 {
-      x265Params["rd"] = "4"
+      x265Params[.rd] = 4
     }
-    x265Params["rdoq-level"] = "2"
-    x265Params["sao"] = "0"
-    x265Params["strong-intra-smoothing"] = "0"
+    x265Params[.rdoqLevel] = 2
+    x265Params[.sao] = 0
+    x265Params[.strongIntraSmoothing] = 0
 
     for _ in 1...2 {
       if libx265Param.bframes + 1 < libx265Param.lookaheadDepth {
         libx265Param.bframes += 1
       }
     }
-    x265Params["bframes"] = libx265Param.bframes.description
+    x265Params[.bframes] = libx265Param.bframes
     if libx265Param.tuQTMaxInterDepth > 3 {
       libx265Param.tuQTMaxInterDepth -= 1
-      x265Params["tu-inter-depth"] = libx265Param.tuQTMaxInterDepth.description
+      x265Params[.tuQTMaxInterDepth] = libx265Param.tuQTMaxInterDepth
     }
     if libx265Param.tuQTMaxIntraDepth > 3 {
       libx265Param.tuQTMaxIntraDepth -= 1
-      x265Params["tu-intra-depth"] = libx265Param.tuQTMaxIntraDepth.description
+      x265Params[.tuQTMaxIntraDepth] = libx265Param.tuQTMaxIntraDepth
     }
     if libx265Param.maxNumMergeCand > 3 {
       libx265Param.maxNumMergeCand -= 1
-      x265Params["max-merge"] = libx265Param.maxNumMergeCand.description
+      x265Params[.maxNumMergeCand] = libx265Param.maxNumMergeCand
     }
     if libx265Param.subpelRefine < 3 {
       libx265Param.subpelRefine = 3
-      x265Params["subme"] = "3"
+      x265Params[.subme] = 3
     }
-    x265Params["min-keyint"] = "1"
-    x265Params["keyint"] = "360"
-    x265Params["open-gop"] = "0"
+    x265Params[.minKeyint] = 1
+    x265Params[.keyint] = 360
+    x265Params[.openGOP] = 0
 
     //        param->deblockingFilterBetaOffset = -1;
     //        param->deblockingFilterTCOffset = -1;
-    x265Params["ctu"] = "32"
-    x265Params["max-tu-size"] = "32"
-    x265Params["qg-size"] = "8"
-    x265Params["cbqpoffs"] = "-2"
-    x265Params["crqpoffs"] = "-2"
-    x265Params["pbratio"] = "1.2"
-    x265Params["weightb"] = "1"
+    x265Params[.ctu] = 32
+    x265Params[.maxTuSize] = 32
+    x265Params[.qgSize] = 8
+    x265Params[.cbqpoffs] = -2
+    x265Params[.crqpoffs] = -2
+    x265Params[.pbratio] = 1.2
+    x265Params[.weightb] = 1
 
     switch self {
     case .littlepox, .littlepoxPlus:
       // Mid bitrate anime
-      x265Params["psy-rd"] = "1.5"
-      x265Params["psy-rdoq"] = "0.8"
+      x265Params[.psyRd] = 1.5
+      x265Params[.psyRdoq] = 0.8
 
       if self == .littlepoxPlus {
         if libx265Param.maxNumReferences < 2 {
           libx265Param.maxNumReferences = 2
-          x265Params["ref"] = "2"
+          x265Params[.ref] = 2
         }
-        x265Params["subme"] = "3"
+        x265Params[.subme] = 3
         if libx265Param.lookaheadDepth < 60 {
           libx265Param.lookaheadDepth = 60
-          x265Params["rc-lookahead"] = "60"
+          x265Params[.lookaheadDepth] = 60
         }
-        x265Params["merange"] = "38"
+        x265Params[.merange] = 38
       }
     case .vcbs, .vcbsPlus:
       // High bitrate anime (bluray) or film
-      x265Params["psy-rd"] = "1.8"
-      x265Params["psy-rdoq"] = "1.0"
+      x265Params[.psyRd] = 1.8
+      x265Params[.psyRdoq] = 1
 
       if self == .vcbsPlus {
         if libx265Param.maxNumReferences < 3 {
           libx265Param.maxNumReferences = 3
-          x265Params["ref"] = "3"
+          x265Params[.ref] = 3
         }
-        x265Params["subme"] = "3"
-        x265Params["b-intra"] = "1"
-        x265Params["rect"] = "1"
-        x265Params["limit-tu"] = "4"
+        x265Params[.subme] = 3
+        x265Params[.bIntra] = 1
+        x265Params[.rect] = 1
+        x265Params[.limitTu] = 4
         if libx265Param.lookaheadDepth < 60 {
           libx265Param.lookaheadDepth = 60
-          x265Params["rc-lookahead"] = "60"
+          x265Params[.lookaheadDepth] = 60
         }
-        x265Params["merange"] = "38"
+        x265Params[.merange] = 38
       }
     }
 
