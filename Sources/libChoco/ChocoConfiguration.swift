@@ -382,7 +382,7 @@ extension ChocoConfiguration.VideoPreference.Codec {
 
 extension ChocoConfiguration.VideoPreference {
 
-  enum ChocoX265Tune: String {
+  public enum ChocoX265Tune: String, CaseIterable {
     case vcbs = "vcb-s"
     case vcbsPlus = "vcb-s++"
     case littlepox

@@ -175,12 +175,12 @@ extension ChocoCli {
     var encodeScript: String?
 
     @Option(help: "Codec preset for video track, \(ChocoConfiguration.VideoPreference.CodecPreset.availableValues)")
-    var videoPreset: ChocoConfiguration.VideoPreference.CodecPreset = .slow
+    var videoPreset: ChocoConfiguration.VideoPreference.CodecPreset = .medium
 
-    @Option(help: "Codec crf for video track")
+    @Option(help: "Codec crf for video track, eg. crf:19 or bitrate:5000k")
     var videoQuality: ChocoConfiguration.VideoPreference.VideoQuality = .crf(18)
 
-    @Option(help: "Tune for video encoder, support x265's vcb vcb-s")
+    @Option(help: "Tune for video encoder, std or choco-provided, x265-\(ChocoConfiguration.VideoPreference.ChocoX265Tune.availableValues)")
     var videoTune: String?
 
     @Option(help: "Profile for video encoder")
