@@ -384,11 +384,12 @@ extension ChocoConfiguration.VideoPreference {
 
   public enum ChocoX265Tune: String, CaseIterable {
     case vcbs = "vcb-s"
-    case vcbsPlus = "vcb-s++"
+    case vcbsPlus = "vcb-s+"
     case littlepox
-    case littlepoxPlus = "littlepox++"
+    case littlepoxPlus = "littlepox+"
     /// ref: https://tieba.baidu.com/p/6627144750?see_lz=1
     case flyabc
+    case flyabcPlus = "flyabc+"
   }
 
   var ffmpegIOOption: [FFmpeg.InputOutputOption] {
@@ -481,6 +482,7 @@ extension ChocoConfiguration.VideoPreference.ChocoX265Tune {
     case limitTu = "limit-tu"
     case lookaheadSlices = "lookahead-slices"
     case noStrongIntraSmoothing = "no-strong-intra-smoothing"
+    case earlySkip = "early-skip"
   }
 
   func parameterDictionary(preset: String) -> [X265ParameterKey : Any] {
@@ -575,7 +577,7 @@ extension ChocoConfiguration.VideoPreference.ChocoX265Tune {
         }
       default: break
       }
-    case .flyabc:
+    case .flyabc, .flyabcPlus:
       x265Params[.minKeyint] = 5
       x265Params[.scenecut] = 50
       x265Params[.openGOP] = 0
@@ -594,6 +596,10 @@ extension ChocoConfiguration.VideoPreference.ChocoX265Tune {
       x265Params[.rdoqLevel] = 2
       x265Params[.psyRdoq] = 1.0
       x265Params[.rskip] = 2
+
+      if self == .flyabcPlus {
+        x265Params[.earlySkip] = 0
+      }
     }
 
     return x265Params
