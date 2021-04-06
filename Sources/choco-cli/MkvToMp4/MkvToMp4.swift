@@ -29,9 +29,9 @@ enum Mp4TrackCodec: CaseIterable {
   private var codecs: [String] {
     switch self {
     case .avc:
-      return ["MPEG-4p10/AVC/h.264"]
+      return ["MPEG-4p10", "AVC", "h.264"]
     case .hevc:
-      return ["MPEG-H/HEVC/h.265"]
+      return ["MPEG-H", "HEVC", "h.265"]
     case .flac:
       return ["FLAC"]
     case .aac:
