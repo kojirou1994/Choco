@@ -198,7 +198,8 @@ extension ChocoConfiguration {
                 preset: CodecPreset,
                 colorPreset: ColorPreset?,
                 tune: String?, profile: String?,
-                quality: VideoQuality, autoCrop: Bool) {
+                quality: VideoQuality, autoCrop: Bool,
+                useIntergratedVapoursynth: Bool) {
       self.videoProcess = videoProcess
       self.encodeScript = encodeScript
       self.codec = codec
@@ -208,6 +209,7 @@ extension ChocoConfiguration {
       self.autoCrop = autoCrop
       self.tune = tune
       self.profile = profile
+      self.useIntergratedVapoursynth = useIntergratedVapoursynth
     }
 
     public let videoProcess: VideoProcess
@@ -220,6 +222,7 @@ extension ChocoConfiguration {
     public let quality: VideoQuality
     public let autoCrop: Bool
     public let allowSoftVT: Bool = true
+    public let useIntergratedVapoursynth: Bool
 
     public var description: String {
       switch videoProcess {

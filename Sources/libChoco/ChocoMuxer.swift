@@ -60,7 +60,11 @@ public final class ChocoMuxer {
         }
       }
       if config.videoPreference.encodeScript != nil {
-        try preconditionOrThrow(ffmpegCodecs.vapoursynth, "no vapoursynth!")
+        if config.videoPreference.useIntergratedVapoursynth {
+          try preconditionOrThrow(ffmpegCodecs.vapoursynth, "no vapoursynth!")
+        } else {
+          try ExecutablePath.lookup("vspipe")
+        }
       }
     }
   }
@@ -511,7 +515,9 @@ extension ChocoMuxer {
   private func _makeTrackModification(mkvinfo: MkvMergeIdentification,
                                       temporaryPath: URL) throws -> [TrackModification] {
     let preferedLanguages = config.languagePreference.generatePrimaryLanguages(with: mkvinfo.primaryLanguageCodes, addUnd: true, logger: logger)
-    
+
+    let ffmpegMainInputFileID = 0
+    var currentFFmpegAdditionalInputFileID = 1
     let tracks = mkvinfo.tracks
     var audioConverters = [AudioConverter]()
     var ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false),
@@ -546,27 +552,38 @@ extension ChocoMuxer {
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
             try script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
 
-            let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"]))
+            var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: config.videoPreference.ffmpegIOOption)
 
-            let vspipeFFmpeg = FFmpeg(global: .init(hideBanner: true), ios: [
-              .input(url: "pipe:"),
-              .output(url: encodedTrackFile.path, options: config.videoPreference.ffmpegIOOption)
-            ])
+            if config.videoPreference.useIntergratedVapoursynth {
+              logger.info("Using ffmpeg integrated Vapoursynth!")
+              videoOutput.options.append(.map(inputFileID: currentFFmpegAdditionalInputFileID, streamSpecifier: nil, isOptional: false, isNegativeMapping: false))
+              ffmpeg.ios.append(.input(url: scriptFileURL.path, options: [.format("vapoursynth")]))
+              ffmpeg.ios.append(videoOutput)
+              currentFFmpegAdditionalInputFileID += 1
+            } else {
+              // use vspipe piping to ffmpeg
+              let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"]))
 
-            try pipeline.append(vspipeFFmpeg, isLast: true)
+              let vspipeFFmpeg = FFmpeg(global: .init(hideBanner: true), ios: [
+                .input(url: "pipe:"),
+                videoOutput
+              ])
 
-            try pipeline.run()
+              try pipeline.append(vspipeFFmpeg, isLast: true)
 
-            runningProcessID = pipeline.processes[0].processIdentifier
-            defer {
-              runningProcessID = nil
+              try pipeline.run()
+
+              runningProcessID = pipeline.processes.first?.processIdentifier
+              defer {
+                runningProcessID = nil
+              }
+
+              pipeline.waitUntilExit()
             }
-
-            pipeline.waitUntilExit()
           } else {
             // encode use ffmpeg
             var outputOptions: [FFmpeg.InputOutputOption] = [
-              .map(inputFileID: 0, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false)
+              .map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false)
             ]
             outputOptions.append(contentsOf: config.videoPreference.ffmpegIOOption)
             // autocrop
@@ -644,7 +661,7 @@ extension ChocoMuxer {
             // add to ffmpeg arguments
             let tempFFmpegOutputFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
             let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(codec.outputFileExtension)")
-            ffmpeg.ios.append(.output(url: tempFFmpegOutputFlac.path, options: [.map(inputFileID: 0, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false)]))
+            ffmpeg.ios.append(.output(url: tempFFmpegOutputFlac.path, options: [.map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false)]))
 
             audioConverters.append(
               .init(
@@ -664,7 +681,7 @@ extension ChocoMuxer {
               let tempFFmpegMixdownFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg-downmix.flac")
               let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(codec.outputFileExtension)")
               ffmpeg.ios.append(.output(url: tempFFmpegMixdownFlac.path, options: [
-                .map(inputFileID: 0, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false),
+                .map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false),
                 .audioChannels(2, streamSpecifier: nil)
               ]))
 

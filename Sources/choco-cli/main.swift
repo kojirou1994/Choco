@@ -189,6 +189,9 @@ extension ChocoCli {
     @Flag(help: "Auto crop video track")
     var autoCrop: Bool = false
 
+    @Flag(help: "Use ffmpeg integrated Vapoursynth")
+    var useIntergratedVapoursynth: Bool = false
+
     @Flag(inversion: FlagInversion.prefixedNo, help: "Encode audio.")
     var encodeAudio: Bool = true
 
@@ -223,7 +226,7 @@ extension ChocoCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode,
-        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop),
+        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, useIntergratedVapoursynth: useIntergratedVapoursynth),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
