@@ -117,6 +117,9 @@ extension ChocoCli {
     @Option(name: .shortAndLong, help: "Work mode, \(ChocoWorkMode.availableValues)")
     var mode: ChocoWorkMode
 
+    @Flag(help: "Split BDMV's playlist's segments")
+    var splitBDMV: Bool = false
+
     @Option(help: "Split info")
     var split: ChocoSplit?
 
@@ -225,7 +228,7 @@ extension ChocoCli {
       let configuration = try ChocoConfiguration(
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
-        mode: mode,
+        mode: mode, splitBDMV: splitBDMV,
         videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, useIntergratedVapoursynth: useIntergratedVapoursynth),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,

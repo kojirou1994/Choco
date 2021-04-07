@@ -10,6 +10,7 @@ public struct ChocoConfiguration {
   public let outputRootDirectory: URL
   public let temperoraryDirectory: URL
   public let mode: ChocoWorkMode
+  public let splitBDMV: Bool
   public let split: ChocoSplit?
   public let videoPreference: VideoPreference
   public let audioPreference: AudioPreference
@@ -28,6 +29,7 @@ public struct ChocoConfiguration {
   public let keepTempMethod: KeepTempMethod
 
   public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: ChocoWorkMode,
+              splitBDMV: Bool,
               videoPreference: VideoPreference,
               audioPreference: AudioPreference,
               split: ChocoSplit?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?,
@@ -38,6 +40,7 @@ public struct ChocoConfiguration {
     self.outputRootDirectory = outputRootDirectory
     self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(ChocoTempDirectoryName)
     self.mode = mode
+    self.splitBDMV = splitBDMV
     self.split = split
     self.videoPreference = videoPreference
     self.audioPreference = audioPreference

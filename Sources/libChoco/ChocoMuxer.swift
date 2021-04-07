@@ -259,9 +259,9 @@ public final class ChocoMuxer {
     }
 
     switch config.mode {
-    case .splitBDMV, .movieBDMV, .directBDMV:
+    case .remuxBDMV, .directBDMV:
       return try withTemporaryDirectory { tempDirectory in
-        let mode: MplsRemuxMode = config.mode == .splitBDMV ? .split : .direct
+        let mode: MplsRemuxMode = config.splitBDMV ? .split : .direct
         let remuxToOutputDirectory = config.mode != .directBDMV
         return try remuxBDMV(at: input, mplsMode: mode, temporaryDirectoryURL: tempDirectory, remuxToOutputDirectory: remuxToOutputDirectory)
       }
