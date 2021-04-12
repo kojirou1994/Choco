@@ -862,7 +862,8 @@ public struct BDMVMetadata {
 
     var tasks = [ChocoMuxer.WorkTask]()
 
-    if mode == .split {
+    switch mode {
+    case .split:
       var allFiles = Set(mplsList.flatMap { $0.files })
       try mplsList.forEach { mpls in
         tasks.append(contentsOf: try split(mpls: mpls, restFiles: allFiles, temporaryDirectory: outputDirectoryURL))
@@ -870,7 +871,7 @@ public struct BDMVMetadata {
           allFiles.remove(usedFile)
         }
       }
-    } else if mode == .direct {
+    case .direct:
       try mplsList.forEach { mpls in
         if mpls.useFFmpeg || mpls.compressed { /* || mpls.remuxMode == .split*/
           tasks.append(contentsOf: try split(mpls: mpls, temporaryDirectory: outputDirectoryURL))
@@ -879,10 +880,10 @@ public struct BDMVMetadata {
           let output = outputDirectoryURL.appendingPathComponent(outputFilename + ".mkv")
           let parsedMpls = try MplsPlaylist.parse(mplsURL: mpls.fileName)
           let chapter = parsedMpls.convert()
-          let chapterFile = outputDirectoryURL.appendingPathComponent("\(mpls.fileName.lastPathComponentWithoutExtension).txt")
+          let chapterFile = outputDirectoryURL.appendingPathComponent("\(mpls.fileName.lastPathComponentWithoutExtension).xml")
           let chapterPath: String?
           if !chapter.isEmpty {
-            try chapter.exportOgm().write(toFile: chapterFile.path, atomically: true, encoding: .utf8)
+            try chapter.exportMkvChapXML(to: chapterFile)
             chapterPath = chapterFile.path
           } else {
             chapterPath = nil

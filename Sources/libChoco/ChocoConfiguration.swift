@@ -307,14 +307,37 @@ extension ChocoConfiguration {
 
     public enum ColorPreset: String, CaseIterable, CustomStringConvertible {
       case bt709
+      case bt709RGB
 
-      var ffmpegName: String {
-        rawValue
+      // --colormatrix in x265
+      var colorspace: String {
+        switch self {
+        case .bt709:
+          return "bt709"
+        case .bt709RGB:
+          return "rgb"
+        }
+      }
+
+      // --colorprim in x265
+      var colorPrimaries: String {
+        switch self {
+        case .bt709, .bt709RGB:
+          return "bt709"
+        }
+      }
+
+      // --transfer in x265
+      var colorTransferCharacteristics: String {
+        switch self {
+        case .bt709, .bt709RGB:
+          return "bt709"
+        }
       }
 
       var colorRange: String {
         switch self {
-        case .bt709:
+        case .bt709, .bt709RGB:
           return "tv"
         }
       }
@@ -406,9 +429,9 @@ extension ChocoConfiguration.VideoPreference {
     // color
     colorPreset.map { colorPreset in
       options.append(contentsOf: [
-        .colorspace(colorPreset.ffmpegName, streamSpecifier: .streamType(.video)),
-        .colorPrimaries(colorPreset.ffmpegName, streamSpecifier: .streamType(.video)),
-        .colorTransferCharacteristics(colorPreset.ffmpegName, streamSpecifier: .streamType(.video)),
+        .colorspace(colorPreset.colorspace, streamSpecifier: .streamType(.video)),
+        .colorPrimaries(colorPreset.colorPrimaries, streamSpecifier: .streamType(.video)),
+        .colorTransferCharacteristics(colorPreset.colorTransferCharacteristics, streamSpecifier: .streamType(.video)),
         .avOption(name: "color_range", value: colorPreset.colorRange, streamSpecifier: .streamType(.video)),
       ])
     }

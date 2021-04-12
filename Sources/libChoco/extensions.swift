@@ -121,9 +121,9 @@ extension Mpls {
       precondition(files.count <= chapters.count)
     }
     return try zip(files, chapters).map({ (file, chap) -> URL? in
-      let output = chapterPath.appendingPathComponent("\(fileName.lastPathComponentWithoutExtension)_\(file.lastPathComponentWithoutExtension)_chapter.txt")
-      if chap.nodes.count > 0 {
-        try chap.exportOgm().write(to: output, atomically: true, encoding: .utf8)
+      let output = chapterPath.appendingPathComponent("\(fileName.lastPathComponentWithoutExtension)_\(file.lastPathComponentWithoutExtension)_chapter.xml")
+      if !chap.isEmpty {
+        try chap.exportMkvChapXML(to: output)
         return output
       } else {
         return nil
@@ -163,5 +163,39 @@ extension String {
       return nil
     }
     return (self[..<sepIndex], self[self.index(after: sepIndex)...])
+  }
+}
+
+extension Chapter {
+  func exportMkvChapXML(to dst: URL) throws {
+    var mkvChapter = MatroskaChapter(entries: [.init(uid: 0, chapters: nodes.map { MatroskaChapter.EditionEntry.ChapterAtom(uid: 0, startTime: $0.timestamp.toString(displayNanoSecond: true)) })])
+    mkvChapter.makeUIDs()
+    try mkvChapter.exportXML().write(to: dst, options: [.atomic])
+  }
+}
+
+extension MatroskaChapter {
+  mutating func makeUIDs() {
+    let uidStorage: [UInt]
+    do {
+      var uids = Set<UInt>()
+      let uidCount = entries.reduce(0) { $0 + $1.chapters.count + 1 }
+      uids.reserveCapacity(uidCount)
+      while uids.count != uidCount {
+        uids.insert(.random(in: 1...UInt.max))
+      }
+      uidStorage = Array(uids)
+    }
+    var currentUIDIndex = 0
+
+    entries.mutateEach { entry in
+      entry.chapters.mutateEach { chapter in
+        chapter.uid = uidStorage[currentUIDIndex]
+        currentUIDIndex += 1
+      }
+      entry.uid = uidStorage[currentUIDIndex]
+      currentUIDIndex += 1
+    }
+
   }
 }
