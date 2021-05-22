@@ -1085,4 +1085,9 @@ extension ChocoMuxer {
   }
 }
 
-
+struct ChocoTrack {
+  let trackIndex: Int
+  let trackTypeIndex: Int
+  let trackType: MediaTrackType
+  let codec: String
+}
