@@ -32,9 +32,10 @@ struct TrackHash: ParsableCommand {
         try extractor.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
         let hashes = try tracks.map { trackFileURL -> String in
           var hash = SHA256()
-          try enumerateBuffer(file: trackFileURL, bufferSizeLimit: 4*1024, handler: { (buffer, _, _) in
+          try BufferEnumerator(options: .init(bufferSizeLimit: 4*1024))
+            .enumerateBuffer(file: trackFileURL) { (buffer, _, _) in
             hash.update(bufferPointer: buffer)
-          })
+          }
           return hash.finalize().hexString(uppercase: true, prefix: "")
         }
 
