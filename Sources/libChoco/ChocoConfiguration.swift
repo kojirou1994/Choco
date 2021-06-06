@@ -300,7 +300,7 @@ extension ChocoConfiguration {
       case x265
       case x264
       case h264VT
-//      case hevcVT
+      case hevcVT
 
       public var description: String { rawValue }
     }
@@ -387,6 +387,8 @@ extension ChocoConfiguration.VideoPreference.Codec {
       return "libx265"
     case .h264VT:
       return "h264_videotoolbox"
+    case .hevcVT:
+      return "hevc_videotoolbox"
     }
   }
 
@@ -396,6 +398,8 @@ extension ChocoConfiguration.VideoPreference.Codec {
       return "yuv420p"
     case .x265:
       return "yuv420p10le"
+    case .hevcVT:
+      return "p010le"
     }
   }
 
@@ -403,7 +407,7 @@ extension ChocoConfiguration.VideoPreference.Codec {
     switch self {
     case .x264, .h264VT:
       return 8
-    case .x265:
+    case .x265, .hevcVT:
       return 10
     }
   }
@@ -448,7 +452,7 @@ extension ChocoConfiguration.VideoPreference {
      -profile 2 for hevcVT
      */
     switch codec {
-    case .h264VT:
+    case .h264VT, .hevcVT:
       if allowSoftVT {
         options.append(.avOption(name: "allow_sw", value: "1", streamSpecifier: nil))
       }

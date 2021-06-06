@@ -50,7 +50,7 @@ public final class ChocoMuxer {
         try preconditionOrThrow(ffmpegCodecs.x264, "ffmpeg no x264!")
       case .x265:
         try preconditionOrThrow(ffmpegCodecs.x265, "ffmpeg no x265!")
-      case .h264VT:
+      case .h264VT, .hevcVT:
         try preconditionOrThrow(ffmpegCodecs.videotoolbox, "ffmpeg no videotoolbox!")
         switch config.videoPreference.quality {
         case .crf:
