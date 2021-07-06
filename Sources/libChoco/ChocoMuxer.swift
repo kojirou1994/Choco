@@ -545,10 +545,24 @@ extension ChocoMuxer {
         switch config.videoPreference.videoProcess {
         case .encode:
           let encodedTrackFile = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-encoded.mkv")
+          
+          // autocrop
+          let cropInfo: CropInfo
+          if config.videoPreference.autoCrop {
+            logger.info("Calculating crop info..")
+            cropInfo = try calculateAutoCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
+            logger.info("Calculated: \(cropInfo)")
+          } else {
+            cropInfo = .zero
+          }
 
           if let encodeScript = config.videoPreference.encodeScript {
             // use script template
-            let script = try generateScript(encodeScript: encodeScript, filePath: mkvinfo.fileName, encoderDepth: config.videoPreference.codec.depth)
+            let script = try generateScript(
+              encodeScript: encodeScript, filePath: mkvinfo.fileName,
+              trackIndex: currentTrackIndex,
+              cropInfo: cropInfo,
+              encoderDepth: config.videoPreference.codec.depth)
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
             try script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
 
@@ -586,13 +600,9 @@ extension ChocoMuxer {
               .map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false)
             ]
             outputOptions.append(contentsOf: config.videoPreference.ffmpegIOOption)
-            // autocrop
-            if config.videoPreference.autoCrop {
-              logger.info("Calculating crop info..")
-              let cropInfo = try calculateAutoCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
-              logger.info("Calculated: \(cropInfo)")
+            if !cropInfo.isZero {
               outputOptions.append(.filter(filtergraph: cropInfo.ffmpegArgument, streamSpecifier: .streamType(.video, additional: nil)))
-            } // auto crop end
+            }
             // output
             ffmpeg.ios.append(.output(url: encodedTrackFile.path, options: outputOptions))
           }

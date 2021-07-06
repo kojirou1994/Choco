@@ -1,6 +1,19 @@
 import Precondition
 
-public struct CropInfo {
+public struct CropInfo: Equatable {
+  public init(top: Int, bottom: Int, left: Int, right: Int) {
+    self.top = top
+    self.bottom = bottom
+    self.left = left
+    self.right = right
+  }
+  
+  public static var zero: Self { .init(top: 0, bottom: 0, left: 0, right: 0) }
+  
+  public var isZero: Bool {
+    self == Self.zero
+  }
+  
   public let top: Int
   public let bottom: Int
   public let left: Int

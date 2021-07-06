@@ -12,7 +12,7 @@ final class ChocoTests: XCTestCase {
     v = core.vivtc.VDecimate(clip=v)
     v.set_output()
     """
-    print(try generateScript(encodeScript: encodeScript, filePath: filePath, encoderDepth: 10))
+//    print(try generateScript(encodeScript: encodeScript, filePath: filePath, encoderDepth: 10))
   }
 
   func testLanguageSetArgumentParsing() {
