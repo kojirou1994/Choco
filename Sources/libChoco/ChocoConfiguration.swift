@@ -153,6 +153,7 @@ extension ChocoConfiguration {
 
     public enum AudioCodec: String, CaseIterable, CustomStringConvertible {
       case flac
+      case alac
       case opus
       case aac
 
@@ -364,7 +365,7 @@ extension ChocoConfiguration.AudioPreference.AudioCodec {
       return "flac"
     case .opus:
       return "opus"
-    case .aac:
+    case .aac, .alac:
       return "m4a"
     }
   }

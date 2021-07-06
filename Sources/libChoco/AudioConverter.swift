@@ -30,6 +30,8 @@ struct AudioConverter {
       options.append(.codec(codec, streamSpecifier: .streamType(.audio)))
     case .aac:
       options.append(.codec(ffmpegCodecs.aacCodec, streamSpecifier: .streamType(.audio)))
+    case .alac:
+      options.append(.codec("alac", streamSpecifier: .streamType(.audio)))
     }
     options.append(.bitrate("\(bitrate)k", streamSpecifier: .streamType(.audio)))
     return FFmpeg(global: .init(enableStdin: false), ios: [
@@ -49,7 +51,7 @@ struct AudioConverter {
         return flac.eraseToAnyExecutable()
       case .opus:
         return .init(executableName: "opusenc", arguments: ["--bitrate", bitrate.description, "--discard-comments", input.path, output.path])
-      case .aac:
+      case .aac, .alac:
         return ffmpeg
       }
     case .ffmpeg:
