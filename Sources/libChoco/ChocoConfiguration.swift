@@ -202,6 +202,7 @@ extension ChocoConfiguration {
                 colorPreset: ColorPreset?,
                 tune: String?, profile: String?,
                 quality: VideoQuality, autoCrop: Bool,
+                useSoftVT: Bool,
                 useIntergratedVapoursynth: Bool) {
       self.videoProcess = videoProcess
       self.encodeScript = encodeScript
@@ -212,6 +213,7 @@ extension ChocoConfiguration {
       self.autoCrop = autoCrop
       self.tune = tune
       self.profile = profile
+      self.useSoftVT = useSoftVT
       self.useIntergratedVapoursynth = useIntergratedVapoursynth
     }
 
@@ -224,7 +226,7 @@ extension ChocoConfiguration {
     public let colorPreset: ColorPreset?
     public let quality: VideoQuality
     public let autoCrop: Bool
-    public let allowSoftVT: Bool = true
+    public let useSoftVT: Bool
     public let useIntergratedVapoursynth: Bool
 
     public var description: String {
@@ -453,8 +455,9 @@ extension ChocoConfiguration.VideoPreference {
      */
     switch codec {
     case .h264VT, .hevcVT:
-      if allowSoftVT {
+      if useSoftVT {
         options.append(.avOption(name: "allow_sw", value: "1", streamSpecifier: nil))
+        options.append(.avOption(name: "require_sw", value: "1", streamSpecifier: nil))
       }
     case .x265, .x264:
       options.append(.avOption(name: "preset", value: preset.rawValue, streamSpecifier: nil))

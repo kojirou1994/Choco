@@ -173,6 +173,9 @@ extension ChocoCli {
 
     @Option(help: "Color preset for video track, \(ChocoConfiguration.VideoPreference.ColorPreset.availableValues)")
     var videoColor: ChocoConfiguration.VideoPreference.ColorPreset?
+    
+    @Flag(help: "Use videotoolbox software encoding.")
+    var softVT: Bool = false
 
     @Option(help: "VS script template path.")
     var encodeScript: String?
@@ -221,7 +224,7 @@ extension ChocoCli {
     func scriptTemplate() throws -> String? {
       // replace error
       try encodeScript
-        .map { try String(contentsOfFile: $0)}
+        .map { try String(contentsOfFile: $0) }
     }
 
     func run() throws {
@@ -229,7 +232,7 @@ extension ChocoCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode, splitBDMV: splitBDMV,
-        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, useIntergratedVapoursynth: useIntergratedVapoursynth),
+        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, useSoftVT: softVT, useIntergratedVapoursynth: useIntergratedVapoursynth),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
