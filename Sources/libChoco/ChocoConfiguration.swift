@@ -204,6 +204,7 @@ extension ChocoConfiguration {
                 tune: String?, profile: String?,
                 quality: VideoQuality, autoCrop: Bool,
                 useSoftVT: Bool,
+                keepPixelFormat: Bool,
                 useIntergratedVapoursynth: Bool) {
       self.videoProcess = videoProcess
       self.encodeScript = encodeScript
@@ -215,6 +216,7 @@ extension ChocoConfiguration {
       self.tune = tune
       self.profile = profile
       self.useSoftVT = useSoftVT
+      self.keepPixelFormat = keepPixelFormat
       self.useIntergratedVapoursynth = useIntergratedVapoursynth
     }
 
@@ -228,6 +230,7 @@ extension ChocoConfiguration {
     public let quality: VideoQuality
     public let autoCrop: Bool
     public let useSoftVT: Bool
+    public let keepPixelFormat: Bool
     public let useIntergratedVapoursynth: Bool
 
     public var description: String {
@@ -395,7 +398,7 @@ extension ChocoConfiguration.VideoPreference.Codec {
     }
   }
 
-  var pixelFormat: String {
+  var recommendedPixelFormat: String {
     switch self {
     case .x264, .h264VT:
       return "yuv420p"
@@ -431,7 +434,9 @@ extension ChocoConfiguration.VideoPreference {
   var ffmpegIOOption: [FFmpeg.InputOutputOption] {
     var options = [FFmpeg.InputOutputOption]()
     options.append(.codec(codec.ffCodec, streamSpecifier: .streamType(.video)))
-    options.append(.pixelFormat(codec.pixelFormat, streamSpecifier: nil))
+    if !keepPixelFormat {
+      options.append(.pixelFormat(codec.recommendedPixelFormat, streamSpecifier: nil))
+    }
 
     // color
     colorPreset.map { colorPreset in

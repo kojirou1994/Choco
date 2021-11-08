@@ -195,6 +195,9 @@ extension ChocoCli {
     @Flag(help: "Auto crop video track")
     var autoCrop: Bool = false
 
+    @Flag(name: .customLong("keep-pix-fmt"), help: "Always keep input video's pixel format.")
+    var keepPixelFormat: Bool = false
+
     @Flag(help: "Use ffmpeg integrated Vapoursynth")
     var useIntergratedVapoursynth: Bool = false
 
@@ -232,7 +235,7 @@ extension ChocoCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode, splitBDMV: splitBDMV,
-        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, useSoftVT: softVT, useIntergratedVapoursynth: useIntergratedVapoursynth),
+        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, useSoftVT: softVT, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
@@ -289,7 +292,7 @@ extension ChocoCli {
 
 #if Xcode
 import ExecutableLauncher
-ExecutablePath.add("/usr/local/bin")
+ExecutablePath.add("/opt/local/bin")
 #endif
 
 ChocoCli.main()
