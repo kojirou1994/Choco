@@ -38,9 +38,6 @@ public final class ChocoMuxer {
       vapoursynth = options.contains("--enable-vapoursynth")
     }
 
-    var aacCodec: String {
-      fdkAAC ? "libfdk_aac" : "aac"
-    }
   }
 
   private func checkCodecs() throws {

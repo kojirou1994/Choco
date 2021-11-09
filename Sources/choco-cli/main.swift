@@ -207,7 +207,7 @@ extension ChocoCli {
     @Option(help: "Codec for lossless audio track, \(ChocoConfiguration.AudioPreference.AudioCodec.availableValues)")
     var audioCodec: ChocoConfiguration.AudioPreference.AudioCodec = .flac
 
-    @Option(help: "Codec for fixsing lossy audio track, \(ChocoConfiguration.AudioPreference.AudioCodec.availableValues)")
+    @Option(help: "Codec for fixing lossy audio track, \(ChocoConfiguration.AudioPreference.AudioCodec.availableValues)")
     var audioLossyCodec: ChocoConfiguration.AudioPreference.AudioCodec?
 
     @Option(help: "Audio kbps per channel")

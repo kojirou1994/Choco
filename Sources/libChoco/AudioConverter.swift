@@ -29,7 +29,17 @@ struct AudioConverter {
       }
       options.append(.codec(codec, streamSpecifier: .streamType(.audio)))
     case .aac:
-      options.append(.codec(ffmpegCodecs.aacCodec, streamSpecifier: .streamType(.audio)))
+      if ffmpegCodecs.audiotoolbox {
+        options.append(.codec("aac_at", streamSpecifier: .streamType(.audio)))
+        options.append(.avOption(name: "aac_at_mode", value: "2", streamSpecifier: nil)) // cvbr
+      } else if ffmpegCodecs.fdkAAC {
+        options.append(.codec("libfdk_aac", streamSpecifier: .streamType(.audio)))
+        if lossyAudioChannelBitrate > 96 {
+          options.append(.avOption(name: "cutoff", value: "20k", streamSpecifier: nil))
+        }
+      } else {
+        options.append(.codec("aac", streamSpecifier: .streamType(.audio)))
+      }
     case .alac:
       options.append(.codec("alac", streamSpecifier: .streamType(.audio)))
     }
