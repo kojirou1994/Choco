@@ -203,7 +203,6 @@ extension ChocoConfiguration {
                 colorPreset: ColorPreset?,
                 tune: String?, profile: String?,
                 quality: VideoQuality, autoCrop: Bool,
-                useSoftVT: Bool,
                 keepPixelFormat: Bool,
                 useIntergratedVapoursynth: Bool) {
       self.videoProcess = videoProcess
@@ -215,7 +214,6 @@ extension ChocoConfiguration {
       self.autoCrop = autoCrop
       self.tune = tune
       self.profile = profile
-      self.useSoftVT = useSoftVT
       self.keepPixelFormat = keepPixelFormat
       self.useIntergratedVapoursynth = useIntergratedVapoursynth
     }
@@ -229,7 +227,6 @@ extension ChocoConfiguration {
     public let colorPreset: ColorPreset?
     public let quality: VideoQuality
     public let autoCrop: Bool
-    public let useSoftVT: Bool
     public let keepPixelFormat: Bool
     public let useIntergratedVapoursynth: Bool
 
@@ -305,8 +302,10 @@ extension ChocoConfiguration {
     public enum Codec: String, CaseIterable, CustomStringConvertible {
       case x265
       case x264
-      case h264VT
-      case hevcVT
+      case h264VT = "h264_vt"
+      case hevcVT = "hevc_vt"
+      case h264VTSW = "h264_vt_sw"
+      case hevcVTSW = "hevc_vt_sw"
 
       public var description: String { rawValue }
     }
@@ -391,29 +390,29 @@ extension ChocoConfiguration.VideoPreference.Codec {
       return "libx264"
     case .x265:
       return "libx265"
-    case .h264VT:
+    case .h264VT, .h264VTSW:
       return "h264_videotoolbox"
-    case .hevcVT:
+    case .hevcVT, .hevcVTSW:
       return "hevc_videotoolbox"
     }
   }
 
   var recommendedPixelFormat: String {
     switch self {
-    case .x264, .h264VT:
+    case .x264, .h264VT, .h264VTSW:
       return "yuv420p"
     case .x265:
       return "yuv420p10le"
-    case .hevcVT:
+    case .hevcVT, .hevcVTSW:
       return "p010le"
     }
   }
 
   var depth: Int {
     switch self {
-    case .x264, .h264VT:
+    case .x264, .h264VT, .h264VTSW:
       return 8
-    case .x265, .hevcVT:
+    case .x265, .hevcVT, .hevcVTSW:
       return 10
     }
   }
@@ -453,6 +452,7 @@ extension ChocoConfiguration.VideoPreference {
     case .crf(let crf):
       options.append(.avOption(name: "crf", value: crf.description, streamSpecifier: nil))
     case .bitrate(let bitrate):
+      // must set :v to silence warning
       options.append(.bitrate(bitrate, streamSpecifier: .streamType(.video)))
     }
 
@@ -460,13 +460,17 @@ extension ChocoConfiguration.VideoPreference {
      -profile 2 for hevcVT
      */
     switch codec {
-    case .h264VT, .hevcVT:
-      if useSoftVT {
-        options.append(.avOption(name: "allow_sw", value: "1", streamSpecifier: nil))
-        options.append(.avOption(name: "require_sw", value: "1", streamSpecifier: nil))
-      }
+    case .h264VTSW, .hevcVTSW:
+      options.append(.avOption(name: "allow_sw", value: "1", streamSpecifier: nil))
+      options.append(.avOption(name: "require_sw", value: "1", streamSpecifier: nil))
     case .x265, .x264:
       options.append(.avOption(name: "preset", value: preset.rawValue, streamSpecifier: nil))
+    default: break
+    }
+
+    // apple compatibility
+    if codec == .x265 {
+      options.append(.avOption(name: "tag", value: "hvc1", streamSpecifier: nil))
     }
 
     if let tune = self.tune {
