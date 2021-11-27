@@ -436,6 +436,7 @@ extension ChocoMuxer {
     do {
       try launch(externalExecutable: mkvmerge, checkAllowedExitCodes: allowedExitCodes)
     } catch {
+      try? _fm.removeItem(at: outputURL)
       throw ChocoError.mkvmergeMux(error)
     }
 
