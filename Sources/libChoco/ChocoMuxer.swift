@@ -47,7 +47,7 @@ public final class ChocoMuxer {
         try preconditionOrThrow(ffmpegCodecs.x264, "ffmpeg no x264!")
       case .x265:
         try preconditionOrThrow(ffmpegCodecs.x265, "ffmpeg no x265!")
-      case .h264VT, .hevcVT:
+      case .h264VT, .hevcVT, .h264VTSW, .hevcVTSW:
         try preconditionOrThrow(ffmpegCodecs.videotoolbox, "ffmpeg no videotoolbox!")
         switch config.videoPreference.quality {
         case .crf:
@@ -67,9 +67,10 @@ public final class ChocoMuxer {
   }
 
   private func logConfig() {
-    logger.info("FFmpeg codecs: \(ffmpegCodecs)")
-    logger.info("Video config: \(config.videoPreference)")
-    logger.info("Audio config: \(config.audioPreference)")
+    logger.info("Configurations:")
+    logger.info("FFmpeg: \(ffmpegCodecs)")
+    logger.info("Video: \(config.videoPreference)")
+    logger.info("Audio: \(config.audioPreference)")
   }
 
   private let allowedExitCodes: [CInt]
