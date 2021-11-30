@@ -670,7 +670,7 @@ extension ChocoMuxer {
             // add to ffmpeg arguments
             let tempFFmpegOutputFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
             let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(codec.outputFileExtension)")
-            ffmpeg.ios.append(.output(url: tempFFmpegOutputFlac.path, options: [.map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false)]))
+            ffmpeg.ios.append(.output(url: tempFFmpegOutputFlac.path, options: [.map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false), .avOption(name: "compression_level", value: "0", streamSpecifier: nil)]))
 
             audioConverters.append(
               .init(
