@@ -596,7 +596,9 @@ extension ChocoMuxer {
           } else {
             // encode use ffmpeg
             var outputOptions: [FFmpeg.InputOutputOption] = [
-              .map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false)
+              .map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false),
+              .mapMetadata(outputSpec: nil, inputFileIndex: -1, inputSpec: nil),
+              .mapChapters(inputFileIndex: -1),
             ]
             outputOptions.append(contentsOf: config.videoPreference.ffmpegIOOption)
             if !cropInfo.isZero {
@@ -670,7 +672,12 @@ extension ChocoMuxer {
             // add to ffmpeg arguments
             let tempFFmpegOutputFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
             let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(codec.outputFileExtension)")
-            ffmpeg.ios.append(.output(url: tempFFmpegOutputFlac.path, options: [.map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false), .avOption(name: "compression_level", value: "0", streamSpecifier: nil)]))
+            ffmpeg.ios.append(.output(url: tempFFmpegOutputFlac.path, options: [
+              .map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false),
+                .avOption(name: "compression_level", value: "0", streamSpecifier: nil),
+              .mapMetadata(outputSpec: nil, inputFileIndex: -1, inputSpec: nil),
+              .mapChapters(inputFileIndex: -1),
+            ]))
 
             audioConverters.append(
               .init(
@@ -691,7 +698,10 @@ extension ChocoMuxer {
               let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(codec.outputFileExtension)")
               ffmpeg.ios.append(.output(url: tempFFmpegMixdownFlac.path, options: [
                 .map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false),
-                .audioChannels(2, streamSpecifier: nil)
+                .audioChannels(2, streamSpecifier: nil),
+                .avOption(name: "compression_level", value: "0", streamSpecifier: nil),
+                .mapMetadata(outputSpec: nil, inputFileIndex: -1, inputSpec: nil),
+                .mapChapters(inputFileIndex: -1),
               ]))
 
               audioConverters.append(
