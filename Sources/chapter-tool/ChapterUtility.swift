@@ -44,7 +44,7 @@ struct ChapterUtility {
         logger.info("Replacing chapter for file: \(path)")
       }
       _ = try MkvPropEdit(parseMode: nil, file: path, actions: [.chapter(filename: chap)])
-        .launch(use: TSCExecutableLauncher())
+        .launch(use: TSCExecutableLauncher(outputRedirection: .none))
     }
     if chapter.entries.allSatisfy({ $0.isEmpty }) {
       // no valid chapters
