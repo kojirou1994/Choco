@@ -18,6 +18,7 @@ struct ChapterTool: ParsableCommand {
       AutoRename.self,
       ChangeLang.self,
       ConvertLosslessCut.self,
+      Join.self,
     ])
   }
 
@@ -25,7 +26,6 @@ struct ChapterTool: ParsableCommand {
 
     @Argument
     var input: String
-
 
     func convert(_ v: Double) -> String {
       let timestamp = Timestamp(ns: UInt64(v * 1_000_000_000))
@@ -36,26 +36,16 @@ struct ChapterTool: ParsableCommand {
       let lines = try String(contentsOfFile: input)
         .split(separator: "\n")
 
-      let uidStorage: [UInt]
-      do {
-        var uids = Set<UInt>()
-        let uidCount = lines.count + 1
-        uids.reserveCapacity(uidCount)
-        while uids.count != uidCount {
-          uids.insert(.random(in: UInt.min...UInt.max))
-        }
-        uidStorage = Array(uids)
-      }
-
-      let segments = try zip(lines, uidStorage).map { line, uid -> MatroskaChapter.EditionEntry.ChapterAtom in
+      let segments = try lines.map { line -> MatroskaChapter.EditionEntry.ChapterAtom in
         let parts = line.split(separator: ",")
         try preconditionOrThrow(parts.count > 0, "Invalid line: \(line)")
         let start = convert(try Double(parts[0]).unwrap())
         let end = parts.count == 1 ? nil : convert(try Double(parts[1]).unwrap())
-        return MatroskaChapter.EditionEntry.ChapterAtom(uid: uid, startTime: start, endTime: end, isHidden: true, displays: nil)
+        return MatroskaChapter.EditionEntry.ChapterAtom(startTime: start, endTime: end, isHidden: true)
       }
 
-      let chapter = MatroskaChapter(entries: [.init(uid: uidStorage.last!, isHidden: true, isManaged: nil, isOrdered: true, isDefault: true, chapters: segments)])
+      var chapter = MatroskaChapter(entries: [.init(isHidden: true, isManaged: nil, isOrdered: true, isDefault: true, chapters: segments)])
+      chapter.fillUIDs()
       let outputURL = fm.makeUniqueFileURL(URL(fileURLWithPath: input).appendingPathExtension("xml"))
       try chapter.exportXML().write(to: outputURL)
     }
@@ -320,6 +310,61 @@ struct ChapterTool: ParsableCommand {
 
       } catch {
         print("Error \(error)")
+      }
+    }
+  }
+
+  struct Join: ParsableCommand {
+
+    @Flag()
+    var overwrite: Bool = false
+
+    @Flag()
+    var shift: Bool = false
+
+    @Option(help: "Specific output file path")
+    var output: String
+
+    @Argument(help: ArgumentHelp("Input paths", discussion: "", valueName: "path"))
+    var inputs: [String]
+
+    func run() throws {
+
+      let chaps = try inputs.map { path in
+        try MatroskaChapter(data: Data(contentsOf: URL(fileURLWithPath: path)))
+      }
+
+      try zip(inputs, chaps).forEach { path, chap in
+        try preconditionOrThrow(chap.entries.count == 1, "chapter muse have only 1 entry!, invalid file: \(path)")
+      }
+
+      var outputChapters = [MatroskaChapter.EditionEntry.ChapterAtom]()
+
+      chaps.forEach { chap in
+        let timeOffset = outputChapters.last?.timestamp ?? Timestamp(ns: 0)
+        var atoms =  chap.entries[0].chapters[0...]
+        if !outputChapters.isEmpty {
+          atoms = atoms.dropFirst()
+        }
+        atoms.forEach { atom in
+          var newatom = atom
+          let startTime = newatom.timestamp! + timeOffset
+          newatom.startTime = startTime.toString(displayNanoSecond: true)
+          outputChapters.append(newatom)
+        }
+      }
+
+      // write
+      do {
+        let outputURL = URL(fileURLWithPath: output)
+        if fm.fileExistance(at: outputURL).exists, !overwrite {
+          print("output already exists: \(output)")
+          throw ExitCode(-1)
+        }
+
+        var chapter = MatroskaChapter(entries: [.init(chapters: outputChapters)])
+        chapter.fillUIDs()
+        try chapter.exportXML().write(to: outputURL, options: .atomic)
       }
     }
   }

@@ -78,6 +78,7 @@ struct ChocoCli: ParsableCommand {
             Crop.self,
             Mux.self,
             MkvToMp4.self,
+            ParseMpls.self,
           ]
     )
 }
