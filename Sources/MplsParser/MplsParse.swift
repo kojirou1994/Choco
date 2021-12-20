@@ -56,9 +56,9 @@ extension MplsPlaylist {
       throw MplsReadError.noVersionHeader(versionHeader)
     }
     // MARK: parse indexes
-    let playlistStartIndex = try reader.read(4).joined(UInt32.self)
-    let chapterStartIndex = try reader.read(4).joined(UInt32.self)
-    let extensionDataStartIndex = try reader.read(4).joined(UInt32.self)
+    let playlistStartIndex = try reader.readInteger() as UInt32
+    let chapterStartIndex = try reader.readInteger() as UInt32
+    let extensionDataStartIndex = try reader.readInteger() as UInt32
 
     // go to playlist start index
     try reader.seek(to: Int(playlistStartIndex))
@@ -68,14 +68,14 @@ extension MplsPlaylist {
     // reserved
     try reader.skip(2)
 
-    let playItemCount = try reader.read(2).joined(UInt16.self)
-    let subPathCount = try reader.read(2).joined(UInt16.self)
+    let playItemCount = try reader.readInteger() as UInt16
+    let subPathCount = try reader.readInteger() as UInt16
     var duration = Timestamp.init(ns: 0)
 
     var playItems = [MplsPlayItem]()
     for _ in 0..<playItemCount {
       // PlayItem Length
-      let playItemLength = try reader.read(2).joined(UInt16.self)
+      let playItemLength = try reader.readInteger() as UInt16
       let currentIndex = reader.readerOffset
 
       // Primary Clip identifer
@@ -84,13 +84,13 @@ extension MplsPlaylist {
       let codecId = String.init(decoding: try reader.read(4), as: UTF8.self)
       precondition(codecId == "M2TS")
       /// reserved 11 bits + isMultiAngle 1 bit + connectionCondition 4 bits
-      let combined = try reader.read(2).joined(UInt16.self)
+      let combined = try reader.readInteger() as UInt16
       let isMultiAngle = (combined << 11) >> 15 == 1
       let connectionCondition = UInt8.init(truncatingIfNeeded: (combined << 12) >> 12)
       precondition([0x01, 0x05, 0x06].contains(connectionCondition))
-      let stcId = try reader.read(1).joined(UInt8.self)
-      let inTime = try Timestamp(mpls: UInt64(reader.read(4).joined(UInt32.self)))
-      let outTime = try Timestamp(mpls: UInt64(reader.read(4).joined(UInt32.self)))
+      let stcId = try reader.readByte()
+      let inTime = try Timestamp(mpls: UInt64(reader.readInteger() as UInt32))
+      let outTime = try Timestamp(mpls: UInt64(reader.readInteger() as UInt32))
 
       try reader.skip(8) // uoMaskTable
       /// random_access_flag  1 bit + reserved 7bits
@@ -104,7 +104,7 @@ extension MplsPlaylist {
       }
       let multiAngle: MultiAngle
       if isMultiAngle {
-        let numAngles = try reader.read(1).joined(UInt8.self)
+        let numAngles = try reader.readByte()
         // reserved 6 bits + isDifferentAudio 1 bit + isSeamlessAngleChange 1 bit
         let combined = try reader.readByte()
         let isDifferentAudio = (combined & 0b00000010) != 0
@@ -172,7 +172,7 @@ extension MplsPlaylist {
     // MARK: - parse subpath
     var subPaths: [MplsSubPath] = []
     for _ in 0..<subPathCount {
-      _ = try reader.read(4).joined(UInt32.self) // length
+      _ = try reader.readInteger() as UInt32 // length
       try  reader.skip(1) //reserved
       let subPathTypeValue = try reader.readByte()
       let subPathType = try SubPathType.init(value: subPathTypeValue)
@@ -184,8 +184,8 @@ extension MplsPlaylist {
       var subPlayItems = [SubPlayItem]()
       for _ in 0..<subPlayItemCount {
         try reader.skip(2) //length
-        let clpiFilename = String.init(decoding: try reader.read(5), as: UTF8.self)
-        let codecId = String.init(decoding: try reader.read(4), as: UTF8.self)
+        let clpiFilename = try reader.readString(5)
+        let codecId = try reader.readString(4)
         try reader.skip(3)
         let two = try reader.readByte()
         let connectionCondition = (two & 0b0001_1110) >> 1
@@ -193,7 +193,7 @@ extension MplsPlaylist {
         let refToStcId = try reader.readByte()
         let inTime = Timestamp.init(mpls: try reader.read(4).joined(UInt64.self))
         let outTime = Timestamp.init(mpls: try reader.read(4).joined(UInt64.self))
-        let syncPlayItemId = try reader.read(2).joined(UInt16.self)
+        let syncPlayItemId = try reader.readInteger() as UInt16
         let syncStartPtsOfPlayItem = Timestamp.init(mpls: try reader.read(4).joined(UInt64.self))
         var clips = [SubPlayItemClip]()
         if isMultiClipEntries {
@@ -217,17 +217,17 @@ extension MplsPlaylist {
     // MARK: parse Chapters
     try reader.seek(to: Data.Index(chapterStartIndex))
     try reader.skip(4) //chapterLength
-    let chapterCount = try reader.read(2).joined(UInt16.self)
+    let chapterCount = try reader.readInteger() as UInt16
 
     var chapters = [MplsChapter]()
 
     for _ in 0..<chapterCount {
       let markId = try reader.readByte()
       let chapterType = try reader.readByte()
-      let playItemIndex = try reader.read(2).joined(UInt16.self)
-      let absoluteTimestamp = Timestamp.init(mpls: UInt64(try reader.read(4).joined(UInt32.self)))
-      let entryEsPid = try reader.read(2).joined(UInt16.self)
-      let skipDuration = try reader.read(4).joined(UInt32.self)
+      let playItemIndex = try reader.readInteger() as UInt16
+      let absoluteTimestamp = Timestamp.init(mpls: UInt64(try reader.readInteger() as UInt32))
+      let entryEsPid = try reader.readInteger() as UInt16
+      let skipDuration = try reader.readInteger() as UInt32
       let playItem = playItems[Int(playItemIndex)]
       if chapterType != 1 {
         continue
@@ -257,14 +257,14 @@ extension MplsStream {
     var subClipId: UInt8?
     switch streamType {
     case .usedByPlayItem:
-      pid = try handle.read(2).joined(UInt16.self)
+      pid = try handle.readInteger() as UInt16
     case .usedBySubPathType23456, .sameWith2:
       subPathId = try handle.readByte()
       subClipId = try handle.readByte()
-      pid = try handle.read(2).joined(UInt16.self)
+      pid = try handle.readInteger() as UInt16
     case .usedBySubPathType7:
       subPathId = try handle.readByte()
-      pid = try handle.read(2).joined(UInt16.self)
+      pid = try handle.readInteger() as UInt16
     case .reserved:
       fatalError()
     }
