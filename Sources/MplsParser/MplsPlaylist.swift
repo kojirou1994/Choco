@@ -1,6 +1,6 @@
 import Foundation
 
-public struct MplsPlaylist: CustomStringConvertible {
+public struct MplsPlaylist {
     
     public let mplsURL: URL
 
@@ -15,10 +15,7 @@ public struct MplsPlaylist: CustomStringConvertible {
     public let chapters: [MplsChapter]
     
     public let duration: Timestamp
-    
-    public var description: String {
-        return "duration: \(duration.description)"
-    }
+
 }
 
 extension MplsPlaylist {

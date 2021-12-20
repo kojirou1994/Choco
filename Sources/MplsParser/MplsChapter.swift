@@ -1,6 +1,6 @@
 import Foundation
 
-public struct MplsChapter: CustomStringConvertible {
+public struct MplsChapter {
     /// unknown
     let unknownByte: UInt8
     /// 00  Resume mark
@@ -10,7 +10,7 @@ public struct MplsChapter: CustomStringConvertible {
     /// index of the PlayItem in which the mark exists
     public let playItemIndex: UInt16
     /// 45Khz time tick from the in_time of the referenced PlayItem
-    let absoluteTimestamp: Timestamp
+    public let absoluteTimestamp: Timestamp
     let entryEsPid: UInt16
     /// Duration to skip when skip mark
     let skipDuration: UInt32

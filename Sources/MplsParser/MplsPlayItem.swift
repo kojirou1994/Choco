@@ -1,6 +1,6 @@
 import Foundation
 
-public struct MplsPlayItem: CustomStringConvertible {
+public struct MplsPlayItem {
     public let clipId: String
     let connectionCondition: UInt8
     let stcId: UInt8
