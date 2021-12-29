@@ -197,7 +197,9 @@ extension ChocoConfiguration {
   }
 
   public struct VideoPreference: CustomStringConvertible {
-    public init(videoProcess: VideoProcess, encodeScript: String?,
+    public init(process: VideoProcess,
+                filter: String?,
+                encodeScript: String?,
                 codec: Codec,
                 preset: CodecPreset,
                 colorPreset: ColorPreset?,
@@ -205,7 +207,8 @@ extension ChocoConfiguration {
                 quality: VideoQuality, autoCrop: Bool,
                 keepPixelFormat: Bool,
                 useIntergratedVapoursynth: Bool) {
-      self.videoProcess = videoProcess
+      self.process = process
+      self.filter = filter
       self.encodeScript = encodeScript
       self.codec = codec
       self.preset = preset
@@ -218,7 +221,8 @@ extension ChocoConfiguration {
       self.useIntergratedVapoursynth = useIntergratedVapoursynth
     }
 
-    public let videoProcess: VideoProcess
+    public let process: VideoProcess
+    public let filter: String?
     public let encodeScript: String?
     public let codec: Codec
     public let tune: String?
@@ -231,7 +235,7 @@ extension ChocoConfiguration {
     public let useIntergratedVapoursynth: Bool
 
     public var description: String {
-      switch videoProcess {
+      switch process {
       case .none:
         return "Disabled"
       case .copy:
@@ -435,6 +439,10 @@ extension ChocoConfiguration.VideoPreference {
     options.append(.codec(codec.ffCodec, streamSpecifier: .streamType(.video)))
     if !keepPixelFormat {
       options.append(.pixelFormat(codec.recommendedPixelFormat, streamSpecifier: nil))
+    }
+
+    if let filter = filter {
+      options.append(.avOption(name: "filter", value: filter, streamSpecifier: .streamType(.video)))
     }
 
     // color

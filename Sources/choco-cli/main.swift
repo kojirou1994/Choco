@@ -169,6 +169,9 @@ extension ChocoCli {
     @Option(name: [.customShort("v"), .long], help: "Video processing method, \(ChocoConfiguration.VideoPreference.VideoProcess.availableValues).")
     var videoProcess: ChocoConfiguration.VideoPreference.VideoProcess = .copy
 
+    @Option(help: "FFmpeg video filter argument.")
+    var videoFilter: String?
+
     @Option(help: "Codec for video track, \(ChocoConfiguration.VideoPreference.Codec.availableValues)")
     var videoCodec: ChocoConfiguration.VideoPreference.Codec = .x265
 
@@ -233,7 +236,7 @@ extension ChocoCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode, splitBDMV: splitBDMV,
-        videoPreference: .init(videoProcess: videoProcess, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth),
+        videoPreference: .init(process: videoProcess, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
@@ -291,6 +294,7 @@ extension ChocoCli {
 #if Xcode
 import ExecutableLauncher
 ExecutablePath.add("/opt/local/bin")
+ExecutablePath.add("/Users/kojirou/Executable/Universal")
 #endif
 
 ChocoCli.main()

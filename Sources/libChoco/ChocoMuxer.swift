@@ -41,7 +41,7 @@ public final class ChocoMuxer {
   }
 
   private func checkCodecs() throws {
-    if config.videoPreference.videoProcess == .encode {
+    if config.videoPreference.process == .encode {
       switch config.videoPreference.codec {
       case .x264:
         try preconditionOrThrow(ffmpegCodecs.x264, "ffmpeg no x264!")
@@ -541,7 +541,7 @@ extension ChocoMuxer {
       logger.info("\(currentTrack.remuxerInfo)")
       switch currentTrack.type {
       case .video:
-        switch config.videoPreference.videoProcess {
+        switch config.videoPreference.process {
         case .encode:
           let encodedTrackFile = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-encoded.mkv")
           
