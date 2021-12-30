@@ -346,7 +346,7 @@ extension ChocoMuxer {
     let mkvinfo = try mkvinfoCache ?? readMKV(at: file)
     let modifications = try _makeTrackModification(mkvinfo: mkvinfo, temporaryPath: temporaryPath)
 
-    var trackOrder = [MkvMerge.GlobalOption.TrackOrder]()
+    var trackOrderAndType = [(MkvMerge.GlobalOption.TrackOrder, MediaTrackType)]()
     var videoRemovedTrackIndexes = [Int]()
     var audioRemovedTrackIndexes = [Int]()
     var subtitleRemoveTracks = [Int]()
@@ -359,7 +359,7 @@ extension ChocoMuxer {
     for modify in modifications.enumerated() {
       switch modify.element {
       case .copy(let type):
-        trackOrder.append(.init(fid: 0, tid: modify.offset))
+        trackOrderAndType.append((.init(fid: 0, tid: modify.offset), type))
         switch type {
         case .video:
           videoCopiedTrackIndexes.append(modify.offset)
@@ -386,7 +386,7 @@ extension ChocoMuxer {
         }
         files.forEach { file in
           externalTracks.append((file: file, lang: lang, trackName: trackName))
-          trackOrder.append(.init(fid: externalTracks.count, tid: 0))
+          trackOrderAndType.append((.init(fid: externalTracks.count, tid: 0), type))
         }
       }
 
@@ -431,6 +431,17 @@ extension ChocoMuxer {
       return .init(file: track.file.path, options: options)
     }
     let splitInfo = generateMkvmergeSplit(split: config.split, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
+
+    let trackOrder: [MkvMerge.GlobalOption.TrackOrder]
+    if config.metaPreference.sortTrackType {
+      let typePriority = [MediaTrackType.video, .audio, .subtitles]
+      trackOrder = typePriority.reduce(into: [], { partialResult, currentType in
+        partialResult.append(contentsOf: trackOrderAndType.filter { $0.1 == currentType }.map(\.0))
+      })
+    } else {
+      trackOrder = trackOrderAndType.map(\.0)
+    }
+
     let mkvGlobal = MkvMerge.GlobalOption(quiet: true, trackOrder: trackOrder, split: splitInfo, experimentalFeatures: [.append_and_split_flac])
 
     let mkvmerge = MkvMerge(
@@ -438,7 +449,7 @@ extension ChocoMuxer {
       output: outputURL.path, inputs: [mainInput] + externalInputs)
     logger.debug("\(mkvmerge.commandLineArguments.joined(separator: " "))")
 
-    logger.info("Mkvmerge: \(file) -------> \(outputURL)")
+    logger.info("Mkvmerge: \(file.path) -------> \(outputURL.path)")
     do {
       try launch(externalExecutable: mkvmerge, checkAllowedExitCodes: allowedExitCodes)
     } catch {
