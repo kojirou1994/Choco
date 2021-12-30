@@ -915,7 +915,7 @@ public struct BDMVMetadata {
           }
 
           if split != nil {
-            tasks.append(.init(input: mpls.fileName, main: .init(MkvMerge(global: .init(quiet: true, chapterFile: chapterPath, split: generateMkvmergeSplit(split: split, chapterCount: mpls.chapterCount)), output: output.path, inputs: [.init(file: mpls.fileName.path)])), chapterSplit: true, canBeIgnored: false))
+            tasks.append(.init(input: mpls.fileName, main: .init(MkvMerge(global: .init(quiet: true, split: generateMkvmergeSplit(split: split, chapterCount: mpls.chapterCount)), output: output.path, inputs: [.init(file: mpls.fileName.path)])), chapterSplit: true, canBeIgnored: false))
           } else {
             let splitWorkers = try split(mpls: mpls, temporaryDirectory: outputDirectoryURL).map { $0.main }
             let main = MkvMerge(global: .init(quiet: true, chapterFile: chapterPath), output: output.path, inputs: mpls.files.enumerated().map { MkvMerge.Input(file: $0.element.path, append: $0.offset != 0) })
