@@ -392,15 +392,22 @@ extension ChocoMuxer {
 
       switch modify.element {
       case .copy:
-        if !config.keepTrackName {
+        if !config.metaPreference.keep(.trackName) {
           mainInput.options.append(.trackName(tid: modify.offset, name: ""))
         }
       default: break
       }
     }
 
-    if !config.keepVideoLanguage {
+    if !config.metaPreference.keep(.videoLanguage) {
       videoCopiedTrackIndexes.forEach { mainInput.options.append(.language(tid: $0, language: "und")) }
+    }
+    if !config.metaPreference.keep(.attachments) {
+      mainInput.options.append(.attachments(.removeAll))
+    }
+    if !config.metaPreference.keep(.tags) {
+      mainInput.options.append(.noGlobalTags)
+//      mainInput.options.append(.trackTags(.removeAll))
     }
 
     func correctTrackSelection(type: MediaTrackType, removedIndexes: [Int]) -> MkvMerge.Input.InputOption.TrackSelect {
@@ -414,14 +421,13 @@ extension ChocoMuxer {
     mainInput.options.append(.videoTracks(correctTrackSelection(type: .video, removedIndexes: videoRemovedTrackIndexes)))
     mainInput.options.append(.audioTracks(correctTrackSelection(type: .audio, removedIndexes: audioRemovedTrackIndexes)))
     mainInput.options.append(.subtitleTracks(correctTrackSelection(type: .subtitles, removedIndexes: subtitleRemoveTracks)))
-    mainInput.options.append(.attachments(.removeAll))
 
     let externalInputs = externalTracks.map { (track) -> MkvMerge.Input in
       var options: [MkvMerge.Input.InputOption] = [.language(tid: 0, language: track.lang.alpha3BibliographicCode)]
-      options.append(.trackName(tid: 0, name: config.keepTrackName ? track.trackName : ""))
+      options.append(.trackName(tid: 0, name: config.metaPreference.keep(.trackName) ? track.trackName : ""))
       options.append(.noGlobalTags)
       options.append(.noChapters)
-      options.append(.trackTags(.removeAll))
+//      options.append(.trackTags(.removeAll))
       return .init(file: track.file.path, options: options)
     }
     let splitInfo = generateMkvmergeSplit(split: config.split, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)

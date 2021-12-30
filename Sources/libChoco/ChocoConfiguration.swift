@@ -12,6 +12,7 @@ public struct ChocoConfiguration {
   public let mode: ChocoWorkMode
   public let splitBDMV: Bool
   public let split: ChocoSplit?
+  public let metaPreference: MetaPreference
   public let videoPreference: VideoPreference
   public let audioPreference: AudioPreference
   public let languagePreference: LanguagePreference
@@ -19,8 +20,6 @@ public struct ChocoConfiguration {
   public let ignoreInputPrimaryLang: Bool
   public let copyDirectoryFile: Bool
   public let deleteAfterRemux: Bool
-  public let keepTrackName: Bool
-  public let keepVideoLanguage: Bool
   public let removeExtraDTS: Bool
 
   public let ignoreWarning: Bool
@@ -30,12 +29,13 @@ public struct ChocoConfiguration {
 
   public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: ChocoWorkMode,
               splitBDMV: Bool,
+              metaPreference: MetaPreference,
               videoPreference: VideoPreference,
               audioPreference: AudioPreference,
               split: ChocoSplit?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?,
               ignoreInputPrimaryLang: Bool,
               copyDirectoryFile: Bool, deleteAfterRemux: Bool,
-              keepTrackName: Bool, keepVideoLanguage: Bool, removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool,
+              removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool,
               keepTempMethod: KeepTempMethod) {
     self.outputRootDirectory = outputRootDirectory
     self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(ChocoTempDirectoryName)
@@ -48,8 +48,7 @@ public struct ChocoConfiguration {
     self.ignoreInputPrimaryLang = ignoreInputPrimaryLang
     self.copyDirectoryFile = copyDirectoryFile
     self.deleteAfterRemux = deleteAfterRemux
-    self.keepTrackName = keepTrackName
-    self.keepVideoLanguage = keepVideoLanguage
+    self.metaPreference = metaPreference
     self.removeExtraDTS = removeExtraDTS
     self.ignoreWarning = ignoreWarning
     self.organizeOutput = organize
@@ -62,6 +61,25 @@ public struct ChocoConfiguration {
 extension ChocoConfiguration {
 
   public struct MetaPreference: CustomStringConvertible {
+    public init(keepMetadatas: Set<MetaPreference.Metadata>, sortTrackType: Bool) {
+      self.keepMetadatas = keepMetadatas
+      self.sortTrackType = sortTrackType
+    }
+
+    public enum Metadata: String, CaseIterable {
+      case attachments
+      case tags
+      case trackName
+      case videoLanguage
+    }
+
+    private let keepMetadatas: Set<Metadata>
+    public let sortTrackType: Bool
+
+    public func keep(_ metadata: Metadata) -> Bool {
+      keepMetadatas.contains(metadata)
+    }
+
     public var description: String {
       ""
     }

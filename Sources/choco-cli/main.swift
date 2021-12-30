@@ -48,6 +48,29 @@ extension ChocoConfiguration.VideoPreference.VideoProcess: ExpressibleByArgument
 extension ChocoConfiguration.VideoPreference.VideoQuality: ExpressibleByArgument {}
 extension Logger.Level: ExpressibleByArgument {}
 extension ChocoSplit: ExpressibleByArgument {}
+extension ChocoConfiguration.MetaPreference.Metadata: EnumerableFlag {
+
+  var argumentName: String {
+    switch self {
+    case .trackName: return "track-name"
+    case .attachments: return "attachments"
+    case .tags: return "global-tags"
+    case .videoLanguage: return "video-language"
+    }
+  }
+
+  public static func name(for value: Self) -> NameSpecification {
+    .customLong("keep-\(value.argumentName)")
+  }
+
+  public static func help(for value: Self) -> ArgumentHelp? {
+    switch value {
+    case .trackName: return "Keep original track name"
+    case .videoLanguage: return "Keep original video track's language"
+    default: return nil
+    }
+  }
+}
 
 extension ChocoConfiguration.AudioPreference.LosslessAudioCodec: EnumerableFlag {
   public static func name(for value: Self) -> NameSpecification {
@@ -142,11 +165,11 @@ extension ChocoCli {
     @Flag(help: "Copy normal files in directory mode.")
     var copyDirectoryFile: Bool = false
 
-    @Flag(help: "Keep original video track's language")
-    var keepVideoLanguage: Bool = false
+    @Flag
+    var keepMetadatas: [ChocoConfiguration.MetaPreference.Metadata] = []
 
-    @Flag(help: "Keep original track name")
-    var keepTrackName: Bool = false
+    @Flag(help: "Sort track order by track type, priority: video > audio > subtitle.")
+    var sortTrackType: Bool = false
 
     @Flag
     var protectedCodecs: [ChocoConfiguration.AudioPreference.LosslessAudioCodec] = []
@@ -236,10 +259,11 @@ extension ChocoCli {
         outputRootDirectory: URL(fileURLWithPath: output),
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode, splitBDMV: splitBDMV,
+        metaPreference: .init(keepMetadatas: .init(keepMetadatas), sortTrackType: sortTrackType),
         videoPreference: .init(process: videoProcess, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
-        deleteAfterRemux: deleteAfterRemux, keepTrackName: keepTrackName, keepVideoLanguage: keepVideoLanguage,
+        deleteAfterRemux: deleteAfterRemux,
         removeExtraDTS: removeExtraDTS,
         ignoreWarning: ignoreWarning, organize: organize, mainTitleOnly: mainOnly, keepTempMethod: .never)
 
