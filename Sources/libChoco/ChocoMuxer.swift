@@ -427,7 +427,7 @@ extension ChocoMuxer {
       options.append(.trackName(tid: 0, name: config.metaPreference.keep(.trackName) ? track.trackName : ""))
       options.append(.noGlobalTags)
       options.append(.noChapters)
-//      options.append(.trackTags(.removeAll))
+      options.append(.trackTags(.removeAll))
       return .init(file: track.file.path, options: options)
     }
     let splitInfo = generateMkvmergeSplit(split: config.split, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
