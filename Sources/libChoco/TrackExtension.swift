@@ -59,7 +59,7 @@ extension MkvMergeIdentification.Track {
 
   public var isAC3: Bool {
     switch codec {
-    case "E-AC-3", "AC-3":
+    case "E-AC-3", "AC-3", "AC-3 Dolby Surround EX":
       return true
     default:
       return false
