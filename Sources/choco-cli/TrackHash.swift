@@ -10,27 +10,59 @@ import Crypto
 #error("Unsupported platform, no crypto library!!")
 #endif
 import BufferUtility
+import MediaUtility
+
+extension MediaTrackType: EnumerableFlag {
+  public static var allCases: [MediaTrackType] {
+    [.video, .audio, .subtitles]
+  }
+
+  public static func name(for value: MediaTrackType) -> NameSpecification {
+    .customLong("disable-\(value.rawValue)")
+  }
+}
 
 struct TrackHash: ParsableCommand {
-  @Argument()
-  var inputs: [String]
 
   @Option(help: "Temp dir to extract tracks.")
   var tmp: String = "./tmp"
 
+  @Flag
+  var disabledTrackTypes: [MediaTrackType] = []
+
+  @Argument()
+  var inputs: [String]
+
   func run() throws {
+    if !disabledTrackTypes.isEmpty {
+      print("Disabled track types: \(disabledTrackTypes)")
+    }
     let tmpDir = URL(fileURLWithPath: tmp)
     inputs.forEach { file in
       do {
+        print("")
         print("Reading file: \(file)")
         let info = try MkvMergeIdentification(filePath: file)
         
-        let tracks = info.tracks.map { _ in tmpDir.appendingPathComponent(UUID().uuidString) }
+        let extractedTrackIDAndURLs: [(id: Int, url: URL)] = info.tracks
+          .filter { track in
+            if disabledTrackTypes.contains(track.type) {
+              return false
+            }
+            return true
+          }
+          .map { ($0.id, tmpDir.appendingPathComponent(UUID().uuidString)) }
+
+        if extractedTrackIDAndURLs.isEmpty {
+          print("No tracks need to be extracted.")
+          return
+        }
+
         let extractor = MkvExtract(
           filepath: file,
-          extractions: [.tracks(outputs: tracks.enumerated().map { .init(trackID: $0.offset, filename: $0.element.path) })])
-        try extractor.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
-        let hashes = try tracks.map { trackFileURL -> String in
+          extractions: [.tracks(outputs: extractedTrackIDAndURLs.map { .init(trackID: $0.id, filename: $0.url.path) })])
+        try extractor.launch(use: TSCExecutableLauncher(outputRedirection: .none))
+        let hashes = try extractedTrackIDAndURLs.map(\.url).map { trackFileURL -> String in
           var hash = SHA256()
           try BufferEnumerator(options: .init(bufferSizeLimit: 4*1024))
             .enumerateBuffer(file: trackFileURL) { (buffer, _, _) in
@@ -39,19 +71,19 @@ struct TrackHash: ParsableCommand {
           return hash.finalize().hexString(uppercase: true, prefix: "")
         }
 
-        for (track, hash) in zip(info.tracks, hashes) {
-          print(track.remuxerInfo)
+        for (trackID, hash) in zip(extractedTrackIDAndURLs.map(\.id), hashes) {
+          print(info.tracks[trackID].remuxerInfo)
           print("Hash:", hash)
         }
 
-        tracks.forEach { trackFileURL in
+        extractedTrackIDAndURLs.map(\.url).forEach { trackFileURL in
           do {
             try fm.removeItem(at: trackFileURL)
           } catch {
 
           }
         }
-        print("\n")
+        print("")
       } catch {
         print("Failed, error: \(error)")
       }
