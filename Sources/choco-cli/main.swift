@@ -53,9 +53,9 @@ extension ChocoConfiguration.MetaPreference.Metadata: EnumerableFlag {
   var argumentName: String {
     switch self {
     case .trackName: return "track-name"
-    case .attachments: return "attachments"
     case .tags: return "global-tags"
     case .videoLanguage: return "video-language"
+    case .title, .attachments: return rawValue
     }
   }
 

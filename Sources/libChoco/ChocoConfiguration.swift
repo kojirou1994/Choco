@@ -71,6 +71,7 @@ extension ChocoConfiguration {
       case tags
       case trackName
       case videoLanguage
+      case title
     }
 
     private let keepMetadatas: Set<Metadata>
