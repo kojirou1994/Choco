@@ -15,4 +15,5 @@ public enum ChocoError: Error {
   case parseBDMV(Error)
   case terminated
   case noHBCropInfo
+  case encodingMultipleVideoTracks
 }

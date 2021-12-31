@@ -530,6 +530,12 @@ extension ChocoMuxer {
 
   private func _makeTrackModification(mkvinfo: MkvMergeIdentification,
                                       temporaryPath: URL) throws -> [TrackModification] {
+
+    if config.videoPreference.process == .encode,
+       mkvinfo.tracks.count(where: {$0.type == .video}) > 1 {
+      throw ChocoError.encodingMultipleVideoTracks
+    }
+
     let preferedLanguages = config.languagePreference.generatePrimaryLanguages(with: mkvinfo.primaryLanguageCodes, addUnd: true, logger: logger)
 
     let ffmpegMainInputFileID = 0
