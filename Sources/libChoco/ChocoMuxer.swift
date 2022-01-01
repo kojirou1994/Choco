@@ -442,7 +442,7 @@ extension ChocoMuxer {
       trackOrder = trackOrderAndType.map(\.0)
     }
 
-    let mkvGlobal = MkvMerge.GlobalOption(quiet: true, title: config.metaPreference.keep(.title) ? nil : "", trackOrder: trackOrder, split: splitInfo, experimentalFeatures: [.append_and_split_flac])
+    let mkvGlobal = MkvMerge.GlobalOption(quiet: true, title: config.metaPreference.keep(.title) ? nil : "", trackOrder: trackOrder, split: splitInfo, flushOnClose: true, experimentalFeatures: [.append_and_split_flac])
 
     let mkvmerge = MkvMerge(
       global: mkvGlobal,
