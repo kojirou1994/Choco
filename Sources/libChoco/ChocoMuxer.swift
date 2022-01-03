@@ -611,7 +611,7 @@ extension ChocoMuxer {
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
             try script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
 
-            var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: config.videoPreference.ffmpegIOOption)
+            var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: config.videoPreference.ffmpegIOOptions(cropInfo: .zero))
 
             if config.videoPreference.useIntergratedVapoursynth {
               logger.info("Using ffmpeg integrated Vapoursynth!")
@@ -646,10 +646,7 @@ extension ChocoMuxer {
               .mapMetadata(outputSpec: nil, inputFileIndex: -1, inputSpec: nil),
               .mapChapters(inputFileIndex: -1),
             ]
-            outputOptions.append(contentsOf: config.videoPreference.ffmpegIOOption)
-            if !cropInfo.isZero {
-              outputOptions.append(.filter(filtergraph: cropInfo.ffmpegArgument, streamSpecifier: .streamType(.video, additional: nil)))
-            }
+            outputOptions.append(contentsOf: config.videoPreference.ffmpegIOOptions(cropInfo: cropInfo))
             // output
             ffmpeg.ios.append(.output(url: encodedTrackFile.path, options: outputOptions))
           }

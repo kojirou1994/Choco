@@ -456,15 +456,28 @@ extension ChocoConfiguration.VideoPreference {
     case flyabcPlus = "flyabc+"
   }
 
-  var ffmpegIOOption: [FFmpeg.InputOutputOption] {
+  func ffmpegIOOptions(cropInfo: CropInfo) -> [FFmpeg.InputOutputOption] {
     var options = [FFmpeg.InputOutputOption]()
     options.append(.codec(codec.ffCodec, streamSpecifier: .streamType(.video)))
     if !keepPixelFormat {
       options.append(.pixelFormat(codec.recommendedPixelFormat, streamSpecifier: nil))
     }
 
-    if let filter = filter {
-      options.append(.avOption(name: "filter", value: filter, streamSpecifier: .streamType(.video)))
+    // filter
+    do {
+      var finalFilterGraph = ""
+      if !cropInfo.isZero {
+        finalFilterGraph = cropInfo.ffmpegArgument
+      }
+      if let filter = filter, !filter.isEmpty {
+        if !finalFilterGraph.isEmpty {
+          finalFilterGraph += ","
+        }
+        finalFilterGraph += filter
+      }
+      if !finalFilterGraph.isEmpty {
+        options.append(.filter(filtergraph: finalFilterGraph, streamSpecifier: .streamType(.video)))
+      }
     }
 
     // color
