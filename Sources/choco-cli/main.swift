@@ -102,6 +102,7 @@ struct ChocoCli: ParsableCommand {
             Mux.self,
             MkvToMp4.self,
             ParseMpls.self,
+            TestFilter.self,
           ]
     )
 }
