@@ -326,6 +326,7 @@ extension ChocoMuxer {
     try .init(url: url)
   }
 
+  /// main function, remux mkv file
   private func _remux(file: URL, outputDirectoryURL: URL, temporaryPath: URL,
                       deleteAfterRemux: Bool,
                       parseOnly: Bool = false,
@@ -566,6 +567,28 @@ extension ChocoMuxer {
       case .video:
         switch config.videoPreference.process {
         case .encode:
+          if config.videoPreference.progressiveOnly {
+            logger.info("Progressive-only mode enabled, checking video track scan type.")
+            // check scan type
+            let output = try AnyExecutable(executableName: "mediainfo", arguments: ["--Output=JSON", "-f", mkvinfo.fileName])
+              .launch(use: TSCExecutableLauncher())
+              .output.get()
+
+            let json = try JSONSerialization.jsonObject(with: Data(output), options: []) as! [String : Any]
+            let media = try (json["media"] as? [String : Any]).unwrap()
+            let tracks = try (media["track"] as? [[String : Any]]).unwrap()
+            let videoTrack = tracks.first(where: { $0["@type"] as! String == "Video" })!
+            if let scanType = videoTrack["ScanType"] as? String {
+              logger.info("Scan type: \(scanType)")
+              if scanType.lowercased() != "progressive" {
+                logger.info("Non progressive detected, skip this file.")
+                throw ChocoError.nonProgTrackInProgOnlyMode
+              }
+            } else {
+              logger.warning("No scan type found!")
+            }
+          }
+
           let encodedTrackFile = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-encoded.mkv")
           
           // autocrop

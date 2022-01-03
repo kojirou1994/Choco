@@ -190,6 +190,9 @@ extension ChocoCli {
     @Flag(help: "Main file only in bluray.")
     var mainOnly: Bool = false
 
+    @Flag(help: "Only encode progressive video track.")
+    var progOnly: Bool = false
+
     @Option(name: [.customShort("v"), .long], help: "Video processing method, \(ChocoConfiguration.VideoPreference.VideoProcess.availableValues).")
     var videoProcess: ChocoConfiguration.VideoPreference.VideoProcess = .copy
 
@@ -233,7 +236,7 @@ extension ChocoCli {
     var audioCodec: ChocoConfiguration.AudioPreference.AudioCodec = .flac
 
     @Option(help: "Codec for fixing lossy audio track, \(ChocoConfiguration.AudioPreference.AudioCodec.availableValues)")
-    var audioLossyCodec: ChocoConfiguration.AudioPreference.AudioCodec?
+    var audioLossyCodec: ChocoConfiguration.AudioPreference.AudioCodec = .opus
 
     @Option(help: "Audio kbps per channel")
     var audioBitrate: Int = 128
@@ -261,7 +264,7 @@ extension ChocoCli {
         temperoraryDirectory: URL(fileURLWithPath: temp),
         mode: mode, splitBDMV: splitBDMV,
         metaPreference: .init(keepMetadatas: .init(keepMetadatas), sortTrackType: sortTrackType),
-        videoPreference: .init(process: videoProcess, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth),
+        videoPreference: .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth),
         audioPreference: .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs)),
         split: split, preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages, ignoreInputPrimaryLang: ignoreInputPrimaryLang, copyDirectoryFile: copyDirectoryFile,
         deleteAfterRemux: deleteAfterRemux,

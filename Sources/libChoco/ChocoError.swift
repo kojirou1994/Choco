@@ -16,4 +16,5 @@ public enum ChocoError: Error {
   case terminated
   case noHBCropInfo
   case encodingMultipleVideoTracks
+  case nonProgTrackInProgOnlyMode
 }

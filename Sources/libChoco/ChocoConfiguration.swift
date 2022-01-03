@@ -217,6 +217,7 @@ extension ChocoConfiguration {
 
   public struct VideoPreference: CustomStringConvertible {
     public init(process: VideoProcess,
+                progressiveOnly: Bool,
                 filter: String?,
                 encodeScript: String?,
                 codec: Codec,
@@ -227,6 +228,7 @@ extension ChocoConfiguration {
                 keepPixelFormat: Bool,
                 useIntergratedVapoursynth: Bool) {
       self.process = process
+      self.progressiveOnly = progressiveOnly
       self.filter = filter
       self.encodeScript = encodeScript
       self.codec = codec
@@ -241,6 +243,7 @@ extension ChocoConfiguration {
     }
 
     public let process: VideoProcess
+    public let progressiveOnly: Bool
     public let filter: String?
     public let encodeScript: String?
     public let codec: Codec
