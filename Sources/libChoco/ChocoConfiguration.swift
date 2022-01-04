@@ -456,7 +456,7 @@ extension ChocoConfiguration.VideoPreference {
     case flyabcPlus = "flyabc+"
   }
 
-  func ffmpegIOOptions(cropInfo: CropInfo) -> [FFmpeg.InputOutputOption] {
+  func ffmpegIOOptions(cropInfo: CropInfo?) -> [FFmpeg.InputOutputOption] {
     var options = [FFmpeg.InputOutputOption]()
     options.append(.codec(codec.ffCodec, streamSpecifier: .streamType(.video)))
     if !keepPixelFormat {
@@ -466,7 +466,7 @@ extension ChocoConfiguration.VideoPreference {
     // filter
     do {
       var finalFilterGraph = ""
-      if !cropInfo.isZero {
+      if let cropInfo = cropInfo {
         finalFilterGraph = cropInfo.ffmpegArgument
       }
       if let filter = filter, !filter.isEmpty {
