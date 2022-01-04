@@ -592,13 +592,14 @@ extension ChocoMuxer {
           let encodedTrackFile = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-encoded.mkv")
           
           // autocrop
-          let cropInfo: CropInfo
+          // TODO: generate crop info using user's filter
+          let cropInfo: CropInfo?
           if config.videoPreference.autoCrop {
             logger.info("Calculating crop info..")
-            cropInfo = try calculateAutoCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
+            cropInfo = try handbrakeCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
             logger.info("Calculated: \(cropInfo)")
           } else {
-            cropInfo = .zero
+            cropInfo = nil
           }
 
           if let encodeScript = config.videoPreference.encodeScript {
@@ -611,7 +612,7 @@ extension ChocoMuxer {
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
             try script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
 
-            var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: config.videoPreference.ffmpegIOOptions(cropInfo: .zero))
+            var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: config.videoPreference.ffmpegIOOptions(cropInfo: nil))
 
             if config.videoPreference.useIntergratedVapoursynth {
               logger.info("Using ffmpeg integrated Vapoursynth!")
@@ -1147,9 +1148,11 @@ extension ChocoMuxer {
   }
 }
 
-struct ChocoTrack {
+struct ChocoTrackInfo {
   let trackIndex: Int
-  let trackTypeIndex: Int
+  let trackIndexForSameType: Int
   let trackType: MediaTrackType
   let codec: String
+  let lang: String
+  let name: String
 }

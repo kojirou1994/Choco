@@ -1,41 +1,37 @@
 import Precondition
 
-public struct CropInfo: Equatable {
-  public init(top: Int, bottom: Int, left: Int, right: Int) {
-    self.top = top
-    self.bottom = bottom
-    self.left = left
-    self.right = right
-  }
-  
-  public static var zero: Self { .init(top: 0, bottom: 0, left: 0, right: 0) }
-  
-  public var isZero: Bool {
-    self == Self.zero
-  }
-  
-  public let top: Int
-  public let bottom: Int
-  public let left: Int
-  public let right: Int
+public enum CropInfo: Equatable {
+  case relative(top: Int32, bottom: Int32, left: Int32, right: Int32)
+  case absolute(width: Int32, height: Int32, x: Int32, y: Int32)
 
-  public init<S: StringProtocol>(str: S) throws {
-    let numbers = try str
+  public init<S: StringProtocol>(chocoOutput string: S) throws {
+    let numbers = try string
       .split(separator: "/")
-      .map { try Int($0).unwrap("Invalid number in crop info: \($0), full string: \(str)") }
+      .map { try Int32($0).unwrap("Invalid number in crop info: \($0), full string: \(string)") }
 
     try preconditionOrThrow(numbers.count == 4, "CropInfo must have 4 numbers")
-    top = numbers[0]
-    bottom = numbers[1]
-    left = numbers[2]
-    right = numbers[3]
+    self = .relative(top: numbers[0], bottom: numbers[1], left: numbers[2], right: numbers[3])
+  }
+
+  public init<S: StringProtocol>(ffmpegOutput string: S) throws {
+    let numbers = try string
+      .split(separator: ":")
+      .map { try Int32($0).unwrap("Invalid number in crop info: \($0), full string: \(string)") }
+
+    try preconditionOrThrow(numbers.count == 4, "CropInfo must have 4 numbers")
+    self = .absolute(width: numbers[0], height: numbers[1], x: numbers[2], y: numbers[3])
   }
 
   public var ffmpegArgument: String {
-    "crop=in_w-\(left + right):in_h-\(top + bottom):\(left):\(top)"
+    switch self {
+    case .relative(let top, let bottom, let left, let right):
+      return "crop=in_w-\(left + right):in_h-\(top + bottom):\(left):\(top)"
+    case .absolute(let width, let height, let left, let top):
+      return "crop=\(width):\(height):\(left):\(top)"
+    }
   }
 
-  public var plainText: String {
-    "\(top)/\(bottom)/\(left)/\(right)"
-  }
+//  public var plaInt32ext: String {
+//    "\(top)/\(bottom)/\(left)/\(right)"
+//  }
 }

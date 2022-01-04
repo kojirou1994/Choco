@@ -35,4 +35,11 @@ final class ChocoTests: XCTestCase {
 
     XCTAssertEqual(preferedLanguages, Set([.chi, .jpn]))
   }
+
+  func testCrop() throws {
+    let str = "1920:1024:0:28"
+    let info = try CropInfo(ffmpegOutput: str)
+    XCTAssertEqual(info, .absolute(width: 1920, height: 1024, x: 0, y: 28))
+    XCTAssertEqual(info.ffmpegArgument, "crop=" + str)
+  }
 }

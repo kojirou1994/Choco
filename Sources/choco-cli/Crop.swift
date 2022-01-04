@@ -23,13 +23,21 @@ enum OutputFormat: String, ExpressibleByArgument, CaseIterable, CustomStringConv
   var description: String { rawValue }
 }
 
+extension CropTool: ExpressibleByArgument {}
+
 struct Crop: ParsableCommand {
 
   @Option(help: "Available: \(OutputFormat.allCases)")
   var format: OutputFormat = .text
 
-  @Option(help: "How many preview images are generated")
-  var previews: Int = 10
+  @Option(help: "Available: \(CropTool.allCases)")
+  var tool: CropTool
+
+  @Option(help: "How many preview images are generated, for handbrake.")
+  var previews: Int = 200
+
+  @Option(help: "Detect crop every <interval> frames, for ffmpeg.")
+  var interval: Int = 250
 
   @Option()
   var tmp: String = sysTempDir()
@@ -40,12 +48,18 @@ struct Crop: ParsableCommand {
   func run() throws {
     let tempDirURL = URL(fileURLWithPath: tmp)
     let tempFileURL = tempDirURL.appendingPathComponent("\(UUID()).mkv")
-    let info = try calculateAutoCrop(at: input, previews: previews, tempFile: tempFileURL)
+    let info: CropInfo
+    switch tool {
+    case .ffmpeg:
+      info = try ffmpegCrop(file: input, checkInterval: interval)
+    case .handbrake:
+      info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFileURL)
+    }
     switch format {
     case .origin:
-      print(info.plainText)
-    case .text:
       print(info)
+    case .text:
+      print(info, info.ffmpegArgument)
     case .ffmpeg:
       print(info.ffmpegArgument)
     }

@@ -2,6 +2,13 @@ import MediaUtility
 import ExecutableLauncher
 import URLFileManager
 import Foundation
+import MediaTools
+
+public enum CropTool: String, CaseIterable, CustomStringConvertible {
+  case ffmpeg
+  case handbrake
+  public var description: String { rawValue }
+}
 
 private struct HandBrakePreview: Executable {
   static let executableName: String = "HandBrakeCLI"
@@ -22,9 +29,32 @@ private struct HandBrakePreview: Executable {
   }
 }
 
+public func ffmpegCrop(file: String, checkInterval: Int) throws -> CropInfo {
+
+  let ffmpeg = FFmpeg(
+    global: .init(hideBanner: true, enableStdin: false),
+    ios: [
+      .input(url: file),
+      .output(url: "-", options: [
+        .map(inputFileID: 0, streamSpecifier: .streamType(.video, additional: .streamIndex(0)), isOptional: false, isNegativeMapping: false),
+        .filter(filtergraph: "select='not(mod(n\\,\(checkInterval)))',cropdetect=0", streamSpecifier: nil),
+        .format("null"),
+      ])
+    ])
+
+  print("running ffmpeg: \(ffmpeg.arguments)")
+  let result = try ffmpeg.launch(use: TSCExecutableLauncher())
+  for line in try result.utf8stderrOutput().components(separatedBy: .newlines).reversed() {
+    if line.hasPrefix("[Parsed_cropdetect") {
+      let cropRange = try line.range(of: "crop=").unwrap()
+      return try .init(ffmpegOutput: line[cropRange.upperBound...])
+    }
+  }
+  throw ChocoError.noCropInfo
+}
+
 #warning("handbrake does not support selecting video track")
-public func calculateAutoCrop(at path: String, previews: Int,
-                              tempFile: URL) throws -> CropInfo {
+public func handbrakeCrop(at path: String, previews: Int, tempFile: URL) throws -> CropInfo {
   let fm = URLFileManager.default
   if fm.fileExistance(at: tempFile).exists {
     try fm.removeItem(at: tempFile)
@@ -41,9 +71,9 @@ public func calculateAutoCrop(at path: String, previews: Int,
   for lineBuffer in stderr.lazySplit(separator: UInt8(ascii: "\n")) {
     let line = lineBuffer.utf8String
     if line.hasPrefix(prefix) {
-      return try CropInfo(str: line.dropFirst(prefix.count))
+      return try CropInfo(chocoOutput: line.dropFirst(prefix.count))
     }
   }
   
-  throw ChocoError.noHBCropInfo
+  throw ChocoError.noCropInfo
 }
