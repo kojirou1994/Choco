@@ -232,10 +232,6 @@ public final class ChocoMuxer {
       }
     }
 
-    if config.deleteAfterRemux {
-      try? _fm.removeItem(at: bdmvPath)
-    }
-
     return .init(sizeBefore: sizeBefore, sizeAfter: sizeAfter, startDate: startDate, endDate: .init())
   }
 
