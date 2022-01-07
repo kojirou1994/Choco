@@ -14,7 +14,7 @@ extension Language {
 }
 
 public struct LanguageSet: CustomStringConvertible {
-  internal init(languages: Set<Language>) {
+  internal init(_ languages: Set<Language>) {
     self.languages = languages
   }
 
@@ -22,7 +22,7 @@ public struct LanguageSet: CustomStringConvertible {
 
   public init?(argument: String) {
     languages = Set(argument.components(separatedBy: ",").compactMap { str in
-      if let code = Language(alpha3Code: str) {
+      if let code = Language(argument: str) {
         return code
       } else {
         print("Invalid language code: \(str), ignored.")
@@ -32,7 +32,7 @@ public struct LanguageSet: CustomStringConvertible {
   }
 
   public static var `default`: Self {
-    .init(languages: [.und, .chi, .jpn])
+    .init([.und, .chi, .jpn])
   }
 
   public var description: String {
