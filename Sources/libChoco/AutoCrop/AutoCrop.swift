@@ -30,6 +30,11 @@ private struct HandBrakePreview: Executable {
 }
 
 public func ffmpegCrop(file: String, checkInterval: Int) throws -> CropInfo {
+  var filters = [String]()
+  if checkInterval > 1 {
+    filters.append("select='not(mod(n\\,\(checkInterval)))'")
+  }
+  filters.append("cropdetect=16")
 
   let ffmpeg = FFmpeg(
     global: .init(hideBanner: true, enableStdin: false),
@@ -37,7 +42,7 @@ public func ffmpegCrop(file: String, checkInterval: Int) throws -> CropInfo {
       .input(url: file),
       .output(url: "-", options: [
         .map(inputFileID: 0, streamSpecifier: .streamType(.video, additional: .streamIndex(0)), isOptional: false, isNegativeMapping: false),
-        .filter(filtergraph: "select='not(mod(n\\,\(checkInterval)))',cropdetect=0", streamSpecifier: nil),
+        .filter(filtergraph: filters.joined(separator: ","), streamSpecifier: nil),
         .format("null"),
       ])
     ])
