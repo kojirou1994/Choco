@@ -9,10 +9,10 @@ import URLFileManager
 import Logging
 import ISOCodes
 
-let _fm = URLFileManager.default
+let fm = URLFileManager.default
 
 public final class ChocoMuxer {
-  private let config: ChocoConfiguration
+  private let commonOptions: ChocoCommonOptions
 
   private let ffmpegCodecs: FFmpegCodecs
 
@@ -41,23 +41,23 @@ public final class ChocoMuxer {
   }
 
   private func checkCodecs() throws {
-    if config.videoPreference.process == .encode {
-      switch config.videoPreference.codec {
+    if commonOptions.video.process == .encode {
+      switch commonOptions.video.codec {
       case .x264:
         try preconditionOrThrow(ffmpegCodecs.x264, "ffmpeg no x264!")
       case .x265:
         try preconditionOrThrow(ffmpegCodecs.x265, "ffmpeg no x265!")
       case .h264VT, .hevcVT, .h264VTSW, .hevcVTSW:
         try preconditionOrThrow(ffmpegCodecs.videotoolbox, "ffmpeg no videotoolbox!")
-        switch config.videoPreference.quality {
+        switch commonOptions.video.quality {
         case .crf:
-          try preconditionOrThrow(config.videoPreference.codec.supportsCrf, "Codec \(config.videoPreference.codec) doesn't support crf mode!")
+          try preconditionOrThrow(commonOptions.video.codec.supportsCrf, "Codec \(commonOptions.video.codec) doesn't support crf mode!")
         default:
           break
         }
       }
-      if config.videoPreference.encodeScript != nil {
-        if config.videoPreference.useIntergratedVapoursynth {
+      if commonOptions.video.encodeScript != nil {
+        if commonOptions.video.useIntergratedVapoursynth {
           try preconditionOrThrow(ffmpegCodecs.vapoursynth, "no vapoursynth!")
         } else {
           try ExecutablePath.lookup("vspipe")
@@ -69,8 +69,8 @@ public final class ChocoMuxer {
   private func logConfig() {
     logger.info("Configurations:")
     logger.info("FFmpeg: \(ffmpegCodecs)")
-    logger.info("Video: \(config.videoPreference)")
-    logger.info("Audio: \(config.audioPreference)")
+    logger.info("Video: \(commonOptions.video)")
+    logger.info("Audio: \(commonOptions.audio)")
   }
 
   private let allowedExitCodes: [CInt]
@@ -78,14 +78,15 @@ public final class ChocoMuxer {
   private let audioConvertQueue = OperationQueue()
 
   private var runningProcessID: Int32?
+  var currentTemporaryPath: URL?
 
   let logger: Logger
 
-  public init(config: ChocoConfiguration, logger: Logger) throws {
+  public init(config: ChocoCommonOptions, logger: Logger) throws {
     audioConvertQueue.maxConcurrentOperationCount = ProcessInfo.processInfo.processorCount
-    self.config = config
+    self.commonOptions = config
     self.logger = logger
-    if self.config.ignoreWarning {
+    if self.commonOptions.ignoreWarning {
       self.allowedExitCodes = [0, 1]
     } else {
       self.allowedExitCodes = [0]
@@ -164,184 +165,201 @@ public final class ChocoMuxer {
       }
     }
 
-    if _fm.fileExistance(at: task.main.outputURL).exists {
+    if fm.fileExistance(at: task.main.outputURL).exists {
       // output exists
       return [task.main.outputURL]
-    } else if task.chapterSplit, let parts = try? _fm.contentsOfDirectory(at: task.main.outputURL.deletingLastPathComponent()).filter({ $0.pathExtension == task.main.outputURL.pathExtension && $0.lastPathComponent.hasPrefix(task.main.outputURL.lastPathComponentWithoutExtension) }) {
+    } else if task.chapterSplit, let parts = try? fm.contentsOfDirectory(at: task.main.outputURL.deletingLastPathComponent()).filter({ $0.pathExtension == task.main.outputURL.pathExtension && $0.lastPathComponent.hasPrefix(task.main.outputURL.lastPathComponentWithoutExtension) }) {
       return parts
     } else {
       logger.error("Necessary files are missing: \(task.main.outputURL.path).")
       throw ChocoError.noOutputFile(task.main.outputURL)
     }
   }
+}
 
-  func remuxBDMV(at bdmvPath: URL, mplsMode: MplsRemuxMode, temporaryDirectoryURL: URL,
-                 remuxToOutputDirectory: Bool) throws -> Summary {
-    let startDate = Date()
-    var sizeBefore: UInt64 = 0
-    var sizeAfter: UInt64 = 0
+// MARK: BDMV
+extension ChocoMuxer {
 
-    let task = BDMVMetadata(rootPath: bdmvPath, mode: mplsMode,
-                            mainOnly: config.mainTitleOnly, split: config.split, logger: logger)
-    let finalOutputDirectoryURL = config.outputRootDirectory.appendingPathComponent(task.getBlurayTitle())
-    if _fm.fileExistance(at: finalOutputDirectoryURL).exists {
-      throw ChocoError.outputExist
-    }
-    try _fm.createDirectory(at: finalOutputDirectoryURL)
-    
-    let converters: [WorkTask]
-    let mplsOutputDirectoryURL = remuxToOutputDirectory ? temporaryDirectoryURL : finalOutputDirectoryURL
-    do {
-      converters = try task.generateMuxTasks(outputDirectoryURL: mplsOutputDirectoryURL)
-    } catch {
-      throw ChocoError.parseBDMV(error)
-    }
 
-    for converter in converters {
-      let tempFiles = try recursiveRun(task: converter)
-      if remuxToOutputDirectory {
-        for tempFile in tempFiles {
-          let mkvinfo = try readMKV(at: tempFile)
 
-          let duration = Timestamp(ns: UInt64(mkvinfo.container.properties?.duration ?? 0))
-          let subFolder: String
-          if config.organizeOutput {
-            if duration > Timestamp.hour {
-              // big
-              subFolder = ""
-            } else if duration > Timestamp.minute * 10 {
-              // > 10 min
-              subFolder = "medium"
-            } else if duration > Timestamp.minute {
-              // > 1 min
-              subFolder = "small"
-            } else {
-              subFolder = "garbage"
-            }
-          } else {
-            subFolder = ""
-          }
-
-          let summary = try _remux(file: tempFile,
-                                   outputDirectoryURL: finalOutputDirectoryURL.appendingPathComponent(subFolder), temporaryPath: temporaryDirectoryURL,
-                                   deleteAfterRemux: true, mkvinfoCache: mkvinfo)
-
-          sizeBefore += summary.sizeBefore
-          sizeAfter += summary.sizeAfter
-        }
-      }
-    }
-
-    return .init(sizeBefore: sizeBefore, sizeAfter: sizeAfter, startDate: startDate, endDate: .init())
-  }
-
-  func remuxFile(at path: URL, outputDirectoryURL: URL, temporaryPath: URL) throws -> Summary {
-    let fileType = _fm.fileExistance(at: path)
-    switch fileType {
-    case .none:
-      throw ChocoError.inputNotExists
-    case .directory:
-      throw ChocoError.directoryInFileMode
-    case .file:
-      return try _remux(file: path, outputDirectoryURL: outputDirectoryURL, temporaryPath: temporaryPath, deleteAfterRemux: config.deleteAfterRemux)
-    }
-  }
-
-  public func run(input: URL) throws -> Summary {
-    if terminated {
-      throw ChocoError.terminated
-    }
-
-    switch config.mode {
-    case .remuxBDMV, .directBDMV:
-      return try withTemporaryDirectory { tempDirectory in
-        let mode: MplsRemuxMode = config.splitBDMV ? .split : .direct
-        let remuxToOutputDirectory = config.mode != .directBDMV
-        return try remuxBDMV(at: input, mplsMode: mode, temporaryDirectoryURL: tempDirectory, remuxToOutputDirectory: remuxToOutputDirectory)
-      }
-    case .file:
-      return try withTemporaryDirectory { tempDirectory in
-        try remuxFile(at: input, outputDirectoryURL: config.outputRootDirectory, temporaryPath: tempDirectory)
-      }
-    case .directory:
-      try preconditionOrThrow(_fm.fileExistance(at: input) == .directory)
+  public func mux(bdmv bdmvPath: URL, options: BDMVRemuxOptions) -> Result<BDMVSummary, ChocoError> {
+    self.withTemporaryDirectory { temporaryDirectoryURL -> Result<BDMVSummary, ChocoError> in
+      let mplsMode: MplsRemuxMode = options.splitPlaylist ? .split : .direct
+      let remuxToOutputDirectory = !options.directMode
 
       let startDate = Date()
-      var sizeBefore: UInt64 = 0
-      var sizeAfter: UInt64 = 0
 
-      let inputPrefix = input.path
-      let dirName = input.lastPathComponent
+      let task = BDMVMetadata(rootPath: bdmvPath, mode: mplsMode,
+                              mainOnly: options.mainTitleOnly, split: commonOptions.split, logger: logger)
+      let finalOutputDirectoryURL = commonOptions.outputRootDirectory.appendingPathComponent(task.getBlurayTitle())
+      if fm.fileExistance(at: finalOutputDirectoryURL).exists {
+        return .failure(.outputExist)
+      }
+      try! fm.createDirectory(at: finalOutputDirectoryURL)
 
-      let succ = _fm.forEachContent(in: input, handleFile: true, handleDirectory: false, skipHiddenFiles: false) { fileURL in
-        guard !terminated else {
-          return
-        }
-        let fileDirPath = fileURL.deletingLastPathComponent().path
-        guard fileDirPath.hasPrefix(inputPrefix) else {
-          logger.error("Path handling incorrect")
-          return
-        }
-        let outputDirectoryURL = config.outputRootDirectory
-          .appendingPathComponent(dirName)
-          .appendingPathComponent(String(fileDirPath.dropFirst(inputPrefix.count)))
+      let converters: [WorkTask]
+      let mplsOutputDirectoryURL = remuxToOutputDirectory ? temporaryDirectoryURL : finalOutputDirectoryURL
+      do {
+        converters = try task.generateMuxTasks(outputDirectoryURL: mplsOutputDirectoryURL)
+      } catch {
+        return .failure(.parseBDMV(error))
+      }
 
-        do {
-          switch fileURL.pathExtension.lowercased() {
-          case "mkv", "mp4", "ts", "m2ts", "vob":
-            // remux
-            try self.withTemporaryDirectory { tempDirectory in
-              let subSummary = try remuxFile(at: fileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory)
-              sizeBefore += subSummary.sizeBefore
-              sizeAfter += subSummary.sizeAfter
+      var tasks: [BDMVSummary.PlaylistTask] = []
+      for converter in converters {
+        let tempFiles = try! recursiveRun(task: converter)
+        if remuxToOutputDirectory {
+          for tempFile in tempFiles {
+            let startTime = Date()
+            let mkvinfo = try! readMKV(at: tempFile)
+
+            let duration = Timestamp(ns: UInt64(mkvinfo.container.properties?.duration ?? 0))
+            let subFolder: String
+            if options.organizeOutput {
+              if duration > Timestamp.hour {
+                // big
+                subFolder = ""
+              } else if duration > Timestamp.minute * 10 {
+                // > 10 min
+                subFolder = "medium"
+              } else if duration > Timestamp.minute {
+                // > 1 min
+                subFolder = "small"
+              } else {
+                subFolder = "garbage"
+              }
+            } else {
+              subFolder = ""
             }
-          default:
-            // copy
-            if config.copyDirectoryFile {
-              try _fm.createDirectory(at: outputDirectoryURL)
-              try _fm.copyItem(at: fileURL, to: outputDirectoryURL.appendingPathComponent(fileURL.lastPathComponent))
-            }
+
+            let outputResult = _remux(
+              file: tempFile,
+              outputDirectoryURL: finalOutputDirectoryURL.appendingPathComponent(subFolder),
+              temporaryPath: temporaryDirectoryURL,
+              deleteAfterRemux: true, mkvinfoCache: mkvinfo)
+
+            tasks.append(.init(playlistIndex: 0, segments: [], segmentsSize: 0, output: outputResult, timeSummary: .init(startTime: startTime)))
           }
-        } catch {
-          logger.error("Error processing file: \(error)")
         }
       }
-      try preconditionOrThrow(succ, "Cannot read dir")
 
-      return .init(sizeBefore: sizeBefore, sizeAfter: sizeAfter,
-                   startDate: startDate, endDate: .init())
+      return .success(.init(input: bdmvPath, timeSummary: .init(startTime: startDate), tasks: tasks))
     }
   }
 
-  var currentTemporaryPath: URL?
+
+
+  public func mux(file: URL, options: FileRemuxOptions) -> Result<FileSummary, ChocoError> {
+
+    switch fm.fileExistance(at: file) {
+    case .none:
+      return .failure(.inputNotExists)
+    case .file:
+      let startTime = Date()
+      return withTemporaryDirectory { tempDirectory in
+        let fileSummary = _remux(file: file, outputDirectoryURL: commonOptions.outputRootDirectory, temporaryPath: tempDirectory, deleteAfterRemux: options.deleteAfterRemux)
+
+        return .success(.init(files: [.init(input: IOFileInfo(path: file), output: fileSummary, timeSummary: .init(startTime: startTime))], normalFiles: []))
+      }
+    case .directory:
+      if !options.recursive {
+        return .failure(.directoryInputButNotRecursive)
+      }
+    }
+
+    // start scan directory
+
+    let inputPrefix = file.path
+    let dirName = file.lastPathComponent
+
+    var files: [FileSummary.FileTask] = []
+    var normalFiles: [FileSummary.NormalFileTask] = []
+
+    let succ = fm.forEachContent(in: file, handleFile: true, handleDirectory: false, skipHiddenFiles: false) { fileURL in
+      guard !terminated else {
+        return
+      }
+      let fileDirPath = fileURL.deletingLastPathComponent().path
+      guard fileDirPath.hasPrefix(inputPrefix) else {
+        logger.error("Path handling incorrect")
+        return
+      }
+      let outputDirectoryURL = commonOptions.outputRootDirectory
+        .appendingPathComponent(dirName)
+        .appendingPathComponent(String(fileDirPath.dropFirst(inputPrefix.count)))
+
+      let startTime = Date()
+
+      if options.fileTypes.contains(fileURL.pathExtension.lowercased()) {
+        // remux
+        let outputResult = self.withTemporaryDirectory { tempDirectory in
+          _remux(file: fileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.deleteAfterRemux)
+        }
+        files.append(.init(input: .init(path: fileURL), output: outputResult, timeSummary: .init(startTime: startTime)))
+      } else {
+        // copy
+        if options.copyNormalFiles {
+          let outputResult: Result<ChocoMuxer.IOFileInfo, ChocoError>
+          let dstPath = outputDirectoryURL.appendingPathComponent(fileURL.lastPathComponent)
+          if fm.fileExistance(at: dstPath).exists, !options.copyOverwrite {
+            outputResult = .failure(.outputExist)
+          } else {
+            do {
+              try fm.createDirectory(at: outputDirectoryURL)
+              try fm.copyItem(at: fileURL, to: dstPath)
+              outputResult = .success(.init(path: dstPath))
+            } catch {
+              outputResult = .failure(.copyFile(error as! CocoaError))
+            }
+          }
+          normalFiles.append(.init(input: .init(path: fileURL), output: outputResult))
+        }
+      }
+    }
+    if !succ {
+      return .failure(.openDirectory(file))
+    }
+
+    return .success(.init(files: files, normalFiles: normalFiles))
+  }
+
+
 }
 
 extension ChocoMuxer {
 
   internal func readMKV(at url: URL) throws -> MkvMergeIdentification {
-    try .init(url: url)
+    logger.info("Reading mkv file \(url.path)")
+    return try .init(url: url)
   }
 
   /// main function, remux mkv file
   private func _remux(file: URL, outputDirectoryURL: URL, temporaryPath: URL,
                       deleteAfterRemux: Bool,
                       parseOnly: Bool = false,
-                      mkvinfoCache: MkvMergeIdentification? = nil) throws -> Summary {
-    let startDate = Date()
+                      mkvinfoCache: MkvMergeIdentification? = nil) -> Result<IOFileInfo, ChocoError> {
+
     let outputURL = outputDirectoryURL
       .appendingPathComponent("\(file.lastPathComponentWithoutExtension).mkv")
-    guard !_fm.fileExistance(at: outputURL).exists else {
-      throw ChocoError.outputExist
-    }
-    let sizeBefore: UInt64
-    do {
-      sizeBefore = try _fm.attributesOfItem(atURL: file)[.size] as! UInt64
-    } catch {
-      sizeBefore = 0
+
+    guard !fm.fileExistance(at: outputURL).exists else {
+      return .failure(.outputExist)
     }
 
-    let mkvinfo = try mkvinfoCache ?? readMKV(at: file)
-    let modifications = try _makeTrackModification(mkvinfo: mkvinfo, temporaryPath: temporaryPath)
+    let mkvinfo: MkvMergeIdentification
+    do {
+      mkvinfo = try mkvinfoCache ?? readMKV(at: file)
+    } catch {
+      return .failure(.mkvmergeIdentification(error))
+    }
+
+    let modifications: [TrackModification]
+    switch _makeTrackModification(mkvinfo: mkvinfo, temporaryPath: temporaryPath) {
+    case .success(let v):
+      modifications = v
+    case .failure(let e):
+      return .failure(e)
+    }
 
     var trackOrderAndType = [(MkvMerge.GlobalOption.TrackOrder, MediaTrackType)]()
     var videoRemovedTrackIndexes = [Int]()
@@ -389,22 +407,22 @@ extension ChocoMuxer {
 
       switch modify.element {
       case .copy:
-        if !config.metaPreference.keep(.trackName) {
+        if !commonOptions.meta.keep(.trackName) {
           mainInput.options.append(.trackName(tid: modify.offset, name: ""))
         }
       default: break
       }
     }
 
-    if !config.metaPreference.keep(.videoLanguage) {
+    if !commonOptions.meta.keep(.videoLanguage) {
       videoCopiedTrackIndexes.forEach { mainInput.options.append(.language(tid: $0, language: "und")) }
     }
-    if !config.metaPreference.keep(.attachments) {
+    if !commonOptions.meta.keep(.attachments) {
       mainInput.options.append(.attachments(.removeAll))
     }
-    if !config.metaPreference.keep(.tags) {
+    if !commonOptions.meta.keep(.tags) {
       mainInput.options.append(.noGlobalTags)
-//      mainInput.options.append(.trackTags(.removeAll))
+      //      mainInput.options.append(.trackTags(.removeAll))
     }
 
     func correctTrackSelection(type: MediaTrackType, removedIndexes: [Int]) -> MkvMerge.Input.InputOption.TrackSelect {
@@ -421,16 +439,16 @@ extension ChocoMuxer {
 
     let externalInputs = externalTracks.map { (track) -> MkvMerge.Input in
       var options: [MkvMerge.Input.InputOption] = [.language(tid: 0, language: track.lang.alpha3BibliographicCode)]
-      options.append(.trackName(tid: 0, name: config.metaPreference.keep(.trackName) ? track.trackName : ""))
+      options.append(.trackName(tid: 0, name: commonOptions.meta.keep(.trackName) ? track.trackName : ""))
       options.append(.noGlobalTags)
       options.append(.noChapters)
       options.append(.trackTags(.removeAll))
       return .init(file: track.file.path, options: options)
     }
-    let splitInfo = generateMkvmergeSplit(split: config.split, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
+    let splitInfo = generateMkvmergeSplit(split: commonOptions.split, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
 
     let trackOrder: [MkvMerge.GlobalOption.TrackOrder]
-    if config.metaPreference.sortTrackType {
+    if commonOptions.meta.sortTrackType {
       let typePriority = [MediaTrackType.video, .audio, .subtitles]
       trackOrder = typePriority.reduce(into: [], { partialResult, currentType in
         partialResult.append(contentsOf: trackOrderAndType.filter { $0.1 == currentType }.map(\.0))
@@ -439,7 +457,7 @@ extension ChocoMuxer {
       trackOrder = trackOrderAndType.map(\.0)
     }
 
-    let mkvGlobal = MkvMerge.GlobalOption(quiet: true, title: config.metaPreference.keep(.title) ? nil : "", trackOrder: trackOrder, split: splitInfo, flushOnClose: true, experimentalFeatures: [.append_and_split_flac])
+    let mkvGlobal = MkvMerge.GlobalOption(quiet: true, title: commonOptions.meta.keep(.title) ? nil : "", trackOrder: trackOrder, split: splitInfo, flushOnClose: true, experimentalFeatures: [.append_and_split_flac])
 
     let mkvmerge = MkvMerge(
       global: mkvGlobal,
@@ -450,13 +468,14 @@ extension ChocoMuxer {
     do {
       try launch(externalExecutable: mkvmerge, checkAllowedExitCodes: allowedExitCodes)
     } catch {
-      try? _fm.removeItem(at: outputURL)
-      throw ChocoError.mkvmergeMux(error)
+      logger.info("muxing failed, remove the unfinished file.")
+      try? fm.removeItem(at: outputURL)
+      return .failure(.mkvmergeMux(error))
     }
 
     externalTracks.forEach { t in
       do {
-        try _fm.removeItem(at: t.file)
+        try fm.removeItem(at: t.file)
       } catch {
         logger.warning("Can not delete temp file: \(t.file)")
       }
@@ -464,15 +483,13 @@ extension ChocoMuxer {
 
     if deleteAfterRemux {
       do {
-        try _fm.removeItem(at: file)
+        try fm.removeItem(at: file)
       } catch {
         logger.warning("Can not delete original file: \(file)")
       }
     }
 
-    let sizeAfter = (try? _fm.attributesOfItem(atURL: outputURL)[.size] as? UInt64) ?? 0
-
-    return .init(sizeBefore: sizeBefore, sizeAfter: sizeAfter, startDate: startDate, endDate: .init())
+    return .success(.init(path: outputURL))
   }
 }
 
@@ -480,28 +497,28 @@ extension ChocoMuxer {
 
 extension ChocoMuxer {
 
-  private func withTemporaryDirectory<T>(_ body: (URL) throws -> T) throws -> T {
-    let uniqueTempDirectory = config.temperoraryDirectory.appendingPathComponent(UUID().uuidString)
+  private func withTemporaryDirectory<T>(_ body: (URL) -> Result<T, ChocoError>) -> Result<T, ChocoError> {
+    let uniqueTempDirectory = commonOptions.temperoraryDirectory.appendingPathComponent(UUID().uuidString)
     logger.info("Creating temp dir at: \(uniqueTempDirectory.path)")
     do {
-      try _fm.createDirectory(at: uniqueTempDirectory)
+      try fm.createDirectory(at: uniqueTempDirectory)
     } catch {
       logger.error("Failed to create.")
-      throw error
+      return .failure(.createTempDirectory(uniqueTempDirectory))
     }
     var taskSuccess = false
     defer {
       let needRemove: Bool
-      switch (config.keepTempMethod, taskSuccess) {
+      switch (commonOptions.keepTempMethod, taskSuccess) {
       case (.always, _),
-           (.failed, false):
+        (.failed, false):
         needRemove = false
       default:
         needRemove = true
       }
       if needRemove {
         do {
-          try _fm.removeItem(at: uniqueTempDirectory)
+          try fm.removeItem(at: uniqueTempDirectory)
         } catch {
           logger.error("cannot remove temp directory: \(uniqueTempDirectory.path), error: \(error)")
         }
@@ -509,13 +526,9 @@ extension ChocoMuxer {
     }
     self.currentTemporaryPath = uniqueTempDirectory
     defer { self.currentTemporaryPath = nil }
-    do {
-      let result = try body(uniqueTempDirectory)
-      taskSuccess = true
-      return result
-    } catch {
-      throw error
-    }
+    let result = body(uniqueTempDirectory)
+    taskSuccess = true
+    return result
   }
 
   private func display(modiifcations: [TrackModification]) {
@@ -526,14 +539,14 @@ extension ChocoMuxer {
   }
 
   private func _makeTrackModification(mkvinfo: MkvMergeIdentification,
-                                      temporaryPath: URL) throws -> [TrackModification] {
+                                      temporaryPath: URL) -> Result<[TrackModification], ChocoError> {
 
-    if config.videoPreference.process == .encode,
+    if commonOptions.video.process == .encode,
        mkvinfo.tracks.count(where: {$0.type == .video}) > 1 {
-      throw ChocoError.encodingMultipleVideoTracks
+      return .failure(.encodingMultipleVideoTracks)
     }
 
-    let preferedLanguages = config.languagePreference.generatePrimaryLanguages(with: mkvinfo.primaryLanguageCodes, addUnd: true, logger: logger)
+    let preferedLanguages = commonOptions.language.generatePrimaryLanguages(with: mkvinfo.primaryLanguageCodes, addUnd: true, logger: logger)
 
     let ffmpegMainInputFileID = 0
     var currentFFmpegAdditionalInputFileID = 1
@@ -561,24 +574,24 @@ extension ChocoMuxer {
       logger.info("\(currentTrack.remuxerInfo)")
       switch currentTrack.type {
       case .video:
-        switch config.videoPreference.process {
+        switch commonOptions.video.process {
         case .encode:
-          if config.videoPreference.progressiveOnly {
+          if commonOptions.video.progressiveOnly {
             logger.info("Progressive-only mode enabled, checking video track scan type.")
             // check scan type
-            let output = try AnyExecutable(executableName: "mediainfo", arguments: ["--Output=JSON", "-f", mkvinfo.fileName])
+            let output = try! AnyExecutable(executableName: "mediainfo", arguments: ["--Output=JSON", "-f", mkvinfo.fileName])
               .launch(use: TSCExecutableLauncher())
               .output.get()
 
-            let json = try JSONSerialization.jsonObject(with: Data(output), options: []) as! [String : Any]
-            let media = try (json["media"] as? [String : Any]).unwrap()
-            let tracks = try (media["track"] as? [[String : Any]]).unwrap()
+            let json = try! JSONSerialization.jsonObject(with: Data(output), options: []) as! [String : Any]
+            let media = try! (json["media"] as? [String : Any]).unwrap()
+            let tracks = try! (media["track"] as? [[String : Any]]).unwrap()
             let videoTrack = tracks.first(where: { $0["@type"] as! String == "Video" })!
             if let scanType = videoTrack["ScanType"] as? String {
               logger.info("Scan type: \(scanType)")
               if scanType.lowercased() != "progressive" {
                 logger.info("Non progressive detected, skip this file.")
-                throw ChocoError.nonProgTrackInProgOnlyMode
+                return .failure(.nonProgTrackInProgOnlyMode)
               }
             } else {
               logger.warning("No scan type found!")
@@ -590,27 +603,27 @@ extension ChocoMuxer {
           // autocrop
           // TODO: generate crop info using user's filter
           let cropInfo: CropInfo?
-          if config.videoPreference.autoCrop {
+          if commonOptions.video.autoCrop {
             logger.info("Calculating crop info..")
-            cropInfo = try handbrakeCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
-            logger.info("Calculated: \(cropInfo)")
+            cropInfo = try! handbrakeCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
+            logger.info("Calculated: \(cropInfo.unsafelyUnwrapped)")
           } else {
             cropInfo = nil
           }
 
-          if let encodeScript = config.videoPreference.encodeScript {
+          if let encodeScript = commonOptions.video.encodeScript {
             // use script template
-            let script = try generateScript(
+            let script = try! generateScript(
               encodeScript: encodeScript, filePath: mkvinfo.fileName,
               trackIndex: currentTrackIndex,
               cropInfo: cropInfo,
-              encoderDepth: config.videoPreference.codec.depth)
+              encoderDepth: commonOptions.video.codec.depth)
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
-            try script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
+            try! script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
 
-            var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: config.videoPreference.ffmpegIOOptions(cropInfo: nil))
+            var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: commonOptions.video.ffmpegIOOptions(cropInfo: nil))
 
-            if config.videoPreference.useIntergratedVapoursynth {
+            if commonOptions.video.useIntergratedVapoursynth {
               logger.info("Using ffmpeg integrated Vapoursynth!")
               videoOutput.options.append(.map(inputFileID: currentFFmpegAdditionalInputFileID, streamSpecifier: nil, isOptional: false, isNegativeMapping: false))
               ffmpeg.ios.append(.input(url: scriptFileURL.path, options: [.format("vapoursynth")]))
@@ -618,16 +631,16 @@ extension ChocoMuxer {
               currentFFmpegAdditionalInputFileID += 1
             } else {
               // use vspipe piping to ffmpeg
-              let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"]))
+              let pipeline = try! ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"]))
 
               let vspipeFFmpeg = FFmpeg(global: .init(hideBanner: true), ios: [
                 .input(url: "pipe:"),
                 videoOutput
               ])
 
-              try pipeline.append(vspipeFFmpeg, isLast: true)
+              try! pipeline.append(vspipeFFmpeg, isLast: true)
 
-              try pipeline.run()
+              try! pipeline.run()
 
               runningProcessID = pipeline.processes.first?.processIdentifier
               defer {
@@ -643,7 +656,7 @@ extension ChocoMuxer {
               .mapMetadata(outputSpec: nil, inputFileIndex: -1, inputSpec: nil),
               .mapChapters(inputFileIndex: -1),
             ]
-            outputOptions.append(contentsOf: config.videoPreference.ffmpegIOOptions(cropInfo: cropInfo))
+            outputOptions.append(contentsOf: commonOptions.video.ffmpegIOOptions(cropInfo: cropInfo))
             // output
             ffmpeg.ios.append(.output(url: encodedTrackFile.path, options: outputOptions))
           }
@@ -659,16 +672,16 @@ extension ChocoMuxer {
         if preferedLanguages.contains(trackLanguage) {
           var trackDone = false
           // keep true-hd
-          if currentTrack.isTrueHD, config.audioPreference.shouldCopy(.truehd) {
+          if currentTrack.isTrueHD, commonOptions.audio.shouldCopy(.truehd) {
             trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
             trackDone = true
           }
-          if !config.audioPreference.encodeAudio {
+          if !commonOptions.audio.encodeAudio {
             trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
             trackDone = true
           }
           // remove same spec dts-hd
-          if !trackDone, config.removeExtraDTS, currentTrack.isDTSHD {
+          if !trackDone, commonOptions.audio.removeExtraDTS, currentTrack.isDTSHD {
             var fixed = false
             if case let indexBefore = currentTrackIndex - 1, indexBefore >= 0 {
               let compareTrack = tracks[indexBefore]
@@ -701,20 +714,20 @@ extension ChocoMuxer {
           }
 
           // keep flac
-          if !trackDone && currentTrack.isFlac && config.audioPreference.shouldCopy(.flac) {
+          if !trackDone && currentTrack.isFlac && commonOptions.audio.shouldCopy(.flac) {
             trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
             trackDone = true
           }
 
           // lossless audio -> flac, or fix garbage dts
-          if !trackDone && (currentTrack.isLosslessAudio || (config.audioPreference.shouldFix(.dts) && currentTrack.isGarbageDTS)) {
-            let codec = currentTrack.isLosslessAudio ? config.audioPreference.codec : config.audioPreference.codecForLossyAudio
+          if !trackDone && (currentTrack.isLosslessAudio || (commonOptions.audio.shouldFix(.dts) && currentTrack.isGarbageDTS)) {
+            let codec = currentTrack.isLosslessAudio ? commonOptions.audio.codec : commonOptions.audio.codecForLossyAudio
             // add to ffmpeg arguments
             let tempFFmpegOutputFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg.flac")
             let finalOutputAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage).\(codec.outputFileExtension)")
             ffmpeg.ios.append(.output(url: tempFFmpegOutputFlac.path, options: [
               .map(inputFileID: ffmpegMainInputFileID, streamSpecifier: .streamIndex(currentTrackIndex), isOptional: false, isNegativeMapping: false),
-                .avOption(name: "compression_level", value: "0", streamSpecifier: nil),
+              .avOption(name: "compression_level", value: "0", streamSpecifier: nil),
               .mapMetadata(outputSpec: nil, inputFileIndex: -1, inputSpec: nil),
               .mapChapters(inputFileIndex: -1),
             ]))
@@ -724,8 +737,8 @@ extension ChocoMuxer {
                 input: tempFFmpegOutputFlac,
                 output: finalOutputAudioTrack,
                 codec: codec,
-                lossyAudioChannelBitrate: config.audioPreference.lossyAudioChannelBitrate,
-                preferedTool: config.audioPreference.preferedTool,
+                lossyAudioChannelBitrate: commonOptions.audio.lossyAudioChannelBitrate,
+                preferedTool: commonOptions.audio.preferedTool,
                 ffmpegCodecs: ffmpegCodecs,
                 channelCount: currentTrack.properties.audioChannels!,
                 trackIndex: currentTrackIndex)
@@ -733,7 +746,7 @@ extension ChocoMuxer {
 
             var replaceFiles = [finalOutputAudioTrack]
             // Optionally down mix
-            if config.audioPreference.downmixMethod == .all, currentTrack.properties.audioChannels! > 2 {
+            if commonOptions.audio.downmixMethod == .all, currentTrack.properties.audioChannels! > 2 {
               let tempFFmpegMixdownFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg-downmix.flac")
               let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(codec.outputFileExtension)")
               ffmpeg.ios.append(.output(url: tempFFmpegMixdownFlac.path, options: [
@@ -749,8 +762,8 @@ extension ChocoMuxer {
                   input: tempFFmpegMixdownFlac,
                   output: finalDownmixAudioTrack,
                   codec: codec,
-                  lossyAudioChannelBitrate: config.audioPreference.lossyAudioChannelBitrate,
-                  preferedTool: config.audioPreference.preferedTool,
+                  lossyAudioChannelBitrate: commonOptions.audio.lossyAudioChannelBitrate,
+                  preferedTool: commonOptions.audio.preferedTool,
                   ffmpegCodecs: ffmpegCodecs,
                   channelCount: 2,
                   trackIndex: currentTrackIndex)
@@ -790,14 +803,14 @@ extension ChocoMuxer {
       default: return false
       }
     }) else {
-      return trackModifications
+      return .success(trackModifications)
     }
 
     if ffmpeg.ios.contains(where: { $0.isOutput }) {
       // ffmpeg has output, should launch ffmpeg
       logger.info("\(ffmpeg.commandLineArguments)")
       // file's audio tracks -> external temp flac
-      try launch(externalExecutable: ffmpeg,
+      try! launch(externalExecutable: ffmpeg,
                  checkAllowedExitCodes: [0])
     }
 
@@ -810,7 +823,7 @@ extension ChocoMuxer {
         do {
           flacMD5s = try FlacMD5.calculate(inputs: tempFFmpegFlacFiles.map { $0.path })
         } catch {
-          throw ChocoError.validateFlacMD5(error)
+          return .failure(.validateFlacMD5(error))
         }
 
         precondition(tempFFmpegFlacFiles.count == flacMD5s.count, "Flac MD5 count dont match")
@@ -844,10 +857,10 @@ extension ChocoMuxer {
     }
     audioConvertQueue.waitUntilAllOperationsAreFinished()
     if terminated {
-      throw ChocoError.terminated
+      return .failure(.terminated)
     }
 
-    return trackModifications
+    return .success(trackModifications)
   }
 }
 
@@ -867,7 +880,7 @@ enum TrackModification: CustomStringConvertible {
   mutating func remove(reason: RemoveReason) {
     switch self {
     case .replace(type: let type, files: let files, lang: _, trackName: _):
-      files.forEach{ try? _fm.removeItem(at: $0) }
+      files.forEach{ try? fm.removeItem(at: $0) }
       self = .remove(type: type, reason: reason)
     case .copy(type: let type):
       self = .remove(type: type, reason: reason)
@@ -986,8 +999,8 @@ public struct BDMVMetadata {
       return [try Mpls(filePath: url.path)]
     }
 
-    if _fm.fileExistance(at: playlistPath) == .directory {
-      let mplsPaths = try _fm.contentsOfDirectory(at: playlistPath).filter { $0.pathExtension.lowercased() == "mpls" }
+    if fm.fileExistance(at: playlistPath) == .directory {
+      let mplsPaths = try fm.contentsOfDirectory(at: playlistPath).filter { $0.pathExtension.lowercased() == "mpls" }
       if mplsPaths.isEmpty {
         throw ChocoError.noPlaylists
       }
