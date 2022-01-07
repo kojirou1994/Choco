@@ -177,10 +177,7 @@ public final class ChocoMuxer {
   }
 }
 
-// MARK: BDMV
 extension ChocoMuxer {
-
-
 
   public func mux(bdmv bdmvPath: URL, options: BDMVRemuxOptions) -> Result<BDMVSummary, ChocoError> {
     self.withTemporaryDirectory { temporaryDirectoryURL -> Result<BDMVSummary, ChocoError> in
@@ -246,8 +243,6 @@ extension ChocoMuxer {
       return .success(.init(input: bdmvPath, timeSummary: .init(startTime: startDate), tasks: tasks))
     }
   }
-
-
 
   public func mux(file: URL, options: FileRemuxOptions) -> Result<FileSummary, ChocoError> {
 
@@ -781,7 +776,7 @@ extension ChocoMuxer {
           }
         } else {
           // invalid language
-          trackModifications[currentTrackIndex] = .remove(type: currentTrack.type, reason: .invalidLanguage(trackLanguage))
+          trackModifications[currentTrackIndex] = .remove(type: currentTrack.type, reason: .languageFilter(trackLanguage))
         }
 
         // handle truehd
@@ -874,7 +869,7 @@ enum TrackModification: CustomStringConvertible {
     case trackTypeDisabled
     case embedAC3InTrueHD
     case extraDTSHD
-    case invalidLanguage(Language)
+    case languageFilter(Language)
   }
 
   mutating func remove(reason: RemoveReason) {
@@ -907,7 +902,7 @@ enum TrackModification: CustomStringConvertible {
     case .copy(type: let type):
       return "copy(type: \(type))"
     case .remove(type: let type, reason: let reason):
-      return "remove(type: \(type), reason: \(reason)"
+      return "remove(type: \(type), reason: \(reason))"
     }
   }
 }
