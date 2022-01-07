@@ -270,11 +270,11 @@ extension ChocoMuxer {
     var files: [FileSummary.FileTask] = []
     var normalFiles: [FileSummary.NormalFileTask] = []
 
-    let succ = fm.forEachContent(in: file, handleFile: true, handleDirectory: false, skipHiddenFiles: false) { fileURL in
+    let succ = fm.forEachContent(in: file, handleFile: true, handleDirectory: false, skipHiddenFiles: false) { currentFileURL in
       guard !terminated else {
         return
       }
-      let fileDirPath = fileURL.deletingLastPathComponent().path
+      let fileDirPath = currentFileURL.deletingLastPathComponent().path
       guard fileDirPath.hasPrefix(inputPrefix) else {
         logger.error("Path handling incorrect")
         return
@@ -285,29 +285,30 @@ extension ChocoMuxer {
 
       let startTime = Date()
 
-      if options.fileTypes.contains(fileURL.pathExtension.lowercased()) {
+      if options.fileTypes.contains(currentFileURL.pathExtension.lowercased()) {
         // remux
         let outputResult = self.withTemporaryDirectory { tempDirectory in
-          _remux(file: fileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
+          _remux(file: currentFileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
         }
-        files.append(.init(input: .init(path: fileURL), output: outputResult, timeSummary: .init(startTime: startTime)))
+        files.append(.init(input: .init(path: currentFileURL), output: outputResult, timeSummary: .init(startTime: startTime)))
       } else {
         // copy
         if options.copyNormalFiles {
           let outputResult: Result<ChocoMuxer.IOFileInfo, ChocoError>
-          let dstPath = outputDirectoryURL.appendingPathComponent(fileURL.lastPathComponent)
+          let dstPath = outputDirectoryURL.appendingPathComponent(currentFileURL.lastPathComponent)
           if fm.fileExistance(at: dstPath).exists, !options.copyOverwrite {
             outputResult = .failure(.outputExist)
           } else {
             do {
+              try? fm.removeItem(at: dstPath)
               try fm.createDirectory(at: outputDirectoryURL)
-              try fm.copyItem(at: fileURL, to: dstPath)
+              try fm.copyItem(at: currentFileURL, to: dstPath)
               outputResult = .success(.init(path: dstPath))
             } catch {
               outputResult = .failure(.copyFile(error as! CocoaError))
             }
           }
-          normalFiles.append(.init(input: .init(path: fileURL), output: outputResult))
+          normalFiles.append(.init(input: .init(path: currentFileURL), output: outputResult))
         }
       }
     }
