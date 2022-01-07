@@ -252,9 +252,10 @@ extension ChocoMuxer {
     case .file:
       let startTime = Date()
       return withTemporaryDirectory { tempDirectory in
+        let inputInfo = IOFileInfo(path: file)
         let fileSummary = _remux(file: file, outputDirectoryURL: commonOptions.io.outputRootDirectory, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
 
-        return .success(.init(files: [.init(input: IOFileInfo(path: file), output: fileSummary, timeSummary: .init(startTime: startTime))], normalFiles: []))
+        return .success(.init(files: [.init(input: inputInfo, output: fileSummary, timeSummary: .init(startTime: startTime))], normalFiles: []))
       }
     case .directory:
       if !options.recursive {
@@ -283,6 +284,7 @@ extension ChocoMuxer {
         .appendingPathComponent(dirName)
         .appendingPathComponent(String(fileDirPath.dropFirst(inputPrefix.count)))
 
+      let inputInfo = IOFileInfo(path: currentFileURL)
       let startTime = Date()
 
       if options.fileTypes.contains(currentFileURL.pathExtension.lowercased()) {
@@ -290,7 +292,7 @@ extension ChocoMuxer {
         let outputResult = self.withTemporaryDirectory { tempDirectory in
           _remux(file: currentFileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
         }
-        files.append(.init(input: .init(path: currentFileURL), output: outputResult, timeSummary: .init(startTime: startTime)))
+        files.append(.init(input: inputInfo, output: outputResult, timeSummary: .init(startTime: startTime)))
       } else {
         // copy
         if options.copyNormalFiles {
@@ -303,12 +305,15 @@ extension ChocoMuxer {
               try? fm.removeItem(at: dstPath)
               try fm.createDirectory(at: outputDirectoryURL)
               try fm.copyItem(at: currentFileURL, to: dstPath)
+              if options.removeSourceFiles {
+                try? fm.removeItem(at: currentFileURL)
+              }
               outputResult = .success(.init(path: dstPath))
             } catch {
               outputResult = .failure(.copyFile(error as! CocoaError))
             }
           }
-          normalFiles.append(.init(input: .init(path: currentFileURL), output: outputResult))
+          normalFiles.append(.init(input: inputInfo, output: outputResult))
         }
       }
     }
@@ -1118,11 +1123,6 @@ fileprivate func generateMkvmergeSplit(split: ChocoSplit?, chapterCount: Int) ->
   }
 }
 
-// struct SubTask {
-//    let main: Converter
-//    let alternatives: [SubTask]?
-////    let size: Int
-// }
 extension ChocoMuxer {
   public struct WorkTask {
     public let input: URL
