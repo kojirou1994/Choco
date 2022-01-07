@@ -6,8 +6,11 @@ public enum ChocoError: Error {
   case sameFilename
   case outputExist
   case noOutputFile(URL)
-  case directoryInFileMode
+  case openDirectory(URL)
+  case copyFile(CocoaError)
+  case directoryInputButNotRecursive
   case inputNotExists
+  case bdmvInputNotDirectory
   case mkvmergeIdentification(Error)
   case ffmpegExtractAudio(Error)
   case validateFlacMD5(Error)
@@ -17,4 +20,5 @@ public enum ChocoError: Error {
   case noCropInfo
   case encodingMultipleVideoTracks
   case nonProgTrackInProgOnlyMode
+  case createTempDirectory(URL)
 }
