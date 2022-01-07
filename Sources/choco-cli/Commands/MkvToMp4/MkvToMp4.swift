@@ -389,6 +389,7 @@ struct MkvToMp4: ParsableCommand {
     var inputs: [String]
 
     func run() throws {
+      let fm = URLFileManager.default
       let logger = Logger(label: "mkv-to-mp4")
       inputs.forEach { input in
         logger.info("Open input: \(input)")
@@ -451,6 +452,7 @@ struct MkvToMp4: ParsableCommand {
     var undAudioLang: String?
 
     func run() throws {
+      let fm = URLFileManager.default
       var logger = Logger(label: "mkv-to-mp4")
       if verbose {
         logger.logLevel = .debug
@@ -476,6 +478,7 @@ struct MkvToMp4: ParsableCommand {
     }
 
     func convert(file: URL, logger: Logger) throws {
+      let fm = URLFileManager.default
       let info = try MkvMergeIdentification(url: file)
       let outputFileURL = URL(fileURLWithPath: output).appendingPathComponent(file.deletingPathExtension().lastPathComponent).appendingPathExtension("mp4")
 
@@ -574,8 +577,7 @@ struct MkvToMp4: ParsableCommand {
       let muxer = MP4Box(importings: importings,
                          tmp: mp4Tmp ?? tmp, output: outputFileURL.path)
       logger.debug("MP4Box arguments: \(muxer.arguments)")
-      let muxerResult = try muxer.launch(use: launcher)
-      logger.debug("MP4Box output:\n\((try? muxerResult.utf8Output()) ?? "")")
+      let muxerResult = try muxer.launch(use: TSCExecutableLauncher(outputRedirection: .none))
 
     }
   }

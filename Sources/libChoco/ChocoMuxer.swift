@@ -82,9 +82,9 @@ public final class ChocoMuxer {
 
   let logger: Logger
 
-  public init(config: ChocoCommonOptions, logger: Logger) throws {
+  public init(commonOptions: ChocoCommonOptions, logger: Logger) throws {
     audioConvertQueue.maxConcurrentOperationCount = ProcessInfo.processInfo.processorCount
-    self.commonOptions = config
+    self.commonOptions = commonOptions
     self.logger = logger
     if self.commonOptions.io.ignoreWarning {
       self.allowedExitCodes = [0, 1]
@@ -257,7 +257,7 @@ extension ChocoMuxer {
     case .file:
       let startTime = Date()
       return withTemporaryDirectory { tempDirectory in
-        let fileSummary = _remux(file: file, outputDirectoryURL: commonOptions.io.outputRootDirectory, temporaryPath: tempDirectory, deleteAfterRemux: options.deleteAfterRemux)
+        let fileSummary = _remux(file: file, outputDirectoryURL: commonOptions.io.outputRootDirectory, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
 
         return .success(.init(files: [.init(input: IOFileInfo(path: file), output: fileSummary, timeSummary: .init(startTime: startTime))], normalFiles: []))
       }
@@ -293,7 +293,7 @@ extension ChocoMuxer {
       if options.fileTypes.contains(fileURL.pathExtension.lowercased()) {
         // remux
         let outputResult = self.withTemporaryDirectory { tempDirectory in
-          _remux(file: fileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.deleteAfterRemux)
+          _remux(file: fileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
         }
         files.append(.init(input: .init(path: fileURL), output: outputResult, timeSummary: .init(startTime: startTime)))
       } else {

@@ -11,6 +11,7 @@ import Crypto
 #endif
 import BufferUtility
 import MediaUtility
+import URLFileManager
 
 extension MediaTrackType: EnumerableFlag {
   public static var allCases: [MediaTrackType] {
@@ -34,6 +35,7 @@ struct TrackHash: ParsableCommand {
   var inputs: [String]
 
   func run() throws {
+    let fm = URLFileManager.default
     if !disabledTrackTypes.isEmpty {
       print("Disabled track types: \(disabledTrackTypes)")
     }

@@ -5,14 +5,12 @@ import URLFileManager
 import Precondition
 import libChoco
 
-let fm = URLFileManager.default
-
-func sysTempDir() -> String {
+private func sysTempDir() -> String {
   if let envV = ProcessInfo.processInfo.environment["TMPDIR"] {
     return envV
   }
 
-  return fm.temporaryDirectory.path
+  return URLFileManager.default.temporaryDirectory.path
 }
 
 enum OutputFormat: String, ExpressibleByArgument, CaseIterable, CustomStringConvertible {

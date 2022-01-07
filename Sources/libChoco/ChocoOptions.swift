@@ -20,21 +20,21 @@ public struct BDMVRemuxOptions {
 }
 
 public struct FileRemuxOptions {
-  public init(recursive: Bool, copyNormalFiles: Bool, copyOverwrite: Bool, deleteAfterRemux: Bool, fileTypes: Set<String>) {
+  public init(recursive: Bool, copyNormalFiles: Bool, copyOverwrite: Bool, removeSourceFiles: Bool, fileTypes: Set<String>) {
     self.recursive = recursive
     self.copyNormalFiles = copyNormalFiles
     self.copyOverwrite = copyOverwrite
-    self.deleteAfterRemux = deleteAfterRemux
+    self.removeSourceFiles = removeSourceFiles
     self.fileTypes = fileTypes
   }
 
   public let recursive: Bool
   public let copyNormalFiles: Bool
   public let copyOverwrite: Bool
-  public let deleteAfterRemux: Bool
+  public let removeSourceFiles: Bool
   public let fileTypes: Set<String>
 
-  static var defaultFileTypes: Set<String> {
+  public static var defaultFileTypes: Set<String> {
     ["mkv", "mp4", "ts", "m2ts", "vob"]
   }
 }
@@ -58,6 +58,14 @@ public struct ChocoCommonOptions {
 
 extension ChocoCommonOptions {
   public struct IOOptions: CustomStringConvertible {
+    public init(outputRootDirectory: URL, temperoraryDirectory: URL, split: ChocoSplit?, ignoreWarning: Bool, keepTempMethod: KeepTempMethod) {
+      self.outputRootDirectory = outputRootDirectory
+      self.temperoraryDirectory = temperoraryDirectory
+      self.split = split
+      self.ignoreWarning = ignoreWarning
+      self.keepTempMethod = keepTempMethod
+    }
+
     public var description: String { "" }
 
     public let outputRootDirectory: URL
@@ -66,6 +74,16 @@ extension ChocoCommonOptions {
     public let split: ChocoSplit?
     public let ignoreWarning: Bool
     public let keepTempMethod: KeepTempMethod
+
+    public enum KeepTempMethod: String, CaseIterable, CustomStringConvertible {
+      case always
+      case failed
+      case never
+
+      public var description: String {
+        rawValue
+      }
+    }
   }
 }
 
@@ -97,15 +115,6 @@ extension ChocoCommonOptions {
     }
   }
 
-  public enum KeepTempMethod: String, CaseIterable, CustomStringConvertible {
-    case always
-    case failed
-    case never
-
-    public var description: String {
-      rawValue
-    }
-  }
 }
 
 extension ChocoCommonOptions {

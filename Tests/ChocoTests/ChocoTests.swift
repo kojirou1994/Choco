@@ -29,7 +29,7 @@ final class ChocoTests: XCTestCase {
   }
 
   func testLanguagePreference() {
-    let preference = ChocoConfiguration.LanguagePreference(preferedLanguages: .init(languages: [.chi, .jpn]), excludeLanguages: .init(languages: [.eng]))
+    let preference = ChocoCommonOptions.LanguageOptions(ignoreInputPrimaryLang: false, includeLangs: .init([.chi, .jpn]), excludeLangs: .init([.eng]), includeAudioLangs: .empty, excludeAudioLangs: .empty, includeSubLangs: .empty, excludeSubLangs: .empty)
 
     let preferedLanguages = preference.generatePrimaryLanguages(with: [.chi], addUnd: false, logger: nil)
 

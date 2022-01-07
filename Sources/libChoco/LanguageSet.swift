@@ -35,6 +35,10 @@ public struct LanguageSet: CustomStringConvertible {
     .init([.und, .chi, .jpn])
   }
 
+  public static var empty: Self {
+    .init([])
+  }
+
   public var description: String {
     languages.map(\.alpha3BibliographicCode).joined(separator: ", ")
   }
