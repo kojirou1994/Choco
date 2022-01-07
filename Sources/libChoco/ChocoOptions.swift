@@ -3,65 +3,73 @@ import ISOCodes
 import Logging
 import MediaTools
 
-internal let ChocoTempDirectoryName = "choco_tmp"
+internal let ChocoTempDirectoryName = "tmp_choco"
 
-public struct ChocoConfiguration {
+public struct BDMVRemuxOptions {
+  public init(splitPlaylist: Bool, organizeOutput: Bool, mainTitleOnly: Bool, directMode: Bool) {
+    self.splitPlaylist = splitPlaylist
+    self.organizeOutput = organizeOutput
+    self.mainTitleOnly = mainTitleOnly
+    self.directMode = directMode
+  }
+
+  public let splitPlaylist: Bool
+  public let organizeOutput: Bool
+  public let mainTitleOnly: Bool
+  public let directMode: Bool
+}
+
+public struct FileRemuxOptions {
+  public init(recursive: Bool, copyNormalFiles: Bool, copyOverwrite: Bool, deleteAfterRemux: Bool, fileTypes: Set<String>) {
+    self.recursive = recursive
+    self.copyNormalFiles = copyNormalFiles
+    self.copyOverwrite = copyOverwrite
+    self.deleteAfterRemux = deleteAfterRemux
+    self.fileTypes = fileTypes
+  }
+
+  public let recursive: Bool
+  public let copyNormalFiles: Bool
+  public let copyOverwrite: Bool
+  public let deleteAfterRemux: Bool
+  public let fileTypes: Set<String>
+
+  static var defaultFileTypes: Set<String> {
+    ["mkv", "mp4", "ts", "m2ts", "vob"]
+  }
+}
+
+public struct ChocoCommonOptions {
 
   public let outputRootDirectory: URL
   public let temperoraryDirectory: URL
-  public let mode: ChocoWorkMode
-  public let splitBDMV: Bool
+
   public let split: ChocoSplit?
-  public let metaPreference: MetaPreference
-  public let videoPreference: VideoPreference
-  public let audioPreference: AudioPreference
-  public let languagePreference: LanguagePreference
-
-  public let ignoreInputPrimaryLang: Bool
-  public let copyDirectoryFile: Bool
-  public let deleteAfterRemux: Bool
-  public let removeExtraDTS: Bool
-
   public let ignoreWarning: Bool
-  public let organizeOutput: Bool
-  public let mainTitleOnly: Bool
   public let keepTempMethod: KeepTempMethod
 
-  public init(outputRootDirectory: URL, temperoraryDirectory: URL, mode: ChocoWorkMode,
-              splitBDMV: Bool,
-              metaPreference: MetaPreference,
-              videoPreference: VideoPreference,
-              audioPreference: AudioPreference,
-              split: ChocoSplit?, preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?,
-              ignoreInputPrimaryLang: Bool,
-              copyDirectoryFile: Bool, deleteAfterRemux: Bool,
-              removeExtraDTS: Bool, ignoreWarning: Bool, organize: Bool, mainTitleOnly: Bool,
-              keepTempMethod: KeepTempMethod) {
-    self.outputRootDirectory = outputRootDirectory
-    self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(ChocoTempDirectoryName)
-    self.mode = mode
-    self.splitBDMV = splitBDMV
-    self.split = split
-    self.videoPreference = videoPreference
-    self.audioPreference = audioPreference
-    self.languagePreference = .init(preferedLanguages: preferedLanguages, excludeLanguages: excludeLanguages)
-    self.ignoreInputPrimaryLang = ignoreInputPrimaryLang
-    self.copyDirectoryFile = copyDirectoryFile
-    self.deleteAfterRemux = deleteAfterRemux
-    self.metaPreference = metaPreference
-    self.removeExtraDTS = removeExtraDTS
-    self.ignoreWarning = ignoreWarning
-    self.organizeOutput = organize
-    self.mainTitleOnly = mainTitleOnly
-    self.keepTempMethod = keepTempMethod
-  }
+  public let meta: MetaOptions
+  public let video: VideoOptions
+  public let audio: AudioOptions
+  public let language: LanguageOptions
 
+  public init(outputRootDirectory: URL, temperoraryDirectory: URL, split: ChocoSplit?, ignoreWarning: Bool, keepTempMethod: ChocoCommonOptions.KeepTempMethod, meta: ChocoCommonOptions.MetaOptions, video: ChocoCommonOptions.VideoOptions, audio: ChocoCommonOptions.AudioOptions, language: ChocoCommonOptions.LanguageOptions) {
+    self.outputRootDirectory = outputRootDirectory
+    self.temperoraryDirectory = temperoraryDirectory
+    self.split = split
+    self.ignoreWarning = ignoreWarning
+    self.keepTempMethod = keepTempMethod
+    self.meta = meta
+    self.video = video
+    self.audio = audio
+    self.language = language
+  }
 }
 
-extension ChocoConfiguration {
+extension ChocoCommonOptions {
 
-  public struct MetaPreference: CustomStringConvertible {
-    public init(keepMetadatas: Set<MetaPreference.Metadata>, sortTrackType: Bool) {
+  public struct MetaOptions: CustomStringConvertible {
+    public init(keepMetadatas: Set<MetaOptions.Metadata>, sortTrackType: Bool) {
       self.keepMetadatas = keepMetadatas
       self.sortTrackType = sortTrackType
     }
@@ -97,11 +105,16 @@ extension ChocoConfiguration {
   }
 }
 
-extension ChocoConfiguration {
+extension ChocoCommonOptions {
 
-  public struct AudioPreference: CustomStringConvertible {
-    public init(encodeAudio: Bool, codec: ChocoConfiguration.AudioPreference.AudioCodec,
-                codecForLossyAudio: AudioCodec?, lossyAudioChannelBitrate: Int, downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod, preferedTool: ChocoConfiguration.AudioPreference.PreferedTool, protectedCodecs: Set<ChocoConfiguration.AudioPreference.LosslessAudioCodec>, fixCodecs: Set<ChocoConfiguration.AudioPreference.GrossLossyAudioCodec>) {
+  public struct AudioOptions: CustomStringConvertible {
+    public init(encodeAudio: Bool,
+                codec: AudioCodec, codecForLossyAudio: AudioCodec?,
+                lossyAudioChannelBitrate: Int, downmixMethod: DownmixMethod,
+                preferedTool: PreferedTool,
+                protectedCodecs: Set<LosslessAudioCodec>, fixCodecs: Set<GrossLossyAudioCodec>,
+                checkAllTracks: Bool = false,
+                removeExtraDTS: Bool) {
       self.encodeAudio = encodeAudio
       self.codec = codec
       self.codecForLossyAudio = codecForLossyAudio ?? codec
@@ -110,6 +123,8 @@ extension ChocoConfiguration {
       self.preferedTool = preferedTool
       self.protectedCodecs = protectedCodecs
       self.fixCodecs = fixCodecs
+      self.removeExtraDTS = removeExtraDTS
+      self.checkAllTracks = checkAllTracks
     }
 
     public let encodeAudio: Bool
@@ -120,6 +135,8 @@ extension ChocoConfiguration {
     public let preferedTool: PreferedTool
     public let protectedCodecs: Set<LosslessAudioCodec>
     public let fixCodecs: Set<GrossLossyAudioCodec>
+    public let removeExtraDTS: Bool
+    public let checkAllTracks: Bool
 
     func shouldCopy(_ codec: LosslessAudioCodec) -> Bool {
       protectedCodecs.contains(codec)
@@ -188,24 +205,36 @@ extension ChocoConfiguration {
     }
   }
 
-  public struct LanguagePreference {
-    public init(preferedLanguages: LanguageSet, excludeLanguages: LanguageSet?) {
-      self.preferedLanguages = preferedLanguages
-      self.excludeLanguages = excludeLanguages
+  public struct LanguageOptions {
+
+
+    public let ignoreInputPrimaryLang: Bool
+    public let includeLangs: LanguageSet
+    public let excludeLangs: LanguageSet
+    public let includeAudioLangs: LanguageSet
+    public let excludeAudioLangs: LanguageSet
+    public let includeSubLangs: LanguageSet
+    public let excludeSubLangs: LanguageSet
+
+    public init(ignoreInputPrimaryLang: Bool, includeLangs: LanguageSet, excludeLangs: LanguageSet, includeAudioLangs: LanguageSet, excludeAudioLangs: LanguageSet, includeSubLangs: LanguageSet, excludeSubLangs: LanguageSet) {
+      self.ignoreInputPrimaryLang = ignoreInputPrimaryLang
+      self.includeLangs = includeLangs
+      self.excludeLangs = excludeLangs
+      self.includeAudioLangs = includeAudioLangs
+      self.excludeAudioLangs = excludeAudioLangs
+      self.includeSubLangs = includeSubLangs
+      self.excludeSubLangs = excludeSubLangs
     }
 
-    private let preferedLanguages: LanguageSet
-    private let excludeLanguages: LanguageSet?
-
     func generatePrimaryLanguages<C>(with otherLanguages: C, addUnd: Bool, logger: Logger? = nil) -> Set<Language> where C: Collection, C.Element == Language {
-      var result = preferedLanguages.languages
+      var result = includeLangs.languages
       if addUnd {
         result.insert(.und)
       }
       otherLanguages.forEach { l in
         result.insert(l)
       }
-      excludeLanguages?.languages.forEach { l in
+      excludeLangs.languages.forEach { l in
         if l == .und {
           logger?.warning("Warning: excluding und language!")
         }
@@ -215,7 +244,7 @@ extension ChocoConfiguration {
     }
   }
 
-  public struct VideoPreference: CustomStringConvertible {
+  public struct VideoOptions: CustomStringConvertible {
     public init(process: VideoProcess,
                 progressiveOnly: Bool,
                 filter: String?,
@@ -386,7 +415,7 @@ extension ChocoConfiguration {
 
 }
 
-extension ChocoConfiguration.AudioPreference.AudioCodec {
+extension ChocoCommonOptions.AudioOptions.AudioCodec {
   var outputFileExtension: String {
     switch self {
     case .flac:
@@ -399,7 +428,7 @@ extension ChocoConfiguration.AudioPreference.AudioCodec {
   }
 }
 
-extension ChocoConfiguration.VideoPreference.Codec {
+extension ChocoCommonOptions.VideoOptions.Codec {
 
   var supportsCrf: Bool {
     switch self {
@@ -444,7 +473,7 @@ extension ChocoConfiguration.VideoPreference.Codec {
   }
 }
 
-extension ChocoConfiguration.VideoPreference {
+extension ChocoCommonOptions.VideoOptions {
 
   public enum ChocoX265Tune: String, CaseIterable {
     case vcbs = "vcb-s"
@@ -540,7 +569,7 @@ extension ChocoConfiguration.VideoPreference {
 
 import CX265
 
-extension ChocoConfiguration.VideoPreference.ChocoX265Tune {
+extension ChocoCommonOptions.VideoOptions.ChocoX265Tune {
 
   enum X265ParameterKey: String {
     case merange
