@@ -60,7 +60,7 @@ extension ChocoCommonOptions {
   public struct IOOptions: CustomStringConvertible {
     public init(outputRootDirectory: URL, temperoraryDirectory: URL, split: ChocoSplit?, ignoreWarning: Bool, keepTempMethod: KeepTempMethod) {
       self.outputRootDirectory = outputRootDirectory
-      self.temperoraryDirectory = temperoraryDirectory
+      self.temperoraryDirectory = temperoraryDirectory.appendingPathComponent(ChocoTempDirectoryName)
       self.split = split
       self.ignoreWarning = ignoreWarning
       self.keepTempMethod = keepTempMethod
