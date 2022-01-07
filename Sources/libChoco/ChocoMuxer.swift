@@ -86,7 +86,7 @@ public final class ChocoMuxer {
     audioConvertQueue.maxConcurrentOperationCount = ProcessInfo.processInfo.processorCount
     self.commonOptions = config
     self.logger = logger
-    if self.commonOptions.ignoreWarning {
+    if self.commonOptions.io.ignoreWarning {
       self.allowedExitCodes = [0, 1]
     } else {
       self.allowedExitCodes = [0]
@@ -190,8 +190,8 @@ extension ChocoMuxer {
       let startDate = Date()
 
       let task = BDMVMetadata(rootPath: bdmvPath, mode: mplsMode,
-                              mainOnly: options.mainTitleOnly, split: commonOptions.split, logger: logger)
-      let finalOutputDirectoryURL = commonOptions.outputRootDirectory.appendingPathComponent(task.getBlurayTitle())
+                              mainOnly: options.mainTitleOnly, split: commonOptions.io.split, logger: logger)
+      let finalOutputDirectoryURL = commonOptions.io.outputRootDirectory.appendingPathComponent(task.getBlurayTitle())
       if fm.fileExistance(at: finalOutputDirectoryURL).exists {
         return .failure(.outputExist)
       }
@@ -257,7 +257,7 @@ extension ChocoMuxer {
     case .file:
       let startTime = Date()
       return withTemporaryDirectory { tempDirectory in
-        let fileSummary = _remux(file: file, outputDirectoryURL: commonOptions.outputRootDirectory, temporaryPath: tempDirectory, deleteAfterRemux: options.deleteAfterRemux)
+        let fileSummary = _remux(file: file, outputDirectoryURL: commonOptions.io.outputRootDirectory, temporaryPath: tempDirectory, deleteAfterRemux: options.deleteAfterRemux)
 
         return .success(.init(files: [.init(input: IOFileInfo(path: file), output: fileSummary, timeSummary: .init(startTime: startTime))], normalFiles: []))
       }
@@ -284,7 +284,7 @@ extension ChocoMuxer {
         logger.error("Path handling incorrect")
         return
       }
-      let outputDirectoryURL = commonOptions.outputRootDirectory
+      let outputDirectoryURL = commonOptions.io.outputRootDirectory
         .appendingPathComponent(dirName)
         .appendingPathComponent(String(fileDirPath.dropFirst(inputPrefix.count)))
 
@@ -445,7 +445,7 @@ extension ChocoMuxer {
       options.append(.trackTags(.removeAll))
       return .init(file: track.file.path, options: options)
     }
-    let splitInfo = generateMkvmergeSplit(split: commonOptions.split, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
+    let splitInfo = generateMkvmergeSplit(split: commonOptions.io.split, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
 
     let trackOrder: [MkvMerge.GlobalOption.TrackOrder]
     if commonOptions.meta.sortTrackType {
@@ -498,7 +498,7 @@ extension ChocoMuxer {
 extension ChocoMuxer {
 
   private func withTemporaryDirectory<T>(_ body: (URL) -> Result<T, ChocoError>) -> Result<T, ChocoError> {
-    let uniqueTempDirectory = commonOptions.temperoraryDirectory.appendingPathComponent(UUID().uuidString)
+    let uniqueTempDirectory = commonOptions.io.temperoraryDirectory.appendingPathComponent(UUID().uuidString)
     logger.info("Creating temp dir at: \(uniqueTempDirectory.path)")
     do {
       try fm.createDirectory(at: uniqueTempDirectory)
@@ -509,7 +509,7 @@ extension ChocoMuxer {
     var taskSuccess = false
     defer {
       let needRemove: Bool
-      switch (commonOptions.keepTempMethod, taskSuccess) {
+      switch (commonOptions.io.keepTempMethod, taskSuccess) {
       case (.always, _),
         (.failed, false):
         needRemove = false

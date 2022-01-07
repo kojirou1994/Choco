@@ -6,10 +6,10 @@ import MediaTools
 struct AudioConverter {
   let input: URL
   let output: URL
-  let codec: ChocoConfiguration.AudioPreference.AudioCodec
+  let codec: ChocoCommonOptions.AudioOptions.AudioCodec
   let lossyAudioChannelBitrate: Int
-  //  let downmixMethod: ChocoConfiguration.AudioPreference.DownmixMethod
-  let preferedTool: ChocoConfiguration.AudioPreference.PreferedTool
+  //  let downmixMethod: ChocoConfiguration.AudioOptions.DownmixMethod
+  let preferedTool: ChocoCommonOptions.AudioOptions.PreferedTool
   let ffmpegCodecs: ChocoMuxer.FFmpegCodecs
   let channelCount: Int
   let trackIndex: Int

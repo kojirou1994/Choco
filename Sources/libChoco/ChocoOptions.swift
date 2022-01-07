@@ -41,28 +41,31 @@ public struct FileRemuxOptions {
 
 public struct ChocoCommonOptions {
 
-  public let outputRootDirectory: URL
-  public let temperoraryDirectory: URL
-
-  public let split: ChocoSplit?
-  public let ignoreWarning: Bool
-  public let keepTempMethod: KeepTempMethod
-
+  public let io: IOOptions
   public let meta: MetaOptions
   public let video: VideoOptions
   public let audio: AudioOptions
   public let language: LanguageOptions
 
-  public init(outputRootDirectory: URL, temperoraryDirectory: URL, split: ChocoSplit?, ignoreWarning: Bool, keepTempMethod: ChocoCommonOptions.KeepTempMethod, meta: ChocoCommonOptions.MetaOptions, video: ChocoCommonOptions.VideoOptions, audio: ChocoCommonOptions.AudioOptions, language: ChocoCommonOptions.LanguageOptions) {
-    self.outputRootDirectory = outputRootDirectory
-    self.temperoraryDirectory = temperoraryDirectory
-    self.split = split
-    self.ignoreWarning = ignoreWarning
-    self.keepTempMethod = keepTempMethod
+  public init(io: ChocoCommonOptions.IOOptions, meta: ChocoCommonOptions.MetaOptions, video: ChocoCommonOptions.VideoOptions, audio: ChocoCommonOptions.AudioOptions, language: ChocoCommonOptions.LanguageOptions) {
+    self.io = io
     self.meta = meta
     self.video = video
     self.audio = audio
     self.language = language
+  }
+}
+
+extension ChocoCommonOptions {
+  public struct IOOptions: CustomStringConvertible {
+    public var description: String { "" }
+
+    public let outputRootDirectory: URL
+    public let temperoraryDirectory: URL
+
+    public let split: ChocoSplit?
+    public let ignoreWarning: Bool
+    public let keepTempMethod: KeepTempMethod
   }
 }
 
