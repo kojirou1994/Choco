@@ -246,24 +246,31 @@ extension ChocoMuxer {
 
   public func mux(file: URL, options: FileRemuxOptions) -> Result<FileSummary, ChocoError> {
 
+    logger.info("Remuxing file input: \(file.path)")
+
     switch fm.fileExistance(at: file) {
     case .none:
+      logger.error("The input file does not exist!")
       return .failure(.inputNotExists)
     case .file:
       let startTime = Date()
       return withTemporaryDirectory { tempDirectory in
+        logger.info("The input is a regular file.")
         let inputInfo = IOFileInfo(path: file)
         let fileSummary = _remux(file: file, outputDirectoryURL: commonOptions.io.outputRootDirectory, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
 
         return .success(.init(files: [.init(input: inputInfo, output: fileSummary, timeSummary: .init(startTime: startTime))], normalFiles: []))
       }
     case .directory:
+      logger.info("The input is a directory.")
       if !options.recursive {
+        logger.error("Recursive is disabled.")
         return .failure(.directoryInputButNotRecursive)
       }
     }
 
     // start scan directory
+    logger.info("Opening directory")
 
     let inputPrefix = file.path
     let dirName = file.lastPathComponent
@@ -318,6 +325,7 @@ extension ChocoMuxer {
       }
     }
     if !succ {
+      logger.error("Failed to open the directory: \(file.path)")
       return .failure(.openDirectory(file))
     }
 
