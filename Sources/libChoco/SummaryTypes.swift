@@ -24,14 +24,6 @@ extension ChocoMuxer {
 
   public struct BDMVSummary {
     public struct PlaylistTask {
-      internal init(playlistIndex: Int16, segments: [Int16], segmentsSize: UInt, output: Result<ChocoMuxer.IOFileInfo, ChocoError>, timeSummary: ChocoMuxer.TimeSummary) {
-        self.playlistIndex = playlistIndex
-        self.segments = segments
-        self.segmentsSize = segmentsSize
-        self.output = output
-        self.timeSummary = timeSummary
-      }
-
       public let playlistIndex: Int16
       public let segments: [Int16]
       public let segmentsSize: UInt
@@ -39,6 +31,7 @@ extension ChocoMuxer {
       public let timeSummary: TimeSummary
     }
     public let input: URL
+    public let outputDirectory: URL
     public let timeSummary: TimeSummary
     public let tasks: [PlaylistTask]
   }

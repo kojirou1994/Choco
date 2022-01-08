@@ -136,7 +136,7 @@ public final class ChocoMuxer {
     logger.info("\n\(name):\n\(input)\n->\n\(output)")
   }
 
-  func recursiveRun(task: WorkTask) throws -> [URL] {
+  func recursiveRun(task: WorkTask) -> Result<[URL], ChocoError> {
     do {
       logConverterStart(name: task.main.executable.executableName,
                         input: task.main.inputDescription,
@@ -144,35 +144,38 @@ public final class ChocoMuxer {
       try launch(externalExecutable: task.main.executable, checkAllowedExitCodes: allowedExitCodes)
     } catch {
       if task.canBeIgnored {
-        return []
+        return .success([])
       }
-      if let splitWorkers = task.splitWorkers {
-        for splitWorker in splitWorkers {
-          try launch(externalExecutable: splitWorker.executable, checkAllowedExitCodes: allowedExitCodes)
-        }
+      guard let splitWorkers = task.splitWorkers else {
+        return .failure(.subTask(error))
+      }
+      for splitWorker in splitWorkers {
         do {
-          let result = try launch(externalExecutable: task.joinWorker!.executable)
-          if result.exitStatus == .terminated(code: 2) {
-            throw ExecutableError.nonZeroExit(result.exitStatus)
-          }
-          return [task.joinWorker!.outputURL]
+          try launch(externalExecutable: splitWorker.executable, checkAllowedExitCodes: allowedExitCodes)
         } catch {
-          logger.error("Failed to join the splitted files, the file will be splitted.")
-          return splitWorkers.map { $0.outputURL }
+          return .failure(.subTask(error))
         }
-      } else {
-        throw error
+      }
+      do {
+        let result = try launch(externalExecutable: task.joinWorker!.executable)
+        if result.exitStatus == .terminated(code: 2) {
+          throw ExecutableError.nonZeroExit(result.exitStatus)
+        }
+        return .success([task.joinWorker!.outputURL])
+      } catch {
+        logger.error("Failed to join the splitted files, the file will be splitted.")
+        return .success(splitWorkers.map { $0.outputURL })
       }
     }
 
     if fm.fileExistance(at: task.main.outputURL).exists {
       // output exists
-      return [task.main.outputURL]
+      return .success([task.main.outputURL])
     } else if task.chapterSplit, let parts = try? fm.contentsOfDirectory(at: task.main.outputURL.deletingLastPathComponent()).filter({ $0.pathExtension == task.main.outputURL.pathExtension && $0.lastPathComponent.hasPrefix(task.main.outputURL.lastPathComponentWithoutExtension) }) {
-      return parts
+      return .success(parts)
     } else {
       logger.error("Necessary files are missing: \(task.main.outputURL.path).")
-      throw ChocoError.noOutputFile(task.main.outputURL)
+      return .failure(.noOutputFile(task.main.outputURL))
     }
   }
 }
@@ -192,7 +195,12 @@ extension ChocoMuxer {
       if fm.fileExistance(at: finalOutputDirectoryURL).exists {
         return .failure(.outputExist)
       }
-      try! fm.createDirectory(at: finalOutputDirectoryURL)
+
+      do {
+        try fm.createDirectory(at: finalOutputDirectoryURL)
+      } catch {
+        return .failure(.createDirectory(finalOutputDirectoryURL))
+      }
 
       let converters: [WorkTask]
       let mplsOutputDirectoryURL = remuxToOutputDirectory ? temporaryDirectoryURL : finalOutputDirectoryURL
@@ -204,7 +212,14 @@ extension ChocoMuxer {
 
       var tasks: [BDMVSummary.PlaylistTask] = []
       for converter in converters {
-        let tempFiles = try! recursiveRun(task: converter)
+        let tempFiles: [URL]
+        switch recursiveRun(task: converter) {
+        case .success(let v):
+          tempFiles = v
+        case .failure(let e):
+          return .failure(e)
+        }
+        
         if remuxToOutputDirectory {
           for tempFile in tempFiles {
             let startTime = Date()
@@ -240,7 +255,7 @@ extension ChocoMuxer {
         }
       }
 
-      return .success(.init(input: bdmvPath, timeSummary: .init(startTime: startDate), tasks: tasks))
+      return .success(.init(input: bdmvPath, outputDirectory: finalOutputDirectoryURL, timeSummary: .init(startTime: startDate), tasks: tasks))
     }
   }
 
@@ -513,7 +528,7 @@ extension ChocoMuxer {
       try fm.createDirectory(at: uniqueTempDirectory)
     } catch {
       logger.error("Failed to create.")
-      return .failure(.createTempDirectory(uniqueTempDirectory))
+      return .failure(.createDirectory(uniqueTempDirectory))
     }
     var taskSuccess = false
     defer {
@@ -640,23 +655,28 @@ extension ChocoMuxer {
               currentFFmpegAdditionalInputFileID += 1
             } else {
               // use vspipe piping to ffmpeg
-              let pipeline = try! ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"]))
-
-              let vspipeFFmpeg = FFmpeg(global: .init(hideBanner: true), ios: [
-                .input(url: "pipe:"),
-                videoOutput
-              ])
-
-              try! pipeline.append(vspipeFFmpeg, isLast: true)
-
-              try! pipeline.run()
-
-              runningProcessID = pipeline.processes.first?.processIdentifier
               defer {
                 runningProcessID = nil
               }
+              do {
+                let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"]))
 
-              pipeline.waitUntilExit()
+                let vspipeFFmpeg = FFmpeg(global: .init(hideBanner: true), ios: [
+                  .input(url: "pipe:"),
+                  videoOutput
+                ])
+
+                try pipeline.append(vspipeFFmpeg, isLast: true)
+
+                try pipeline.run()
+
+                runningProcessID = pipeline.processes.first?.processIdentifier
+
+
+                pipeline.waitUntilExit()
+              } catch {
+                return .failure(.subTask(error))
+              }
             }
           } else {
             // encode use ffmpeg
@@ -819,8 +839,11 @@ extension ChocoMuxer {
       // ffmpeg has output, should launch ffmpeg
       logger.info("\(ffmpeg.commandLineArguments)")
       // file's audio tracks -> external temp flac
-      try! launch(externalExecutable: ffmpeg,
-                 checkAllowedExitCodes: [0])
+      do {
+        try launch(externalExecutable: ffmpeg, checkAllowedExitCodes: [0])
+      } catch {
+        return .failure(.subTask(error))
+      }
     }
 
     // check duplicate audio track

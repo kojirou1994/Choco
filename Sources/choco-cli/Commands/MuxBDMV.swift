@@ -30,9 +30,23 @@ struct MuxBDMV: ParsableCommand {
         muxer.mux(bdmv: URL(fileURLWithPath: input), options: bdmvRemuxOptions)
       }
 
+      print("\n\nSummary:\n")
+      print("================")
       for (input, result) in zip(inputs, results) {
+        defer {
+          print("================\n")
+        }
         print("Input: \(input)")
-        print("Result: \(result)")
+        switch result {
+        case .success(let summary):
+          print("Read input OK.")
+          print()
+          print("success ==>")
+          print("\(summary.outputDirectory.path)")
+          print("Time used: \(summary.timeSummary.usedTimeString)")
+        case .failure(let error):
+          print("BDMV remux failed: \(error)")
+        }
       }
     }
 

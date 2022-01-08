@@ -30,9 +30,36 @@ struct MuxFile: ParsableCommand {
         muxer.mux(file: URL(fileURLWithPath: input), options: fileRemuxOptions)
       }
 
+      print("\n\nSummary:\n")
+      print("================")
       for (input, result) in zip(inputs, results) {
+        defer {
+          print("================\n")
+        }
         print("Input: \(input)")
-        print("Result: \(result)")
+        switch result {
+        case .success(let summary):
+          print("Read input OK.")
+          print()
+          print("Handled media files:\n")
+          if summary.files.isEmpty {
+            print("None")
+          } else {
+            summary.files.forEach { fileTask in
+              print("\(fileTask.input.path.path) \(ByteCountFormatter.string(fromByteCount: numericCast(fileTask.input.size), countStyle: .file))")
+              switch fileTask.output {
+              case .success(let output):
+                print("success ==>")
+                print("\(output.path.path) \(ByteCountFormatter.string(fromByteCount: numericCast(output.size), countStyle: .file))")
+              case .failure(let error):
+                print("failure: \(error)")
+              }
+              print()
+            }
+          }
+        case .failure(let error):
+          print("Read input failed: \(error)")
+        }
       }
     }
 

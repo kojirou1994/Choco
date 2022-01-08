@@ -20,5 +20,6 @@ public enum ChocoError: Error {
   case noCropInfo
   case encodingMultipleVideoTracks
   case nonProgTrackInProgOnlyMode
-  case createTempDirectory(URL)
+  case createDirectory(URL)
+  case subTask(Error)
 }
