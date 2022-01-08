@@ -29,12 +29,12 @@ private struct HandBrakePreview: Executable {
   }
 }
 
-public func ffmpegCrop(file: String, checkInterval: Int) throws -> CropInfo {
+public func ffmpegCrop(file: String, checkInterval: Int, limit: UInt8 = 24) throws -> CropInfo {
   var filters = [String]()
   if checkInterval > 1 {
     filters.append("select='not(mod(n\\,\(checkInterval)))'")
   }
-  filters.append("cropdetect=16")
+  filters.append("cropdetect=limit=\(limit):round=2")
 
   let ffmpeg = FFmpeg(
     global: .init(hideBanner: true, enableStdin: false),
