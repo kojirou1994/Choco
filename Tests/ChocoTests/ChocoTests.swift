@@ -42,4 +42,13 @@ final class ChocoTests: XCTestCase {
     XCTAssertEqual(info, .absolute(width: 1920, height: 1024, x: 0, y: 28))
     XCTAssertEqual(info.ffmpegArgument, "crop=" + str)
   }
+
+  func testAudioBitrate() {
+    let bitratePerChannel = 128
+    for channelCount in 1...8 {
+      let normalBitrate = audioBitrate(bitratePerChannel: bitratePerChannel, channelCount: channelCount, reduceBitrate: false)
+      let reducedBitrate = audioBitrate(bitratePerChannel: bitratePerChannel, channelCount: channelCount, reduceBitrate: true)
+      print(channelCount, normalBitrate, reducedBitrate, reducedBitrate / channelCount)
+    }
+  }
 }

@@ -34,8 +34,11 @@ struct AudioOptionsGroup: ParsableArguments {
   @Option(help: "Codec for fixing lossy audio track, \(ChocoCommonOptions.AudioOptions.AudioCodec.availableValues)")
   var audioLossyCodec: ChocoCommonOptions.AudioOptions.AudioCodec = .opus
 
-  @Option(help: "Audio kbps per channel")
+  @Option(help: "Audio bitrate(kbps) per channel")
   var audioBitrate: Int = 128
+
+  @Flag(help: "Reduce audio bitrate for multi-channels")
+  var reduceBitrate: Bool = false
 
   @Option(help: "Downmix method, \(ChocoCommonOptions.AudioOptions.DownmixMethod.availableValues)")
   var downmix: ChocoCommonOptions.AudioOptions.DownmixMethod = .disable
@@ -44,6 +47,6 @@ struct AudioOptionsGroup: ParsableArguments {
   var removeExtraDTS: Bool = false
   
   var options: ChocoCommonOptions.AudioOptions {
-    .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs), removeExtraDTS: removeExtraDTS)
+    .init(encodeAudio: encodeAudio, codec: audioCodec, codecForLossyAudio: audioLossyCodec, lossyAudioChannelBitrate: audioBitrate, reduceBitrate: reduceBitrate, downmixMethod: downmix, preferedTool: .official, protectedCodecs: .init(protectedCodecs), fixCodecs: .init(fixCodecs), removeExtraDTS: removeExtraDTS)
   }
 }

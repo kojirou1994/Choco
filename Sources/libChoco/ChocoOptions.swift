@@ -122,7 +122,8 @@ extension ChocoCommonOptions {
   public struct AudioOptions: CustomStringConvertible {
     public init(encodeAudio: Bool,
                 codec: AudioCodec, codecForLossyAudio: AudioCodec?,
-                lossyAudioChannelBitrate: Int, downmixMethod: DownmixMethod,
+                lossyAudioChannelBitrate: Int, reduceBitrate: Bool,
+                downmixMethod: DownmixMethod,
                 preferedTool: PreferedTool,
                 protectedCodecs: Set<LosslessAudioCodec>, fixCodecs: Set<GrossLossyAudioCodec>,
                 checkAllTracks: Bool = false,
@@ -131,6 +132,7 @@ extension ChocoCommonOptions {
       self.codec = codec
       self.codecForLossyAudio = codecForLossyAudio ?? codec
       self.lossyAudioChannelBitrate = lossyAudioChannelBitrate
+      self.reduceBitrate = reduceBitrate
       self.downmixMethod = downmixMethod
       self.preferedTool = preferedTool
       self.protectedCodecs = protectedCodecs
@@ -143,12 +145,13 @@ extension ChocoCommonOptions {
     public let codec: AudioCodec
     public let codecForLossyAudio: AudioCodec
     public let lossyAudioChannelBitrate: Int
+    public let reduceBitrate: Bool
     public let downmixMethod: DownmixMethod
     public let preferedTool: PreferedTool
     public let protectedCodecs: Set<LosslessAudioCodec>
     public let fixCodecs: Set<GrossLossyAudioCodec>
     public let removeExtraDTS: Bool
-    public let checkAllTracks: Bool
+    private let checkAllTracks: Bool
 
     func shouldCopy(_ codec: LosslessAudioCodec) -> Bool {
       protectedCodecs.contains(codec)

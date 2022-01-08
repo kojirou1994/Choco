@@ -8,7 +8,7 @@ struct AudioConverter {
   let output: URL
   let codec: ChocoCommonOptions.AudioOptions.AudioCodec
   let lossyAudioChannelBitrate: Int
-  //  let downmixMethod: ChocoConfiguration.AudioOptions.DownmixMethod
+  let reduceBitrate: Bool
   let preferedTool: ChocoCommonOptions.AudioOptions.PreferedTool
   let ffmpegCodecs: ChocoMuxer.FFmpegCodecs
   let channelCount: Int
@@ -70,6 +70,22 @@ struct AudioConverter {
   }
   
   private var bitrate: Int {
-    channelCount * lossyAudioChannelBitrate
+    audioBitrate(bitratePerChannel: lossyAudioChannelBitrate, channelCount: channelCount, reduceBitrate: reduceBitrate)
   }
+}
+
+public func audioBitrate(bitratePerChannel: Int, channelCount: Int, reduceBitrate: Bool) -> Int {
+  let standard = channelCount * bitratePerChannel
+  if reduceBitrate {
+    switch channelCount {
+    case 3...4:
+      return standard * 85 / 100
+    case 5...6:
+      return standard * 77 / 100
+    case 7...:
+      return standard * 70 / 100
+    default: break
+    }
+  }
+  return standard
 }
