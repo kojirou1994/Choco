@@ -63,7 +63,7 @@ struct TrackHash: ParsableCommand {
         let extractor = MkvExtract(
           filepath: file,
           extractions: [.tracks(outputs: extractedTrackIDAndURLs.map { .init(trackID: $0.id, filename: $0.url.path) })])
-        try extractor.launch(use: TSCExecutableLauncher(outputRedirection: .none))
+        try extractor.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
         let hashes = try extractedTrackIDAndURLs.map(\.url).map { trackFileURL -> String in
           var hash = SHA256()
           try BufferEnumerator(options: .init(bufferSizeLimit: 4*1024))

@@ -16,7 +16,6 @@ private func sysTempDir() -> String {
 enum OutputFormat: String, ExpressibleByArgument, CaseIterable, CustomStringConvertible {
   case text
   case ffmpeg
-  case origin
 
   var description: String { rawValue }
 }
@@ -54,10 +53,8 @@ struct Crop: ParsableCommand {
       info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFileURL)
     }
     switch format {
-    case .origin:
-      print(info)
     case .text:
-      print(info, info.ffmpegArgument)
+      print(info)
     case .ffmpeg:
       print(info.ffmpegArgument)
     }
