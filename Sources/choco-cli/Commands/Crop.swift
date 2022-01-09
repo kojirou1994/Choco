@@ -33,8 +33,8 @@ struct Crop: ParsableCommand {
   @Option(help: "How many preview images are generated, for handbrake.")
   var previews: Int = 200
 
-  @Option(help: "Detect crop every <interval> frames, for ffmpeg.")
-  var interval: Int = 250
+  @Option(help: "Set higher black value threshold, which can be optionally specified from nothing (0) to everything (255 for 8-bit based formats).")
+  var limit: UInt8 = 24
 
   @Option()
   var tmp: String = sysTempDir()
@@ -48,7 +48,7 @@ struct Crop: ParsableCommand {
     let info: CropInfo
     switch tool {
     case .ffmpeg:
-      info = try ffmpegCrop(file: input, checkInterval: interval)
+      info = try ffmpegCrop(file: input, limit: limit)
     case .handbrake:
       info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFileURL)
     }
