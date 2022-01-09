@@ -262,7 +262,7 @@ extension ChocoCommonOptions {
   public struct VideoOptions: CustomStringConvertible {
     public init(process: VideoProcess,
                 progressiveOnly: Bool,
-                filter: String?,
+                filter: String,
                 encodeScript: String?,
                 codec: Codec,
                 preset: CodecPreset,
@@ -288,7 +288,7 @@ extension ChocoCommonOptions {
 
     public let process: VideoProcess
     public let progressiveOnly: Bool
-    public let filter: String?
+    public let filter: String
     public let encodeScript: String?
     public let codec: Codec
     public let tune: String?
@@ -509,18 +509,15 @@ extension ChocoCommonOptions.VideoOptions {
 
     // filter
     do {
-      var finalFilterGraph = ""
+      var usedFilters = [String]()
+      if !filter.isEmpty {
+        usedFilters.append(filter)
+      }
       if let cropInfo = cropInfo {
-        finalFilterGraph = cropInfo.ffmpegArgument
+        usedFilters.append(cropInfo.ffmpegArgument)
       }
-      if let filter = filter, !filter.isEmpty {
-        if !finalFilterGraph.isEmpty {
-          finalFilterGraph += ","
-        }
-        finalFilterGraph += filter
-      }
-      if !finalFilterGraph.isEmpty {
-        options.append(.filter(filtergraph: finalFilterGraph, streamSpecifier: .streamType(.video)))
+      if !usedFilters.isEmpty {
+        options.append(.filter(filtergraph: usedFilters.joined(separator: ","), streamSpecifier: .streamType(.video)))
       }
     }
 

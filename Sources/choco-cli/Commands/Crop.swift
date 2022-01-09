@@ -53,7 +53,7 @@ struct Crop: ParsableCommand {
     let info: CropInfo
     switch tool {
     case .ffmpeg:
-      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, logger: logger)
+      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, logger: logger).get()
     case .handbrake:
       info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFileURL)
     }

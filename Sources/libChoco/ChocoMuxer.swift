@@ -628,9 +628,14 @@ extension ChocoMuxer {
           // TODO: generate crop info using user's filter
           let cropInfo: CropInfo?
           if commonOptions.video.autoCrop {
-            logger.info("Calculating crop info..")
-            cropInfo = try! handbrakeCrop(at: mkvinfo.fileName, previews: 100, tempFile: temporaryPath.appendingPathComponent("\(UUID()).mkv"))
-            logger.info("Calculated: \(cropInfo.unsafelyUnwrapped)")
+            logger.info("Calculating crop info with ffmpeg..")
+            switch ffmpegCrop(file: mkvinfo.fileName, baseFilter: commonOptions.video.filter, logger: logger) {
+            case .success(let v):
+              logger.info("Calculated: \(v)")
+              cropInfo = v
+            case .failure(let err):
+              return .failure(err)
+            }
           } else {
             cropInfo = nil
           }

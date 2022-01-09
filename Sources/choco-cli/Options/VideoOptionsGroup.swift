@@ -12,7 +12,7 @@ struct VideoOptionsGroup: ParsableArguments {
   var videoProcess: ChocoCommonOptions.VideoOptions.VideoProcess = .copy
 
   @Option(help: "FFmpeg video filter argument.")
-  var videoFilter: String?
+  var videoFilter: String = ""
 
   @Option(help: "Codec for video track, \(ChocoCommonOptions.VideoOptions.Codec.availableValues)")
   var videoCodec: ChocoCommonOptions.VideoOptions.Codec = .x265
