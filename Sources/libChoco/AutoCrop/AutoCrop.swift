@@ -29,8 +29,11 @@ private struct HandBrakePreview: Executable {
   }
 }
 
-public func ffmpegCrop(file: String, limit: UInt8 = 24) throws -> CropInfo {
+public func ffmpegCrop(file: String, baseFilter: String, limit: UInt8 = 24) throws -> CropInfo {
   var filters = [String]()
+  if !baseFilter.isEmpty {
+    filters.append(baseFilter)
+  }
   filters.append("cropdetect=limit=\(limit):round=2")
 
   let ffmpeg = FFmpeg(
