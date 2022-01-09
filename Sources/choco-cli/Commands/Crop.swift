@@ -4,6 +4,7 @@ import Foundation
 import URLFileManager
 import Precondition
 import libChoco
+import Logging
 
 private func sysTempDir() -> String {
   if let envV = ProcessInfo.processInfo.environment["TMPDIR"] {
@@ -48,10 +49,11 @@ struct Crop: ParsableCommand {
   func run() throws {
     let tempDirURL = URL(fileURLWithPath: tmp)
     let tempFileURL = tempDirURL.appendingPathComponent("\(UUID()).mkv")
+    let logger = Logger(label: "crop", factory: StreamLogHandler.standardError)
     let info: CropInfo
     switch tool {
     case .ffmpeg:
-      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit)
+      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, logger: logger)
     case .handbrake:
       info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFileURL)
     }
