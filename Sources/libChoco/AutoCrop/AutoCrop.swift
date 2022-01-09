@@ -30,7 +30,7 @@ private struct HandBrakePreview: Executable {
   }
 }
 
-public func ffmpegCrop(file: String, baseFilter: String, limit: UInt8 = 24, logger: Logger) throws -> CropInfo {
+public func ffmpegCrop(file: String, baseFilter: String, limit: UInt8 = 24, logger: Logger) -> Result<CropInfo, ChocoError> {
   var filters = [String]()
   if !baseFilter.isEmpty {
     filters.append(baseFilter)
@@ -49,14 +49,18 @@ public func ffmpegCrop(file: String, baseFilter: String, limit: UInt8 = 24, logg
     ])
 
   logger.info("running ffmpeg: \(ffmpeg.arguments)")
-  let result = try ffmpeg.launch(use: TSCExecutableLauncher())
-  for line in try result.utf8stderrOutput().components(separatedBy: .newlines).reversed() {
-    if line.hasPrefix("[Parsed_cropdetect") {
-      let cropRange = try line.range(of: "crop=").unwrap()
-      return try .init(ffmpegOutput: line[cropRange.upperBound...])
+  do {
+    let result = try ffmpeg.launch(use: TSCExecutableLauncher())
+    for line in try! result.utf8stderrOutput().components(separatedBy: .newlines).reversed() {
+      if line.hasPrefix("[Parsed_cropdetect") {
+        let cropRange = try line.range(of: "crop=").unwrap()
+        return try .success(.init(ffmpegOutput: line[cropRange.upperBound...]))
+      }
     }
+  } catch {
+    return .failure(.subTask(error))
   }
-  throw ChocoError.noCropInfo
+  return .failure(.noCropInfo)
 }
 
 #warning("handbrake does not support selecting video track")

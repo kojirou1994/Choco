@@ -447,7 +447,7 @@ extension ChocoCommonOptions.VideoOptions.Codec {
 
   var supportsCrf: Bool {
     switch self {
-    case .h264VT:
+    case .h264VT, .hevcVT, .h264VTSW, .hevcVTSW:
       return false
     default:
       return true
