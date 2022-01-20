@@ -183,7 +183,10 @@ public final class ChocoMuxer {
 extension ChocoMuxer {
 
   public func mux(bdmv bdmvPath: URL, options: BDMVRemuxOptions) -> Result<BDMVSummary, ChocoError> {
-    self.withTemporaryDirectory { temporaryDirectoryURL -> Result<BDMVSummary, ChocoError> in
+    if terminated {
+      return .failure(.terminated)
+    }
+    return self.withTemporaryDirectory { temporaryDirectoryURL -> Result<BDMVSummary, ChocoError> in
       let mplsMode: MplsRemuxMode = options.splitPlaylist ? .split : .direct
       let remuxToOutputDirectory = !options.directMode
 
@@ -212,6 +215,9 @@ extension ChocoMuxer {
 
       var tasks: [BDMVSummary.PlaylistTask] = []
       for converter in converters {
+        if terminated {
+          break
+        }
         let tempFiles: [URL]
         switch recursiveRun(task: converter) {
         case .success(let v):
@@ -261,7 +267,10 @@ extension ChocoMuxer {
 
   public func mux(file: URL, options: FileRemuxOptions) -> Result<FileSummary, ChocoError> {
 
-    logger.info("Remuxing file input: \(file.path)")
+    logger.info("Start handling file input: \(file.path)")
+    if terminated {
+      return .failure(.terminated)
+    }
 
     switch fm.fileExistance(at: file) {
     case .none:
