@@ -18,22 +18,25 @@ final class ChocoTests: XCTestCase {
   func testLanguageSetArgumentParsing() {
 
     let singleArgumentInput = "chi"
-    XCTAssertNotNil(LanguageSet(argument: singleArgumentInput))
-    let singleParsed = LanguageSet(argument: singleArgumentInput)!
+    XCTAssertNotNil(LanguageFilter(argument: singleArgumentInput))
+    let singleParsed = LanguageFilter(argument: singleArgumentInput)!
     XCTAssertTrue(singleParsed.languages == Set([.chi]))
 
     let multiArgumentInput = "chi,jpn"
-    XCTAssertNotNil(LanguageSet(argument: multiArgumentInput))
-    let parsed = LanguageSet(argument: multiArgumentInput)!
+    XCTAssertNotNil(LanguageFilter(argument: multiArgumentInput))
+    let parsed = LanguageFilter(argument: multiArgumentInput)!
     XCTAssertTrue(parsed.languages == Set([.chi, .jpn]))
   }
 
   func testLanguagePreference() {
-    let preference = ChocoCommonOptions.LanguageOptions(ignoreInputPrimaryLang: false, includeLangs: .init([.chi, .jpn]), excludeLangs: .init([.eng]), includeAudioLangs: .empty, excludeAudioLangs: .empty, includeSubLangs: .empty, excludeSubLangs: .empty)
+    print(LanguageFilter.default)
+    let preference = ChocoCommonOptions.LanguageOptions(primaryLanguage: nil, all: nil, audio: .included(languages: [.ger]), subtitles: nil)
 
-    let preferedLanguages = preference.generatePrimaryLanguages(with: [.chi], addUnd: false, logger: nil)
+    let v = preference.shouldMuxTrack(trackLanguage: .ger, trackType: .audio, primaryLanguage: .eng)
+    print(v)
 
-    XCTAssertEqual(preferedLanguages, Set([.chi, .jpn]))
+    print(LanguageFilter(argument: "chi,jpn")!)
+    print(LanguageFilter(argument: "!chi,jpn")!)
   }
 
   func testCrop() throws {

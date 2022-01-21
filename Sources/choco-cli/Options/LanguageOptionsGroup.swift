@@ -1,40 +1,25 @@
 import ArgumentParser
 import libChoco
+import ISOCodes
 
-extension LanguageSet: ExpressibleByArgument {}
+extension Language: ExpressibleByArgument {}
+extension LanguageFilter: ExpressibleByArgument {}
 
 struct LanguageOptionsGroup: ParsableArguments {
 
-  @Flag(help: "Ignore input file's primary language")
-  var ignoreInputPrimaryLang: Bool = false
+  @Option(help: "Override input file's primary language")
+  var primaryLang: Language?
 
-  @Option(help: "Included languages")
-  var includeLangs: LanguageSet = .default
+  @Option(help: "Language filter for all tracks")
+  var langs: LanguageFilter?
 
-  @Option(help: "Excluded languages")
-  var excludeLangs: LanguageSet = .empty
+  @Option(help: "Language filter for audio tracks")
+  var audioLangs: LanguageFilter?
 
-  @Option(help: "Included audio languages")
-  var includeAudioLangs: LanguageSet = .default
-
-  @Option(help: "Excluded audio languages")
-  var excludeAudioLangs: LanguageSet = .empty
-
-  @Option(help: "Included subtitles languages")
-  var includeSubLangs: LanguageSet = .default
-
-  @Option(help: "Excluded subtitles languages")
-  var excludeSubLangs: LanguageSet = .empty
+  @Option(help: "Language filter for subtitles tracks")
+  var subLangs: LanguageFilter?
 
   var options: ChocoCommonOptions.LanguageOptions {
-    .init(
-      ignoreInputPrimaryLang: ignoreInputPrimaryLang,
-      includeLangs: includeLangs,
-      excludeLangs: excludeLangs,
-      includeAudioLangs: includeAudioLangs,
-      excludeAudioLangs: excludeAudioLangs,
-      includeSubLangs: includeSubLangs,
-      excludeSubLangs: excludeSubLangs
-    )
+    .init(primaryLanguage: primaryLang, all: langs, audio: audioLangs, subtitles: subLangs)
   }
 }

@@ -221,41 +221,55 @@ extension ChocoCommonOptions {
   }
 
   public struct LanguageOptions {
-
-
-    public let ignoreInputPrimaryLang: Bool
-    public let includeLangs: LanguageSet
-    public let excludeLangs: LanguageSet
-    public let includeAudioLangs: LanguageSet
-    public let excludeAudioLangs: LanguageSet
-    public let includeSubLangs: LanguageSet
-    public let excludeSubLangs: LanguageSet
-
-    public init(ignoreInputPrimaryLang: Bool, includeLangs: LanguageSet, excludeLangs: LanguageSet, includeAudioLangs: LanguageSet, excludeAudioLangs: LanguageSet, includeSubLangs: LanguageSet, excludeSubLangs: LanguageSet) {
-      self.ignoreInputPrimaryLang = ignoreInputPrimaryLang
-      self.includeLangs = includeLangs
-      self.excludeLangs = excludeLangs
-      self.includeAudioLangs = includeAudioLangs
-      self.excludeAudioLangs = excludeAudioLangs
-      self.includeSubLangs = includeSubLangs
-      self.excludeSubLangs = excludeSubLangs
+    public init(primaryLanguage: Language?, all: LanguageFilter?, audio: LanguageFilter?, subtitles: LanguageFilter?) {
+      self.primaryLanguage = primaryLanguage
+      self.all = all
+      self.audio = audio
+      self.subtitles = subtitles
     }
 
-    func generatePrimaryLanguages<C>(with otherLanguages: C, addUnd: Bool, logger: Logger? = nil) -> Set<Language> where C: Collection, C.Element == Language {
-      var result = includeLangs.languages
-      if addUnd {
-        result.insert(.und)
+    public let primaryLanguage: Language?
+//    public let preventNoAudio: Bool
+    public let all: LanguageFilter?
+    public let audio: LanguageFilter?
+    public let subtitles: LanguageFilter?
+
+    public func shouldMuxTrack(trackLanguage: Language, trackType: MediaTrackType, primaryLanguage: Language) -> Bool {
+      // und is always OK
+      if trackLanguage == .und {
+        return true
       }
-      otherLanguages.forEach { l in
-        result.insert(l)
+      // video is always OK
+      if trackType == .video {
+        return true
       }
-      excludeLangs.languages.forEach { l in
-        if l == .und {
-          logger?.warning("Warning: excluding und language!")
+
+      // primaryLanguage is file's first audio track's lang
+      let finalPrimaryLanguage = self.primaryLanguage ?? primaryLanguage
+
+      func shouldMuxTrack(filter: LanguageFilter?) -> Bool {
+        guard let filter = filter else {
+          return true
         }
-        result.remove(l)
+
+        if filter.isExcluded {
+          return !filter.languages.contains(trackLanguage)
+        } else {
+          return trackLanguage == finalPrimaryLanguage || filter.languages.contains(trackLanguage)
+        }
       }
-      return result
+
+      if !shouldMuxTrack(filter: all) {
+        return false
+      }
+      if trackType == .audio, !shouldMuxTrack(filter: audio) {
+        return false
+      }
+      if trackType == .subtitles, !shouldMuxTrack(filter: subtitles) {
+        return false
+      }
+
+      return true
     }
   }
 

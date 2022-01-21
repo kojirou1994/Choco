@@ -9,19 +9,6 @@ extension MkvMerge.Input.InputOption.TrackSelect {
   }
 }
 
-extension MkvMergeIdentification {
-  var primaryLanguageCodes: [Language] {
-    primaryLanguages.compactMap { str in
-      if let v = Language(argument: str) {
-        return v
-      } else {
-        print("Unknown language code in mkvinfo: \(str)")
-        return nil
-      }
-    }
-  }
-}
-
 extension MkvMergeIdentification.Track {
 
   public var trackLanguageCode: Language {

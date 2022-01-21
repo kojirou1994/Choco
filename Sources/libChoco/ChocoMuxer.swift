@@ -71,6 +71,7 @@ public final class ChocoMuxer {
     logger.info("FFmpeg: \(ffmpegCodecs)")
     logger.info("Video: \(commonOptions.video)")
     logger.info("Audio: \(commonOptions.audio)")
+    logger.info("Language filter: \(commonOptions.language)")
   }
 
   private let allowedExitCodes: [CInt]
@@ -579,7 +580,16 @@ extension ChocoMuxer {
       return .failure(.encodingMultipleVideoTracks)
     }
 
-    let preferedLanguages = commonOptions.language.generatePrimaryLanguages(with: mkvinfo.primaryLanguageCodes, addUnd: true, logger: logger)
+    let primaryLanguage: Language = mkvinfo.tracks
+      .first { $0.type == .audio }?
+      .properties.language.flatMap { str in
+        if let v = Language(argument: str) {
+          return v
+        } else {
+          logger.warning("Unknown language code in mkvinfo: \(str)")
+          return nil
+        }
+      } ?? .und
 
     let ffmpegMainInputFileID = 0
     var currentFFmpegAdditionalInputFileID = 1
@@ -598,7 +608,7 @@ extension ChocoMuxer {
 
     // check track one by one
     logger.info("Checking tracks codec")
-    var currentTrackIndex = 0
+    var currentTrackIndex = tracks.startIndex
     let baseFilename = URL(fileURLWithPath: mkvinfo.fileName).lastPathComponentWithoutExtension
 
     while currentTrackIndex < tracks.count {
@@ -712,7 +722,7 @@ extension ChocoMuxer {
         }
       case .audio, .subtitles:
         var embbedAC3Removed = false
-        if preferedLanguages.contains(trackLanguage) {
+        if commonOptions.language.shouldMuxTrack(trackLanguage: trackLanguage, trackType: currentTrack.type, primaryLanguage: primaryLanguage) {
           var trackDone = false
           // keep true-hd
           if currentTrack.isTrueHD, commonOptions.audio.shouldCopy(.truehd) {
@@ -726,7 +736,8 @@ extension ChocoMuxer {
           // remove same spec dts-hd
           if !trackDone, commonOptions.audio.removeExtraDTS, currentTrack.isDTSHD {
             var fixed = false
-            if case let indexBefore = currentTrackIndex - 1, indexBefore >= 0 {
+            if case let indexBefore = tracks.index(before: currentTrackIndex),
+                indexBefore >= tracks.startIndex {
               let compareTrack = tracks[indexBefore]
               if compareTrack.isTrueHD,
                  compareTrack.properties.language == currentTrack.properties.language,
@@ -744,7 +755,8 @@ extension ChocoMuxer {
                 }
               }
             }
-            if !fixed, case let indexAfter = currentTrackIndex + 1, indexAfter < tracks.count {
+            if !fixed, case let indexAfter = tracks.index(after: currentTrackIndex),
+               indexAfter < tracks.endIndex {
               let compareTrack = tracks[indexAfter]
               if compareTrack.isTrueHD,
                  compareTrack.properties.language == currentTrack.properties.language,
