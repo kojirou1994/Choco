@@ -10,6 +10,9 @@ struct LanguageOptionsGroup: ParsableArguments {
   @Option(help: "Override input file's primary language")
   var primaryLang: Language?
 
+  @Flag(inversion: .prefixedNo)
+  var preventNoAudio: Bool = true
+
   @Option(help: "Language filter for all tracks")
   var langs: LanguageFilter?
 
@@ -20,6 +23,6 @@ struct LanguageOptionsGroup: ParsableArguments {
   var subLangs: LanguageFilter?
 
   var options: ChocoCommonOptions.LanguageOptions {
-    .init(primaryLanguage: primaryLang, all: langs, audio: audioLangs, subtitles: subLangs)
+    .init(primaryLanguage: primaryLang, preventNoAudio: preventNoAudio, all: langs, audio: audioLangs, subtitles: subLangs)
   }
 }

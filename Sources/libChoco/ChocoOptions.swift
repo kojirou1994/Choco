@@ -221,20 +221,21 @@ extension ChocoCommonOptions {
   }
 
   public struct LanguageOptions {
-    public init(primaryLanguage: Language?, all: LanguageFilter?, audio: LanguageFilter?, subtitles: LanguageFilter?) {
+    public init(primaryLanguage: Language?, preventNoAudio: Bool, all: LanguageFilter?, audio: LanguageFilter?, subtitles: LanguageFilter?) {
       self.primaryLanguage = primaryLanguage
+      self.preventNoAudio = preventNoAudio
       self.all = all
       self.audio = audio
       self.subtitles = subtitles
     }
 
     public let primaryLanguage: Language?
-//    public let preventNoAudio: Bool
+    public let preventNoAudio: Bool
     public let all: LanguageFilter?
     public let audio: LanguageFilter?
     public let subtitles: LanguageFilter?
 
-    public func shouldMuxTrack(trackLanguage: Language, trackType: MediaTrackType, primaryLanguage: Language) -> Bool {
+    public func shouldMuxTrack(trackLanguage: Language, trackType: MediaTrackType, primaryLanguage: Language, forcePrimary: Bool) -> Bool {
       // und is always OK
       if trackLanguage == .und {
         return true
@@ -245,7 +246,12 @@ extension ChocoCommonOptions {
       }
 
       // primaryLanguage is file's first audio track's lang
-      let finalPrimaryLanguage = self.primaryLanguage ?? primaryLanguage
+      let finalPrimaryLanguage: Language
+      if let overridePrimaryLang = self.primaryLanguage, !forcePrimary {
+        finalPrimaryLanguage = overridePrimaryLang
+      } else {
+        finalPrimaryLanguage = primaryLanguage
+      }
 
       func shouldMuxTrack(filter: LanguageFilter?) -> Bool {
         guard let filter = filter else {

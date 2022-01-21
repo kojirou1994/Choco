@@ -30,9 +30,9 @@ final class ChocoTests: XCTestCase {
 
   func testLanguagePreference() {
     print(LanguageFilter.default)
-    let preference = ChocoCommonOptions.LanguageOptions(primaryLanguage: nil, all: nil, audio: .included(languages: [.ger]), subtitles: nil)
+    let preference = ChocoCommonOptions.LanguageOptions(primaryLanguage: nil, preventNoAudio: false, all: nil, audio: .included(languages: [.ger]), subtitles: nil)
 
-    let v = preference.shouldMuxTrack(trackLanguage: .ger, trackType: .audio, primaryLanguage: .eng)
+    let v = preference.shouldMuxTrack(trackLanguage: .ger, trackType: .audio, primaryLanguage: .eng, forcePrimary: false)
     print(v)
 
     print(LanguageFilter(argument: "chi,jpn")!)

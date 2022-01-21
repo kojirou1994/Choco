@@ -590,6 +590,7 @@ extension ChocoMuxer {
           return nil
         }
       } ?? .und
+    logger.info("Primary language detected: \(primaryLanguage.alpha3BibliographicCode)")
 
     let ffmpegMainInputFileID = 0
     var currentFFmpegAdditionalInputFileID = 1
@@ -599,6 +600,20 @@ extension ChocoMuxer {
                         ios: [
                           .input(url: mkvinfo.fileName)
                         ])
+
+    let forceUseFilePrimaryLanguage: Bool
+    do {
+      let filteredAudioCount = tracks
+        .filter { $0.type == .audio }
+        .count(where: { commonOptions.language.shouldMuxTrack(trackLanguage: $0.trackLanguageCode, trackType: $0.type, primaryLanguage: primaryLanguage, forcePrimary: false) })
+      logger.info("Valid audio tracks count will be \(filteredAudioCount)")
+      if commonOptions.language.preventNoAudio {
+        forceUseFilePrimaryLanguage = filteredAudioCount == 0
+      } else {
+        forceUseFilePrimaryLanguage = false
+      }
+      logger.info("Force use input file's primary language: \(forceUseFilePrimaryLanguage)")
+    }
 
     var trackModifications = [TrackModification](repeating: .copy(type: .video), count: tracks.count)
 
@@ -722,7 +737,7 @@ extension ChocoMuxer {
         }
       case .audio, .subtitles:
         var embbedAC3Removed = false
-        if commonOptions.language.shouldMuxTrack(trackLanguage: trackLanguage, trackType: currentTrack.type, primaryLanguage: primaryLanguage) {
+        if commonOptions.language.shouldMuxTrack(trackLanguage: trackLanguage, trackType: currentTrack.type, primaryLanguage: primaryLanguage, forcePrimary: forceUseFilePrimaryLanguage) {
           var trackDone = false
           // keep true-hd
           if currentTrack.isTrueHD, commonOptions.audio.shouldCopy(.truehd) {
