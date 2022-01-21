@@ -52,7 +52,7 @@ extension LanguageFilter: CustomStringConvertible {
 extension LanguageFilter {
   public init?(argument: String) {
     var argument = argument[argument.startIndex...]
-    if argument[argument.startIndex] == "!" {
+    if argument.first == "!" {
       self.isExcluded = true
       argument = argument.dropFirst()
     } else {
