@@ -11,6 +11,7 @@ let package = Package(
     .library(name: "MplsParser", targets: ["MplsParser"]),
     .library(name: "libChoco", targets: ["libChoco"]),
     .executable(name: "choco-cli", targets: ["choco-cli"]),
+    .executable(name: "chapter-tool", targets: ["chapter-tool"]),
   ],
   dependencies: [
     .package(url: "https://github.com/kojirou1994/Kwift.git", from: "1.0.0"),
