@@ -82,12 +82,12 @@ extension MplsPlaylist {
       let clipId = String.init(decoding: try reader.read(5), as: UTF8.self)
       // skip the redundant "M2TS" CodecIdentifier
       let codecId = String.init(decoding: try reader.read(4), as: UTF8.self)
-      precondition(codecId == "M2TS")
+      precondition(codecId == "M2TS", "codec id is not M2TS")
       /// reserved 11 bits + isMultiAngle 1 bit + connectionCondition 4 bits
       let combined = try reader.readInteger() as UInt16
       let isMultiAngle = (combined << 11) >> 15 == 1
       let connectionCondition = UInt8.init(truncatingIfNeeded: (combined << 12) >> 12)
-      precondition([0x01, 0x05, 0x06].contains(connectionCondition))
+//      precondition([0x01, 0x05, 0x06].contains(connectionCondition), "invalid connection condition")
       let stcId = try reader.readByte()
       let inTime = try Timestamp(mpls: UInt64(reader.readInteger() as UInt32))
       let outTime = try Timestamp(mpls: UInt64(reader.readInteger() as UInt32))
@@ -113,7 +113,7 @@ extension MplsPlaylist {
         for _ in 1..<numAngles {
           let clipId = String.init(decoding: try reader.read(5), as: UTF8.self)
           let clipCodecId = String.init(decoding: try reader.read(4), as: UTF8.self)
-          precondition(clipCodecId == "M2TS")
+          precondition(clipCodecId == "M2TS", "clip codec id is not M2TS")
           let stcId = try reader.readByte()
           angles.append(.init(clipId: clipId, clipCodecId: clipCodecId, stcId: stcId))
         }
@@ -232,6 +232,12 @@ extension MplsPlaylist {
       if chapterType != 1 {
         continue
       }
+      guard absoluteTimestamp >= playItem.inTime,
+            absoluteTimestamp <= playItem.outTime else {
+              print("invalid timestamp found, chapters is disabled!")
+              chapters = []
+              break
+            }
       chapters.append(.init(unknownByte: markId, type: chapterType, playItemIndex: playItemIndex,
                             absoluteTimestamp: absoluteTimestamp, entryEsPid: entryEsPid, skipDuration: skipDuration,
                             relativeTimestamp: absoluteTimestamp - playItem.inTime + playItem.relativeInTime))
@@ -266,7 +272,7 @@ extension MplsStream {
       subPathId = try handle.readByte()
       pid = try handle.readInteger() as UInt16
     case .reserved:
-      fatalError()
+      fatalError("\(#function), \(#fileID), \(#line)")
     }
     try handle.seek(to: currentIndex + Int(length))
     length = try handle.readByte()
@@ -306,7 +312,7 @@ extension MplsStream {
       let language = try handle.readString(3)
       attribute = try .textsubtitle(.init(charCode: .init(value: charCode), language: fixLanguage(language)))
     } else {
-      fatalError()
+      fatalError("\(#function), \(#fileID), \(#line)")
     }
     try handle.seek(to: currentIndex + Int(length))
     return .init(streamType: streamType, codec: codec, pid: pid,

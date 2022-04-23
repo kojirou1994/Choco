@@ -38,6 +38,12 @@ struct VideoOptionsGroup: ParsableArguments {
   @Flag(help: "Auto crop video track")
   var autoCrop: Bool = false
 
+  @Option(help: "Set higher black value threshold, which can be optionally specified from nothing (0) to everything (255 for 8-bit based formats).")
+  var cropLimit: UInt8 = 24
+
+  @Option(help: "")
+  var cropRound: UInt8 = 2
+
   @Flag(help: "Only encode progressive video track.")
   var progOnly: Bool = false
 
@@ -54,6 +60,6 @@ struct VideoOptionsGroup: ParsableArguments {
   }
 
   var options: ChocoCommonOptions.VideoOptions {
-    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
+    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
   }
 }

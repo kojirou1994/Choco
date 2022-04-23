@@ -4,9 +4,9 @@ public struct MplsPlayItem {
     public let clipId: String
     let connectionCondition: UInt8
     let stcId: UInt8
-    let inTime: Timestamp
-    let outTime: Timestamp
-    let relativeInTime: Timestamp
+    public let inTime: Timestamp
+    public let outTime: Timestamp
+    public let relativeInTime: Timestamp
     public let stn: MplsPlayItemStn
     public let multiAngle: MultiAngle
     

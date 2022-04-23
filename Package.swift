@@ -10,6 +10,7 @@ let package = Package(
   products: [
     .library(name: "MplsParser", targets: ["MplsParser"]),
     .library(name: "libChoco", targets: ["libChoco"]),
+    .executable(name: "choco-cli", targets: ["choco-cli"]),
   ],
   dependencies: [
     .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.8.0"),
@@ -26,11 +27,6 @@ let package = Package(
     .package(url: "https://github.com/kojirou1994/CX265.git", .branch("main")),
   ],
   targets: [
-    .systemLibrary(
-      name: "CBluray",
-      pkgConfig: "libbluray",
-      providers: [.brew(["libbluray"])]
-    ),
     .target(
       name: "MplsParser",
       dependencies: [
@@ -41,7 +37,6 @@ let package = Package(
     .target(
       name: "libChoco",
       dependencies: [
-        "CBluray",
         .product(name: "CX265", package: "CX265"),
         "MplsParser",
         "Rainbow",

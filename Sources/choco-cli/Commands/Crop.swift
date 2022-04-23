@@ -40,6 +40,9 @@ struct Crop: ParsableCommand {
   @Option(help: "Set higher black value threshold, which can be optionally specified from nothing (0) to everything (255 for 8-bit based formats).")
   var limit: UInt8 = 24
 
+  @Option(help: "")
+  var round: UInt8 = 2
+
   @Option()
   var tmp: String = sysTempDir()
 
@@ -53,7 +56,7 @@ struct Crop: ParsableCommand {
     let info: CropInfo
     switch tool {
     case .ffmpeg:
-      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, logger: logger).get()
+      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, logger: logger).get()
     case .handbrake:
       info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFileURL)
     }

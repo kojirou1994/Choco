@@ -11,6 +11,12 @@ struct ParseMpls: ParsableCommand {
   @Flag
   var absolute: Bool = false
 
+  @Flag
+  var dumpInfo: Bool = false
+
+  @Option
+  var startTime: UInt64?
+
   @Argument(help: ArgumentHelp("Mpls paths", discussion: "", valueName: "path"))
   var inputs: [String]
 
@@ -19,8 +25,21 @@ struct ParseMpls: ParsableCommand {
       print("parsing \(path)")
       let inputFileURL = URL(fileURLWithPath: path)
       let mpls = try MplsPlaylist.parse(mplsURL: inputFileURL)
-      dump(mpls)
-      print("\n\n")
+      if dumpInfo {
+        dump(mpls)
+        print("\n\n")
+      }
+
+      if let startTime = startTime {
+        let startTimestamp = Timestamp(ns: startTime)
+        mpls.playItems.forEach { playItem in
+          print(playItem.clipId)
+          print("start", playItem.inTime - startTimestamp)
+          print("end", playItem.outTime - startTimestamp)
+          print()
+          
+        }
+      }
 
       if generate {
         if mpls.chapters.isEmpty {

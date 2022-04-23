@@ -23,6 +23,7 @@ struct TestFilter: ParsableCommand {
 
   func run() throws {
     let defaultFilters = [
+      "",
       "fieldmatch",
       "fieldmatch,yadif=deint=interlaced",
       "fieldmatch,yadif=deint=interlaced,decimate",
@@ -43,7 +44,9 @@ struct TestFilter: ParsableCommand {
 
           var outputOptions = [FFmpeg.InputOutputOption]()
           outputOptions.append(.format("image2"))
-          outputOptions.append(.filter(filtergraph: filter, streamSpecifier: nil))
+          if !filter.isEmpty {
+            outputOptions.append(.filter(filtergraph: filter, streamSpecifier: nil))
+          }
           outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamIndex(videoTrackID), isOptional: false, isNegativeMapping: false))
           outputOptions.append(.frameCount(frames, streamSpecifier: .streamID(0)))
 

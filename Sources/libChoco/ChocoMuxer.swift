@@ -663,7 +663,7 @@ extension ChocoMuxer {
           let cropInfo: CropInfo?
           if commonOptions.video.autoCrop {
             logger.info("Calculating crop info with ffmpeg..")
-            switch ffmpegCrop(file: mkvinfo.fileName, baseFilter: commonOptions.video.filter, logger: logger) {
+            switch ffmpegCrop(file: mkvinfo.fileName, baseFilter: commonOptions.video.filter, limit: commonOptions.video.cropLimit, round: commonOptions.video.cropRound, logger: logger) {
             case .success(let v):
               logger.info("Calculated: \(v)")
               cropInfo = v
