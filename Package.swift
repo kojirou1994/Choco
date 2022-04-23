@@ -13,11 +13,15 @@ let package = Package(
     .executable(name: "choco-cli", targets: ["choco-cli"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/kojirou1994/Kwift.git", from: "0.8.0"),
-    .package(url: "https://github.com/apple/swift-argument-parser.git", from: "0.3.0"),
+    .package(url: "https://github.com/kojirou1994/Kwift.git", from: "1.0.0"),
+    .package(url: "https://github.com/kojirou1994/Precondition.git", from: "1.0.0"),
+    .package(url: "https://github.com/kojirou1994/Units.git", from: "0.0.1"),
+    .package(url: "https://github.com/kojirou1994/PrettyBytes.git", from: "0.0.1"),
+    .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0"),
     .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
     .package(url: "https://github.com/kojirou1994/MediaUtility.git", from: "0.3.0"),
     .package(url: "https://github.com/kojirou1994/Executable.git", from: "0.4.0"),
+    .package(url: "https://github.com/kojirou1994/IOUtility.git", from: "0.0.1"),
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
     .package(url: "https://github.com/kojirou1994/BufferUtility.git", from: "0.0.1"),
@@ -30,8 +34,10 @@ let package = Package(
     .target(
       name: "MplsParser",
       dependencies: [
-        .product(name: "KwiftUtility", package: "Kwift"),
-        "MediaUtility"
+        .product(name: "IOModule", package: "IOUtility"),
+        .product(name: "IOStreams", package: "IOUtility"),
+        .product(name: "Precondition", package: "Precondition"),
+        .product(name: "MediaUtility", package: "MediaUtility"),
       ]
     ),
     .target(
@@ -42,6 +48,7 @@ let package = Package(
         "Rainbow",
         "URLFileManager",
         "ISOCodes",
+        .product(name: "Precondition", package: "Precondition"),
         .product(name: "mustache", package: "mustache"),
         .product(name: "KwiftUtility", package: "Kwift"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
@@ -54,7 +61,9 @@ let package = Package(
       name: "choco-cli",
       dependencies: [
         "libChoco",
-        "Rainbow",
+        .product(name: "Rainbow", package: "Rainbow"),
+        .product(name: "PrettyBytes", package: "PrettyBytes"),
+        .product(name: "Units", package: "Units"),
         .product(name: "BufferUtility", package: "BufferUtility"),
         .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
       ]

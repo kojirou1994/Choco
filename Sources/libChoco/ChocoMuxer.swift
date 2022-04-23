@@ -8,6 +8,7 @@ import TSCBasic
 import URLFileManager
 import Logging
 import ISOCodes
+import Precondition
 
 let fm = URLFileManager.default
 
@@ -598,7 +599,7 @@ extension ChocoMuxer {
     var audioConverters = [AudioConverter]()
     var ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false),
                         ios: [
-                          .input(url: mkvinfo.fileName)
+                          .input(url: mkvinfo.fileName, options: [.avOption(name: "init_hw_device", value: "videotoolbox", streamSpecifier: nil)])
                         ])
 
     let forceUseFilePrimaryLanguage: Bool
@@ -1025,7 +1026,7 @@ public struct BDMVMetadata {
         } else {
           let outputFilename = generateFilename(mpls: mpls)
           let output = outputDirectoryURL.appendingPathComponent(outputFilename + ".mkv")
-          let parsedMpls = try MplsPlaylist.parse(mplsURL: mpls.fileName)
+          let parsedMpls = try MplsPlaylist.parse(mplsContents: Data(contentsOf: mpls.fileName))
           let chapter = parsedMpls.convert()
           let chapterFile = outputDirectoryURL.appendingPathComponent("\(mpls.fileName.lastPathComponentWithoutExtension).xml")
           let chapterPath: String?

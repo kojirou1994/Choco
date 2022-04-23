@@ -1,8 +1,6 @@
 import Foundation
 
 public struct MplsPlaylist {
-    
-    public let mplsURL: URL
 
     let playlistStartIndex: UInt32
     let chapterStartIndex: UInt32

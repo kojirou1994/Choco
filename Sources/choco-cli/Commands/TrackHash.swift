@@ -12,6 +12,7 @@ import Crypto
 import BufferUtility
 import MediaUtility
 import URLFileManager
+import PrettyBytes
 
 extension MediaTrackType: EnumerableFlag {
   public static var allCases: [MediaTrackType] {
@@ -39,6 +40,7 @@ struct TrackHash: ParsableCommand {
     if !disabledTrackTypes.isEmpty {
       print("Disabled track types: \(disabledTrackTypes)")
     }
+    let formatter = BytesStringFormatter(uppercase: true)
     let tmpDir = URL(fileURLWithPath: tmp)
     inputs.forEach { file in
       do {
@@ -70,7 +72,7 @@ struct TrackHash: ParsableCommand {
             .enumerateBuffer(file: trackFileURL) { (buffer, _, _) in
             hash.update(bufferPointer: buffer)
           }
-          return hash.finalize().hexString(uppercase: true, prefix: "")
+          return formatter.bytesToHexString(hash.finalize())
         }
 
         for (trackID, hash) in zip(extractedTrackIDAndURLs.map(\.id), hashes) {

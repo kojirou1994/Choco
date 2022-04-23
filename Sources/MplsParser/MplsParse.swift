@@ -1,6 +1,8 @@
+import IOModule
+import Precondition
+import MediaUtility
 import Foundation
-import KwiftUtility
-import KwiftExtension
+import IOStreams
 
 public enum StreamType: UInt8 {
   case reserved = 0
@@ -11,8 +13,8 @@ public enum StreamType: UInt8 {
 }
 
 public enum MplsReadError: Error {
-  case noMplsHeader(Data)
-  case noVersionHeader(Data)
+  case invalidMplsHeader(UInt32)
+  case invalidVersionHeader(UInt32)
   case invalidCodec(UInt8)
   case invalidCharacterCode(UInt8)
   case invalidAudioFormat(UInt8)
@@ -22,11 +24,17 @@ public enum MplsReadError: Error {
   case invalidSubPathType(UInt8)
 }
 
+extension Read {
+  mutating func readTimestamp() throws -> Timestamp {
+    try Timestamp(mpls: readInteger())
+  }
+}
+
 struct MplsMark {
-  static let mplsHeader: [UInt8] = [0x4d, 0x50, 0x4c, 0x53] // "MPLS"
-  static let mplsVersionAHeader: [UInt8] = [0x30, 0x32, 0x30, 0x30] // "0200"
-  static let mplsVersionBHeader: [UInt8] = [0x30, 0x31, 0x30, 0x30] // "0100"
-  static let mplsVersionCHeader: [UInt8] = [0x30, 0x33, 0x30, 0x30] // "0300"
+  static let mplsHeader: UInt32 = 0x4d504c53 // "MPLS"
+  static let mplsVersionAHeader: UInt32 = 0x30323030 // "0200"
+  static let mplsVersionBHeader: UInt32 = 0x30313030 // "0100"
+  static let mplsVersionCHeader: UInt32 = 0x30333030 // "0300"
 
   static let ChapterMark: [UInt8] = [0xff, 0xff, 0x00, 0x00, 0x00, 0x00]
   static let SearchM2TS: [UInt8] = [0x4d, 0x32, 0x54, 0x53]//"M2TS"
@@ -34,26 +42,30 @@ struct MplsMark {
   static let PlayMarkType: UInt8 = 0x01
 }
 
-typealias DataHandle = ByteReader<Data>
-
 extension MplsPlaylist {
 
+  public static func parse(mplsContents: Data) throws -> Self {
+    var reader = MemoryInputStream(mplsContents)
+    return try parse(&reader)
+  }
 
-  public static func parse(mplsURL: URL) throws -> Self {
-    var reader = try autoreleasepool {
-      try DataHandle(.init(contentsOf: mplsURL))
-    }
+
+  public static func parse<T>(_ reader: inout T) throws -> Self where T: Read, T: Seek {
 
     // MARK: parse header
-    let mpls = try reader.read(4)
-    guard mpls.elementsEqual(MplsMark.mplsHeader) else {
-      throw MplsReadError.noMplsHeader(mpls)
+    do {
+      let mplsHeader = try reader.readInteger() as UInt32
+      guard mplsHeader == MplsMark.mplsHeader else {
+        throw MplsReadError.invalidMplsHeader(mplsHeader)
+      }
     }
-    let versionHeader = try reader.read(4)
-    guard versionHeader.elementsEqual(MplsMark.mplsVersionAHeader) ||
-            versionHeader.elementsEqual(MplsMark.mplsVersionBHeader) ||
-            versionHeader.elementsEqual(MplsMark.mplsVersionCHeader) else {
-      throw MplsReadError.noVersionHeader(versionHeader)
+    do {
+      let versionHeader = try reader.readInteger() as UInt32
+      guard versionHeader == MplsMark.mplsVersionAHeader ||
+              versionHeader == MplsMark.mplsVersionBHeader ||
+              versionHeader == MplsMark.mplsVersionCHeader else {
+        throw MplsReadError.invalidVersionHeader(versionHeader)
+      }
     }
     // MARK: parse indexes
     let playlistStartIndex = try reader.readInteger() as UInt32
@@ -61,7 +73,7 @@ extension MplsPlaylist {
     let extensionDataStartIndex = try reader.readInteger() as UInt32
 
     // go to playlist start index
-    try reader.seek(to: Int(playlistStartIndex))
+    try reader.seek(toOffset: numericCast(playlistStartIndex), from: .start)
 
     // MARK: parse play items
     try reader.skip(4) // playlistLength
@@ -76,12 +88,12 @@ extension MplsPlaylist {
     for _ in 0..<playItemCount {
       // PlayItem Length
       let playItemLength = try reader.readInteger() as UInt16
-      let currentIndex = reader.readerOffset
+      let currentIndex = try reader.currentOffset()
 
       // Primary Clip identifer
-      let clipId = String.init(decoding: try reader.read(5), as: UTF8.self)
+      let clipId = try reader.readString(byteCount: 5)
       // skip the redundant "M2TS" CodecIdentifier
-      let codecId = String.init(decoding: try reader.read(4), as: UTF8.self)
+      let codecId = try reader.readString(byteCount: 4)
       precondition(codecId == "M2TS", "codec id is not M2TS")
       /// reserved 11 bits + isMultiAngle 1 bit + connectionCondition 4 bits
       let combined = try reader.readInteger() as UInt16
@@ -89,18 +101,18 @@ extension MplsPlaylist {
       let connectionCondition = UInt8.init(truncatingIfNeeded: (combined << 12) >> 12)
 //      precondition([0x01, 0x05, 0x06].contains(connectionCondition), "invalid connection condition")
       let stcId = try reader.readByte()
-      let inTime = try Timestamp(mpls: UInt64(reader.readInteger() as UInt32))
-      let outTime = try Timestamp(mpls: UInt64(reader.readInteger() as UInt32))
+      let inTime = try reader.readTimestamp()
+      let outTime = try reader.readTimestamp()
 
       try reader.skip(8) // uoMaskTable
       /// random_access_flag  1 bit + reserved 7bits
       _ = try (reader.readByte() & 0b10000000) != 0 // randomAccessFlag
       let stillMode = try reader.readByte()
       if stillMode == 1 {
-        _ = try reader.read(2) // stillTime
+        try reader.skip(2) // stillTime
       } else {
         //reserved
-        _ = try reader.read(2)
+        try reader.skip(2)
       }
       let multiAngle: MultiAngle
       if isMultiAngle {
@@ -111,8 +123,8 @@ extension MplsPlaylist {
         let isSeamlessAngleChange = (combined & 0b00000001) != 0
         var angles = [MultiAngleData.Angle]()
         for _ in 1..<numAngles {
-          let clipId = String.init(decoding: try reader.read(5), as: UTF8.self)
-          let clipCodecId = String.init(decoding: try reader.read(4), as: UTF8.self)
+          let clipId = try reader.readString(byteCount: 5)
+          let clipCodecId = try reader.readString(byteCount: 4)
           precondition(clipCodecId == "M2TS", "clip codec id is not M2TS")
           let stcId = try reader.readByte()
           angles.append(.init(clipId: clipId, clipCodecId: clipCodecId, stcId: stcId))
@@ -141,22 +153,22 @@ extension MplsPlaylist {
       var video = [MplsStream]()
       video.reserveCapacity(Int(numPrimaryVideo))
       for _ in 0..<numPrimaryVideo {
-        video.append(try .parse(from: &reader))
+        video.append(try .parse(&reader))
       }
 
       var audio = [MplsStream]()
       audio.reserveCapacity(Int(numPrimaryAudio))
       for _ in 0..<numPrimaryAudio {
-        audio.append(try .parse(from: &reader))
+        audio.append(try .parse(&reader))
       }
 
       var pg = [MplsStream]()
       pg.reserveCapacity(Int(numPg))
       for _ in 0..<numPg {
-        pg.append(try .parse(from: &reader))
+        pg.append(try .parse(&reader))
       }
 
-      try reader.seek(to: currentIndex + Int(playItemLength))
+      try reader.seek(toOffset: currentIndex + Int64(playItemLength), from: .start)
 
       let stn = MplsPlayItemStn.init(numPrimaryVideo: numPrimaryVideo, numPrimaryAudio: numPrimaryAudio,
                                      numPg: numPg, numIg: numIg, numSecondaryAudio: numSecondaryAudio,
@@ -184,24 +196,24 @@ extension MplsPlaylist {
       var subPlayItems = [SubPlayItem]()
       for _ in 0..<subPlayItemCount {
         try reader.skip(2) //length
-        let clpiFilename = try reader.readString(5)
-        let codecId = try reader.readString(4)
+        let clpiFilename = try reader.readString(byteCount: 5)
+        let codecId = try reader.readString(byteCount: 4)
         try reader.skip(3)
         let two = try reader.readByte()
         let connectionCondition = (two & 0b0001_1110) >> 1
         let isMultiClipEntries = (two & 0b0000_0001) == 1
         let refToStcId = try reader.readByte()
-        let inTime = Timestamp.init(mpls: try reader.read(4).joined(UInt64.self))
-        let outTime = Timestamp.init(mpls: try reader.read(4).joined(UInt64.self))
+        let inTime = try reader.readTimestamp()
+        let outTime = try reader.readTimestamp()
         let syncPlayItemId = try reader.readInteger() as UInt16
-        let syncStartPtsOfPlayItem = Timestamp.init(mpls: try reader.read(4).joined(UInt64.self))
+        let syncStartPtsOfPlayItem = try reader.readTimestamp()
         var clips = [SubPlayItemClip]()
         if isMultiClipEntries {
           let numClips = try reader.readByte()
           try reader.skip(1)
           for _ in 1..<numClips {
-            let clpiFilename = String.init(decoding:try  reader.read(5), as: UTF8.self)
-            let codecId = String.init(decoding:try  reader.read(4), as: UTF8.self)
+            let clpiFilename = try reader.readString(byteCount: 5)
+            let codecId = try reader.readString(byteCount: 4)
             let refToStcId = try reader.readByte()
             clips.append(SubPlayItemClip.init(clpiFilename: clpiFilename, codecId: codecId, refToStcId: refToStcId))
           }
@@ -215,7 +227,7 @@ extension MplsPlaylist {
     }
 
     // MARK: parse Chapters
-    try reader.seek(to: Data.Index(chapterStartIndex))
+    try reader.seek(toOffset: Int64(chapterStartIndex), from: .start)
     try reader.skip(4) //chapterLength
     let chapterCount = try reader.readInteger() as UInt16
 
@@ -225,7 +237,7 @@ extension MplsPlaylist {
       let markId = try reader.readByte()
       let chapterType = try reader.readByte()
       let playItemIndex = try reader.readInteger() as UInt16
-      let absoluteTimestamp = Timestamp.init(mpls: UInt64(try reader.readInteger() as UInt32))
+      let absoluteTimestamp = try reader.readTimestamp()
       let entryEsPid = try reader.readInteger() as UInt16
       let skipDuration = try reader.readInteger() as UInt32
       let playItem = playItems[Int(playItemIndex)]
@@ -244,7 +256,7 @@ extension MplsPlaylist {
     }
     //    print(reader.isAtEnd)
 
-    return .init(mplsURL: mplsURL, playlistStartIndex: playlistStartIndex, chapterStartIndex: chapterStartIndex, extensionDataStartIndex: extensionDataStartIndex,
+    return .init(playlistStartIndex: playlistStartIndex, chapterStartIndex: chapterStartIndex, extensionDataStartIndex: extensionDataStartIndex,
                  playItemCount: playItemCount, subPathCount: subPathCount, chapterCount: chapterCount,
                  playItems: playItems, subPaths: subPaths, chapters: chapters, duration: duration)
   }
@@ -253,9 +265,9 @@ extension MplsPlaylist {
 
 extension MplsStream {
 
-  internal static func parse(from handle: inout DataHandle) throws -> Self {
+  internal static func parse<T>(_ handle: inout T) throws -> Self where T: Read, T: Seek {
     var length = try handle.readByte()
-    var currentIndex = handle.readerOffset// >> 3
+    var currentIndex = try handle.currentOffset()// >> 3
     let streamType = try StreamType(rawValue: handle.readByte()).unwrap("Invalid Stream Type")
     //        "unrecognized stream type %02x\n", s->stream_type)
     let pid: UInt16
@@ -274,9 +286,9 @@ extension MplsStream {
     case .reserved:
       fatalError("\(#function), \(#fileID), \(#line)")
     }
-    try handle.seek(to: currentIndex + Int(length))
+    try handle.seek(toOffset: currentIndex + Int64(length), from: .start)
     length = try handle.readByte()
-    currentIndex = handle.readerOffset
+    currentIndex = try handle.currentOffset()
 
     let codec = try Codec(value: handle.readByte())
 
@@ -302,19 +314,19 @@ extension MplsStream {
       let combined = try handle.readByte()
       let format = combined >> 4
       let rate = combined & 0b00001111
-      let language = try handle.readString(3)
+      let language = try handle.readString(byteCount: 3)
       attribute = try.audio(.init(format: .init(value: format), rate: .init(value: rate), language: fixLanguage(language)))
     } else if codec.isGraphics {
-      let language = try handle.readString(3)
+      let language = try handle.readString(byteCount: 3)
       attribute = .pgs(.init(language: fixLanguage(language)))
     } else if codec.isText {
       let charCode = try handle.readByte()
-      let language = try handle.readString(3)
+      let language = try handle.readString(byteCount: 3)
       attribute = try .textsubtitle(.init(charCode: .init(value: charCode), language: fixLanguage(language)))
     } else {
       fatalError("\(#function), \(#fileID), \(#line)")
     }
-    try handle.seek(to: currentIndex + Int(length))
+    try handle.seek(toOffset: currentIndex + Int64(length), from: .start)
     return .init(streamType: streamType, codec: codec, pid: pid,
                  subpathId: subPathId, subclipId: subClipId,
                  attribute: attribute)

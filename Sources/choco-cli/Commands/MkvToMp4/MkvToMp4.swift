@@ -2,6 +2,8 @@ import Foundation
 import KwiftUtility
 import ArgumentParser
 import ExecutableLauncher
+import Units
+import Precondition
 
 extension String {
   func caseInsensitiveStarts(with another: String) -> Bool {
@@ -366,8 +368,8 @@ extension MkvMergeIdentification.Track {
   var par: String? {
     if let pixelDimensions = properties.pixelDimensions,
        let displayDimensions = properties.displayDimensions {
-      let pixelResolution = Resolution(pixelDimensions)!
-      let displayResolution = Resolution(displayDimensions)!
+      let pixelResolution = try! Resolution<UInt>.parse(pixelDimensions).get()
+      let displayResolution = try! Resolution<UInt>.parse(displayDimensions).get()
       if pixelResolution != displayResolution {
         return Resolution(width: pixelResolution.height * displayResolution.width,
                           height: pixelResolution.width * displayResolution.height)

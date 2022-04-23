@@ -115,7 +115,7 @@ extension Mpls {
   }
 
   private func generateChapterFile(chapterPath: URL) throws -> [URL?] {
-    let mpls = try MplsPlaylist.parse(mplsURL: fileName)
+    let mpls = try MplsPlaylist.parse(mplsContents: Data(contentsOf: fileName))
     let chapters = mpls.split()
     if !compressed {
       precondition(files.count <= chapters.count)
