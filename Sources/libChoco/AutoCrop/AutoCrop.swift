@@ -30,17 +30,21 @@ private struct HandBrakePreview: Executable {
   }
 }
 
-public func ffmpegCrop(file: String, baseFilter: String, limit: UInt8, round: UInt8, logger: Logger) -> Result<CropInfo, ChocoError> {
+public func ffmpegCrop(file: String, baseFilter: String, limit: UInt8, round: UInt8, skip: UInt, hw: String? = nil, logger: Logger) -> Result<CropInfo, ChocoError> {
   var filters = [String]()
   if !baseFilter.isEmpty {
     filters.append(baseFilter)
   }
-  filters.append("cropdetect=limit=\(limit):round=\(round):skip=0")
+  filters.append("cropdetect=limit=\(limit):round=\(round):skip=\(skip)")
 
+  var inputOptions = [FFmpeg.InputOutputOption]()
+  if let hw = hw {
+    inputOptions.append(.hardwareAcceleration(hw, streamSpecifier: nil))
+  }
   let ffmpeg = FFmpeg(
     global: .init(hideBanner: true, enableStdin: false),
     ios: [
-      .input(url: file),
+      .input(url: file, options: inputOptions),
       .output(url: "-", options: [
         .map(inputFileID: 0, streamSpecifier: .streamType(.video, additional: .streamIndex(0)), isOptional: false, isNegativeMapping: false),
         .filter(filtergraph: filters.joined(separator: ","), streamSpecifier: nil),

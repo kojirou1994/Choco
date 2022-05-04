@@ -34,6 +34,9 @@ struct Crop: ParsableCommand {
   @Option(help: "Base filter for ffmpeg")
   var filter: String?
 
+  @Option(help: "Hardware accel for ffmpeg")
+  var hw: String?
+
   @Option(help: "How many preview images are generated, for handbrake.")
   var previews: Int = 200
 
@@ -42,6 +45,9 @@ struct Crop: ParsableCommand {
 
   @Option(help: "")
   var round: UInt8 = 2
+
+  @Option(help: "")
+  var skip: UInt = 0
 
   @Option()
   var tmp: String = sysTempDir()
@@ -56,7 +62,7 @@ struct Crop: ParsableCommand {
     let info: CropInfo
     switch tool {
     case .ffmpeg:
-      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, logger: logger).get()
+      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, skip: skip, hw: hw, logger: logger).get()
     case .handbrake:
       info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFileURL)
     }
