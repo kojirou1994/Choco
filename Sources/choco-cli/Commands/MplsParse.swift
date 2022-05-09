@@ -4,7 +4,11 @@ import ArgumentParser
 import MediaTools
 import IOStreams
 
-struct ParseMpls: ParsableCommand {
+struct MplsParse: ParsableCommand {
+
+  static var configuration: CommandConfiguration {
+    .init(commandName: "parse")
+  }
 
   @Flag
   var generate: Bool = false
@@ -25,11 +29,7 @@ struct ParseMpls: ParsableCommand {
     try inputs.forEach { path in
       print("parsing \(path)")
       let inputFileURL = URL(fileURLWithPath: path)
-      var stream = try FDStream(fd: .open(path, .readOnly))
-      defer {
-        try? stream.fd.close()
-      }
-      let mpls = try MplsPlaylist.parse(&stream)
+      let mpls = try MplsCommand.read(path: path)
       if dumpInfo {
         dump(mpls)
         print("\n\n")
