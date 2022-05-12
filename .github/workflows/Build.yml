@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        images:
+        - swift:5.6.1
+    container:
+      image: ${{ matrix.images }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: apt install libx265-devel
+
+      - name: Build package
+        run: swift build -c release --static-swift-stdlib
+        
+      - name: Upload
+        uses: actions/upload-artifact@v3.0.0
+        with:
+          name: "choco-cli"
+          path: ".build/release/choco-cli"
