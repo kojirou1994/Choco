@@ -107,7 +107,7 @@ extension MplsCommand {
 
         try parts.enumerated().forEach { (offset, segmentsCount) in
           guard restItems.count >= segmentsCount else {
-            fatalError()
+            throw ValidationError("rest parts is not enought for part at \(offset): \(segmentsCount)")
           }
 
           let usingItems = restItems.prefix(segmentsCount)

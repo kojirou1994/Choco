@@ -343,7 +343,7 @@ extension ChocoMuxer {
               }
               outputResult = .success(.init(path: dstPath))
             } catch {
-              outputResult = .failure(.copyFile(error as! CocoaError))
+              outputResult = .failure(.copyFile(error))
             }
           }
           normalFiles.append(.init(input: inputInfo, output: outputResult))
@@ -599,7 +599,7 @@ extension ChocoMuxer {
     var audioConverters = [AudioConverter]()
     var ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false),
                         ios: [
-                          .input(url: mkvinfo.fileName, options: [.avOption(name: "init_hw_device", value: "videotoolbox", streamSpecifier: nil)])
+                          .input(url: mkvinfo.fileName, options: [])
                         ])
 
     let forceUseFilePrimaryLanguage: Bool

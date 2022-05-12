@@ -7,7 +7,7 @@ public enum ChocoError: Error {
   case outputExist
   case noOutputFile(URL)
   case openDirectory(URL)
-  case copyFile(CocoaError)
+  case copyFile(Error)
   case directoryInputButNotRecursive
   case inputNotExists
   case bdmvInputNotDirectory
