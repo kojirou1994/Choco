@@ -29,6 +29,7 @@ jobs:
       - name: Move files
         run: |
           mv .build/release/choco-cli ./
+          strip choco-cli
         
       - name: Upload
         uses: actions/upload-artifact@v3.0.0
