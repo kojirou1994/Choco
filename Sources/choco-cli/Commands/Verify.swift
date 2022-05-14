@@ -3,10 +3,18 @@ import ExecutableLauncher
 import Foundation
 import libChoco
 
+enum HardwareDecoding: String, ExpressibleByArgument, CaseIterable {
+  case videotoolbox
+  case cuvid
+}
+
 struct Verify: ParsableCommand {
 
-  @Flag
+  @Flag(name: .shortAndLong)
   var videoOnly: Bool = false
+
+  @Option
+  var hw: HardwareDecoding?
 
   @Argument()
   var inputs: [String]
@@ -25,6 +33,16 @@ struct Verify: ParsableCommand {
         outputOptions.append(.format("null"))
 
         var inputOptions = [FFmpeg.InputOutputOption]()
+
+        switch hw {
+        case .cuvid:
+          // reference: https://developer.nvidia.com/blog/nvidia-ffmpeg-transcoding-guide/
+          inputOptions.append(.hardwareAcceleration("cuda", streamSpecifier: nil))
+          inputOptions.append(.avOption(name: "hwaccel_output_format", value: "cuda", streamSpecifier: nil))
+        case .videotoolbox:
+          inputOptions.append(.hardwareAcceleration("videotoolbox", streamSpecifier: nil))
+        default: break
+        }
 
         let ffmpeg = FFmpeg(global: .init(logLevel: .init(enabledFlags: [.level], level: .warning), enableStdin: false), ios: [
           .input(url: input, options: inputOptions),
