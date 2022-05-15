@@ -87,11 +87,14 @@ extension MplsCommand {
             .appendingPathComponent(filename)
             .appendingPathExtension("xml")
 
-          let atoms = usingItems.map(\.chapters).joined().map { MatroskaChapter.EditionEntry.ChapterAtom(startTime: $0 - inTime) }
+          var atoms = usingItems.map(\.chapters).joined().map { MatroskaChapter.EditionEntry.ChapterAtom(startTime: $0 - inTime) }
 
           if atoms.isEmpty {
             print("no chapters for \(filename)")
           } else {
+            if atoms[0].startTimestamp.value != 0 {
+              atoms.insert(.init(startTime: .init(ns: 0)), at: 0)
+            }
             var chapter = MatroskaChapter(entries: [.init(chapters: atoms)])
             chapter.fillUIDs()
 

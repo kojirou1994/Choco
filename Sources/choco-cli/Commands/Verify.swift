@@ -10,11 +10,14 @@ enum HardwareDecoding: String, ExpressibleByArgument, CaseIterable {
 
 struct Verify: ParsableCommand {
 
-  @Flag(name: .shortAndLong)
+  @Flag
   var videoOnly: Bool = false
 
   @Option
   var hw: HardwareDecoding?
+
+  @Flag(name: .shortAndLong)
+  var verbose: Bool = false
 
   @Argument()
   var inputs: [String]
@@ -26,9 +29,9 @@ struct Verify: ParsableCommand {
         let startDate = Date()
 
         var outputOptions = [FFmpeg.InputOutputOption]()
-        outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamType(.video), isOptional: false, isNegativeMapping: false))
+        outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamType(.video), isOptional: true, isNegativeMapping: false))
         if !videoOnly {
-          outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamType(.audio), isOptional: false, isNegativeMapping: false))
+          outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamType(.audio), isOptional: true, isNegativeMapping: false))
         }
         outputOptions.append(.format("null"))
 
@@ -41,10 +44,11 @@ struct Verify: ParsableCommand {
           inputOptions.append(.avOption(name: "hwaccel_output_format", value: "cuda", streamSpecifier: nil))
         case .videotoolbox:
           inputOptions.append(.hardwareAcceleration("videotoolbox", streamSpecifier: nil))
+          // inputOptions.append(.avOption(name: "videotoolbox_pixfmt", value: "nv12", streamSpecifier: nil))
         default: break
         }
 
-        let ffmpeg = FFmpeg(global: .init(logLevel: .init(enabledFlags: [.level], level: .warning), enableStdin: false), ios: [
+        let ffmpeg = FFmpeg(global: .init(logLevel: .init(enabledFlags: [.level], level: verbose ? .info : .warning), hideBanner: true, enableStdin: false), ios: [
           .input(url: input, options: inputOptions),
           .output(url: "-", options: outputOptions)
         ])
