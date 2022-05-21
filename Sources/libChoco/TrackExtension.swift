@@ -12,7 +12,7 @@ extension MkvMerge.Input.InputOption.TrackSelect {
 extension MkvMergeIdentification.Track {
 
   public var trackLanguageCode: Language {
-    properties.language.flatMap { Language(alpha3Code: $0) } ?? .und
+    properties?.language.flatMap { Language(alpha3Code: $0) } ?? .und
   }
 
   public var isFlac: Bool {
@@ -20,7 +20,7 @@ extension MkvMergeIdentification.Track {
   }
 
   public var isLosslessAudio: Bool {
-    guard type == .audio else {
+    guard trackType == .audio else {
       return false
     }
     switch codec {
@@ -63,29 +63,19 @@ extension MkvMergeIdentification.Track {
   }
 
   public var remuxerInfo: String {
-    var str = "\(id): \(type.mark) \(codec)"
-    if let lang = properties.language {
+    var str = "\(id): \(trackType.mark) \(codec)"
+    if let lang = properties?.language {
       str.append(" \(lang)")
     }
-    //        switch type {
-    //        case .video:
-    //            str.append(" \(properties.pixelDimensions!)")
-    //        case .audio:
-    //            str.append(" \(properties.audioBitsPerSample!)bits")
-    //        default:
-    //            break
-    //        }
-    if type == .video {
+    if trackType == .video {
       str.append(" ")
-      str.append(properties.pixelDimensions ?? "")
-    } else if type == .audio {
+      str.append(properties?.pixelDimensions ?? "")
+    } else if trackType == .audio {
       str.append(" \(isLosslessAudio ? "lossless" : "lossy")")
-      str.append(" \(properties.audioBitsPerSample ?? 0)bits")
-      str.append(" \(properties.audioSamplingFrequency ?? 0)Hz")
-      str.append(" \(properties.audioChannels ?? 0)ch")
+      str.append(" \(properties?.audioBitsPerSample ?? 0)bits")
+      str.append(" \(properties?.audioSamplingFrequency ?? 0)Hz")
+      str.append(" \(properties?.audioChannels ?? 0)ch")
     }
-
-//    str.append(" \(Timestamp(ns: numericCast(properties.defaultDuration ?? 0)).description)")
     return str
   }
 }

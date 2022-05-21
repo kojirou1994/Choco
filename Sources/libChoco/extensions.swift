@@ -99,7 +99,7 @@ extension Mpls {
     let chapters = try generateChapterFile(chapterPath: chapterPath)
 
     func getDuration(file: String) -> Timestamp {
-      .init(ns: UInt64((try? MkvMergeIdentification.init(filePath: file).container.properties?.duration) ?? 0))
+      .init(ns: UInt64((try? MkvMergeIdentification.init(filePath: file).container?.properties?.duration) ?? 0))
     }
 
     if files.count == 1 {

@@ -12,7 +12,7 @@ struct TrackInfo: ParsableCommand {
       do {
         let info = try MkvMergeIdentification(filePath: file)
         print(file)
-        for track in info.tracks {
+        info.tracks?.forEach { track in
           print(track.remuxerInfo)
         }
         print("\n")

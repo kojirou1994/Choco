@@ -26,7 +26,7 @@ public struct Mpls {
 
   public let files: [URL]
 
-  public let size: Int
+  public let size: UInt
 
   public let fileName: URL
 
@@ -40,9 +40,9 @@ public struct Mpls {
   }
 
   public init(_ info: MkvMergeIdentification) {
-    guard let size = info.container.properties?.playlistSize,
-          let files = info.container.properties?.playlistFile,
-          let durationValue = info.container.properties?.playlistDuration else {
+    guard let size = info.container?.properties?.playlistSize,
+          let files = info.container?.properties?.playlistFile,
+          let durationValue = info.container?.properties?.playlistDuration else {
       fatalError("Invalid MPLS: \(info)")
     }
 
@@ -53,7 +53,7 @@ public struct Mpls {
     } else if case let fileSet = Set(files), fileSet.count < files.count {
       // contains repeated files
       compressed = true
-      self.size = size / files.count
+      self.size = size / UInt(files.count)
       self.files = fileSet.sorted().map(URL.init(fileURLWithPath:))
       self.duration = .init(ns: 0)
       //                .init(ns: durationValue / UInt64(files.count))
@@ -61,12 +61,11 @@ public struct Mpls {
       compressed = false
       self.size = size
       self.files = files.map(URL.init(fileURLWithPath:))
-      self.duration = .init(ns: durationValue)
+      self.duration = .init(ns: UInt64(durationValue))
     }
-    trackLangs = info.tracks.map({ return $0.properties.language ?? "und" })
+    trackLangs = info.tracks?.map { $0.properties?.language ?? "und" } ?? []
     fileName = URL.init(fileURLWithPath: info.fileName)
-    chapterCount = info.container.properties?.playlistChapters ?? 0
-    //        rawValue = .mkvtoolnix(info)
+    chapterCount = Int(info.container?.properties?.playlistChapters ?? 0)
   }
 
 }

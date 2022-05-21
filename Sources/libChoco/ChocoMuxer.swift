@@ -233,7 +233,7 @@ extension ChocoMuxer {
             let startTime = Date()
             let mkvinfo = try! readMKV(at: tempFile)
 
-            let duration = Timestamp(ns: UInt64(mkvinfo.container.properties?.duration ?? 0))
+            let duration = Timestamp(ns: UInt64(mkvinfo.container?.properties?.duration ?? 0))
             let subFolder: String
             if options.organizeOutput {
               if duration > Timestamp.hour {
@@ -461,7 +461,7 @@ extension ChocoMuxer {
     }
 
     func correctTrackSelection(type: MediaTrackType, removedIndexes: [Int]) -> MkvMerge.Input.InputOption.TrackSelect {
-      if mkvinfo.tracks.count(where: {$0.type == type}) == removedIndexes.count {
+      if mkvinfo.tracks?.count(where: {$0.trackType == type}) == removedIndexes.count {
         return .removeAll
       } else {
         return .disabledTIDs(removedIndexes)
@@ -480,7 +480,7 @@ extension ChocoMuxer {
       options.append(.trackTags(.removeAll))
       return .init(file: track.file.path, options: options)
     }
-    let splitInfo = generateMkvmergeSplit(split: commonOptions.io.split, chapterCount: mkvinfo.chapters.first?.numEntries ?? 0)
+    let splitInfo = generateMkvmergeSplit(split: commonOptions.io.split, chapterCount: mkvinfo.chapters?.first?.numEntries ?? 0)
 
     let trackOrder: [MkvMerge.GlobalOption.TrackOrder]
     if commonOptions.meta.sortTrackType {
@@ -577,13 +577,13 @@ extension ChocoMuxer {
                                       temporaryPath: URL) -> Result<[TrackModification], ChocoError> {
 
     if commonOptions.video.process == .encode,
-       mkvinfo.tracks.count(where: {$0.type == .video}) > 1 {
+       (mkvinfo.tracks ?? []).count(where: {$0.trackType == .video}) > 1 {
       return .failure(.encodingMultipleVideoTracks)
     }
 
-    let primaryLanguage: Language = mkvinfo.tracks
-      .first { $0.type == .audio }?
-      .properties.language.flatMap { str in
+    let primaryLanguage: Language = mkvinfo.tracks?
+      .first { $0.trackType == .audio }?
+      .properties?.language.flatMap { str in
         if let v = Language(argument: str) {
           return v
         } else {
@@ -595,7 +595,7 @@ extension ChocoMuxer {
 
     let ffmpegMainInputFileID = 0
     var currentFFmpegAdditionalInputFileID = 1
-    let tracks = mkvinfo.tracks
+    let tracks = mkvinfo.tracks ?? []
     var audioConverters = [AudioConverter]()
     var ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false),
                         ios: [
@@ -605,8 +605,8 @@ extension ChocoMuxer {
     let forceUseFilePrimaryLanguage: Bool
     do {
       let filteredAudioCount = tracks
-        .filter { $0.type == .audio }
-        .count(where: { commonOptions.language.shouldMuxTrack(trackLanguage: $0.trackLanguageCode, trackType: $0.type, primaryLanguage: primaryLanguage, forcePrimary: false) })
+        .filter { $0.trackType == .audio }
+        .count(where: { commonOptions.language.shouldMuxTrack(trackLanguage: $0.trackLanguageCode, trackType: $0.trackType, primaryLanguage: primaryLanguage, forcePrimary: false) })
       logger.info("Valid audio tracks count will be \(filteredAudioCount)")
       if commonOptions.language.preventNoAudio {
         forceUseFilePrimaryLanguage = filteredAudioCount == 0
@@ -631,7 +631,7 @@ extension ChocoMuxer {
       let currentTrack = tracks[currentTrackIndex]
       let trackLanguage = currentTrack.trackLanguageCode
       logger.info("\(currentTrack.remuxerInfo)")
-      switch currentTrack.type {
+      switch currentTrack.trackType {
       case .video:
         switch commonOptions.video.process {
         case .encode:
@@ -730,7 +730,7 @@ extension ChocoMuxer {
             ffmpeg.ios.append(.output(url: encodedTrackFile.path, options: outputOptions))
           }
 
-          trackModifications[currentTrackIndex] = .replace(type: .video, files: [encodedTrackFile], lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
+          trackModifications[currentTrackIndex] = .replace(type: .video, files: [encodedTrackFile], lang: trackLanguage, trackName: currentTrack.properties?.trackName ?? "")
         case .none:
           trackModifications[currentTrackIndex] = .remove(type: .video, reason: .trackTypeDisabled)
         case .copy:
@@ -738,32 +738,32 @@ extension ChocoMuxer {
         }
       case .audio, .subtitles:
         var embbedAC3Removed = false
-        if commonOptions.language.shouldMuxTrack(trackLanguage: trackLanguage, trackType: currentTrack.type, primaryLanguage: primaryLanguage, forcePrimary: forceUseFilePrimaryLanguage) {
+        if commonOptions.language.shouldMuxTrack(trackLanguage: trackLanguage, trackType: currentTrack.trackType, primaryLanguage: primaryLanguage, forcePrimary: forceUseFilePrimaryLanguage) {
           var trackDone = false
           // keep true-hd
           if currentTrack.isTrueHD, commonOptions.audio.shouldCopy(.truehd) {
-            trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
+            trackModifications[currentTrackIndex] = .copy(type: currentTrack.trackType)
             trackDone = true
           }
           if !commonOptions.audio.encodeAudio {
-            trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
+            trackModifications[currentTrackIndex] = .copy(type: currentTrack.trackType)
             trackDone = true
           }
           // remove same spec dts-hd
           if !trackDone, commonOptions.audio.removeExtraDTS, currentTrack.isDTSHD {
             var fixed = false
             if case let indexBefore = tracks.index(before: currentTrackIndex),
-                indexBefore >= tracks.startIndex {
+               indexBefore >= tracks.startIndex {
               let compareTrack = tracks[indexBefore]
               if compareTrack.isTrueHD,
-                 compareTrack.properties.language == currentTrack.properties.language,
-                 compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
+                 compareTrack.properties?.language == currentTrack.properties?.language,
+                 compareTrack.properties?.audioChannels == currentTrack.properties?.audioChannels {
                 trackModifications[currentTrackIndex] = .remove(type: .audio, reason: .extraDTSHD)
                 fixed = true
                 // remove the ac3 after
                 if !embbedAC3Removed, currentTrackIndex + 1 < tracks.count,
                    case let nextTrack = tracks[currentTrackIndex + 1],
-                   nextTrack.isAC3, nextTrack.properties.language == currentTrack.properties.language {
+                   nextTrack.isAC3, nextTrack.properties?.language == currentTrack.properties?.language {
                   // Remove TRUEHD embed-in AC-3 track
                   trackModifications[currentTrackIndex + 1] = .remove(type: .audio, reason: .embedAC3InTrueHD)
                   currentTrackIndex += 1
@@ -775,8 +775,8 @@ extension ChocoMuxer {
                indexAfter < tracks.endIndex {
               let compareTrack = tracks[indexAfter]
               if compareTrack.isTrueHD,
-                 compareTrack.properties.language == currentTrack.properties.language,
-                 compareTrack.properties.audioChannels == currentTrack.properties.audioChannels {
+                 compareTrack.properties?.language == currentTrack.properties?.language,
+                 compareTrack.properties?.audioChannels == currentTrack.properties?.audioChannels {
                 trackModifications[currentTrackIndex] = .remove(type: .audio, reason: .extraDTSHD)
                 fixed = true
               }
@@ -786,7 +786,7 @@ extension ChocoMuxer {
 
           // keep flac
           if !trackDone && currentTrack.isFlac && commonOptions.audio.shouldCopy(.flac) {
-            trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
+            trackModifications[currentTrackIndex] = .copy(type: currentTrack.trackType)
             trackDone = true
           }
 
@@ -812,13 +812,13 @@ extension ChocoMuxer {
                 reduceBitrate: commonOptions.audio.reduceBitrate,
                 preferedTool: commonOptions.audio.preferedTool,
                 ffmpegCodecs: ffmpegCodecs,
-                channelCount: currentTrack.properties.audioChannels!,
+                channelCount: Int(currentTrack.properties!.audioChannels!),
                 trackIndex: currentTrackIndex)
             )
 
             var replaceFiles = [finalOutputAudioTrack]
             // Optionally down mix
-            if commonOptions.audio.downmixMethod == .all, currentTrack.properties.audioChannels! > 2 {
+            if commonOptions.audio.downmixMethod == .all, currentTrack.properties!.audioChannels! > 2 {
               let tempFFmpegMixdownFlac = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-ffmpeg-downmix.flac")
               let finalDownmixAudioTrack = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-\(trackLanguage)-downmix.\(codec.outputFileExtension)")
               ffmpeg.ios.append(.output(url: tempFFmpegMixdownFlac.path, options: [
@@ -845,16 +845,16 @@ extension ChocoMuxer {
               replaceFiles.insert(finalDownmixAudioTrack, at: 0)
             }
 
-            trackModifications[currentTrackIndex] = .replace(type: .audio, files: replaceFiles, lang: trackLanguage, trackName: currentTrack.properties.trackName ?? "")
+            trackModifications[currentTrackIndex] = .replace(type: .audio, files: replaceFiles, lang: trackLanguage, trackName: currentTrack.properties?.trackName ?? "")
             trackDone = true
           }
 
           if !trackDone {
-            trackModifications[currentTrackIndex] = .copy(type: currentTrack.type)
+            trackModifications[currentTrackIndex] = .copy(type: currentTrack.trackType)
           }
         } else {
           // invalid language
-          trackModifications[currentTrackIndex] = .remove(type: currentTrack.type, reason: .languageFilter(trackLanguage))
+          trackModifications[currentTrackIndex] = .remove(type: currentTrack.trackType, reason: .languageFilter(trackLanguage))
         }
 
         // handle truehd

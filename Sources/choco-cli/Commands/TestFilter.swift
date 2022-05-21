@@ -30,41 +30,54 @@ struct TestFilter: ParsableCommand {
       "yadif=1",
     ]
     let filters = filter.map { [$0] } ?? defaultFilters
+
     let fm = URLFileManager.default
+
     inputs.forEach { input in
-      let inputInfo = try! MkvMergeIdentification(filePath: input)
-      let videoTrackID = inputInfo.tracks.first(where: {$0.type == .video})!.id
+      do {
+        print("open input: \(input)")
+        let inputInfo = try MkvMergeIdentification(filePath: input)
 
-      filters.forEach { filter in
-        do {
-          let mainFilename = URL(fileURLWithPath: input).lastPathComponentWithoutExtension
-          let outputDirectoryURL = fm.makeUniqueFileURL(URL(fileURLWithPath: output).appendingPathComponent("\(mainFilename)_\(filter.safeFilename())"))
-          try fm.createDirectory(at: outputDirectoryURL)
-          let outputFile = outputDirectoryURL.appendingPathComponent("%05d.png")
+        let videoTrackID = try inputInfo
+          .tracks.unwrap("no tracks!")
+          .first { $0.trackType == .video }
+          .unwrap("no video track!")
+          .id
 
-          var outputOptions = [FFmpeg.InputOutputOption]()
-          outputOptions.append(.format("image2"))
-          if !filter.isEmpty {
-            outputOptions.append(.filter(filtergraph: filter, streamSpecifier: nil))
+        filters.forEach { filter in
+          do {
+            let mainFilename = URL(fileURLWithPath: input).lastPathComponentWithoutExtension
+            let outputDirectoryURL = fm.makeUniqueFileURL(URL(fileURLWithPath: output).appendingPathComponent("\(mainFilename)_\(filter.safeFilename())"))
+            try fm.createDirectory(at: outputDirectoryURL)
+            let outputFile = outputDirectoryURL.appendingPathComponent("%05d.png")
+
+            var outputOptions = [FFmpeg.InputOutputOption]()
+            outputOptions.append(.format("image2"))
+            if !filter.isEmpty {
+              outputOptions.append(.filter(filtergraph: filter, streamSpecifier: nil))
+            }
+            outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamIndex(videoTrackID), isOptional: false, isNegativeMapping: false))
+            outputOptions.append(.frameCount(frames, streamSpecifier: .streamID(0)))
+
+            var inputOptions = [FFmpeg.InputOutputOption]()
+            if let start = start {
+              inputOptions.append(.startPosition(start))
+            }
+
+            let ffmpeg = FFmpeg(global: .init(enableStdin: false), ios: [
+              .input(url: input, options: inputOptions),
+              .output(url: outputFile.path, options: outputOptions)
+            ])
+            print(ffmpeg.arguments)
+            try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .none))
+
+          } catch {
+            print("error handling input \(input) for filter \(filter): \(error)")
           }
-          outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamIndex(videoTrackID), isOptional: false, isNegativeMapping: false))
-          outputOptions.append(.frameCount(frames, streamSpecifier: .streamID(0)))
-
-          var inputOptions = [FFmpeg.InputOutputOption]()
-          if let start = start {
-            inputOptions.append(.startPosition(start))
-          }
-
-          let ffmpeg = FFmpeg(global: .init(enableStdin: false), ios: [
-            .input(url: input, options: inputOptions),
-            .output(url: outputFile.path, options: outputOptions)
-          ])
-          print(ffmpeg.arguments)
-          try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .none))
-
-        } catch {
-          print("error handling input \(input) for filter \(filter): \(error)")
         }
+
+      } catch {
+        print("failed to handle input: \(input)")
       }
     }
   }

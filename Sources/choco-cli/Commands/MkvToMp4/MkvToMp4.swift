@@ -344,11 +344,11 @@ extension Resolution {
 extension MkvMergeIdentification.Track {
 
   var importLanguage: String? {
-    switch self.type {
+    switch self.trackType {
     case .video:
       return nil
     default:
-      return properties.language == "und" ? nil : properties.language
+      return properties?.language == "und" ? nil : properties?.language
     }
   }
 
@@ -366,8 +366,8 @@ extension MkvMergeIdentification.Track {
    DAR = Resolution * SAR
    */
   var par: String? {
-    if let pixelDimensions = properties.pixelDimensions,
-       let displayDimensions = properties.displayDimensions {
+    if let pixelDimensions = properties?.pixelDimensions,
+       let displayDimensions = properties?.displayDimensions {
       let pixelResolution = try! Resolution<UInt>.parse(pixelDimensions).get()
       let displayResolution = try! Resolution<UInt>.parse(displayDimensions).get()
       if pixelResolution != displayResolution {
@@ -402,7 +402,7 @@ struct MkvToMp4: ParsableCommand {
           do {
             logger.info("Checking file: \(fileURL.path)")
             let info = try MkvMergeIdentification(url: fileURL)
-            let unsupportedTracks = info.tracks.filter { !$0.supportsMp4 }
+            let unsupportedTracks = info.tracks?.filter { !$0.supportsMp4 } ?? []
             if unsupportedTracks.isEmpty {
               logger.info("OK")
             } else {
@@ -502,11 +502,11 @@ struct MkvToMp4: ParsableCommand {
         }
       }
 
-      let supportedTracks = info.tracks
+      let supportedTracks = (info.tracks ?? [])
         .enumerated()
         .filter { $0.element.supportsMp4 }
 
-      try preconditionOrThrow(supportedTracks.filter{$0.element.type == .video}.count == 1,
+      try preconditionOrThrow(supportedTracks.filter{$0.element.trackType == .video}.count == 1,
                               "Must have exactly 1 video track!")
 
       let extractedTracks = supportedTracks.map { _, track in
@@ -519,8 +519,7 @@ struct MkvToMp4: ParsableCommand {
       ]
 
       let extractedChapterFileURL: URL?
-      let hasChapter = !info.chapters.isEmpty
-      if hasChapter {
+      if let chapters = info.chapters, !chapters.isEmpty {
         extractedChapterFileURL = tempFileURL(pathExtension: "txt")
         extractions.append(.chapter(simple: true, language: nil, filename: extractedChapterFileURL!.path))
         allTempFiles.append(extractedChapterFileURL!)
@@ -543,7 +542,7 @@ struct MkvToMp4: ParsableCommand {
       var importings = zip(supportedTracks, extractedTracks).map { track, trackFile -> MP4Box.FileImporting in
         var lang = track.element.importLanguage
         if lang == nil {
-          switch track.element.type {
+          switch track.element.trackType {
           case .audio:
             lang = undAudioLang
           default:
@@ -552,7 +551,7 @@ struct MkvToMp4: ParsableCommand {
         }
         var name: String?
         if keepTrackName {
-          name = track.element.properties.trackName
+          name = track.element.properties?.trackName
         }
         var hdlr: String?
         var layout: String?
@@ -561,7 +560,7 @@ struct MkvToMp4: ParsableCommand {
           layout = "-1"
         }
         var group: Int?
-        if track.element.type == .audio {
+        if track.element.trackType == .audio {
           group = 1
         }
         return MP4Box.FileImporting(filename: trackFile.path, trackSelection: nil, name: name ?? "", fps: nil, group: group, par: track.element.par, language: lang, isChapter: false, hdlr: hdlr, layout: layout)

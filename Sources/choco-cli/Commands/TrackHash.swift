@@ -47,10 +47,12 @@ struct TrackHash: ParsableCommand {
         print("")
         print("Reading file: \(file)")
         let info = try MkvMergeIdentification(filePath: file)
+
+        let tracks = try info.tracks.unwrap("no tracks!").notEmpty("no tracks!")
         
-        let extractedTrackIDAndURLs: [(id: Int, url: URL)] = info.tracks
+        let extractedTrackIDAndURLs: [(id: Int, url: URL)] = tracks
           .filter { track in
-            if disabledTrackTypes.contains(track.type) {
+            if disabledTrackTypes.contains(track.trackType) {
               return false
             }
             return true
@@ -76,7 +78,7 @@ struct TrackHash: ParsableCommand {
         }
 
         for (trackID, hash) in zip(extractedTrackIDAndURLs.map(\.id), hashes) {
-          print(info.tracks[trackID].remuxerInfo)
+          print(tracks[trackID].remuxerInfo)
           print("Hash:", hash)
         }
 
