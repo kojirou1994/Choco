@@ -402,7 +402,7 @@ extension ChocoMuxer {
     var subtitleRemoveTracks = [Int]()
     /// copied video tracks
     var videoCopiedTrackIndexes = [Int]()
-    var externalTracks = [(file: URL, lang: Language, trackName: String)]()
+    var externalTracks = [(file: URL, lang: Language, trackName: String, flags: [MkvMerge.Input.InputOption.Flag : Bool])]()
 
     var mainInput = MkvMerge.Input(file: file.path)
 
@@ -425,7 +425,7 @@ extension ChocoMuxer {
         case .video:
           videoRemovedTrackIndexes.append(modify.offset)
         }
-      case .replace(let type, let files, let lang, let trackName):
+      case let .replace(type, files, lang, trackName, flags):
         switch type {
         case .audio:
           audioRemovedTrackIndexes.append(modify.offset)
@@ -435,7 +435,7 @@ extension ChocoMuxer {
           videoRemovedTrackIndexes.append(modify.offset)
         }
         files.forEach { file in
-          externalTracks.append((file: file, lang: lang, trackName: trackName))
+          externalTracks.append((file, lang, trackName, flags))
           trackOrderAndType.append((.init(fid: externalTracks.count, tid: 0), type))
         }
       }
@@ -478,6 +478,9 @@ extension ChocoMuxer {
       options.append(.noGlobalTags)
       options.append(.noChapters)
       options.append(.trackTags(.removeAll))
+      track.flags.forEach { (flag, value) in
+        options.append(.flag(tid: 0, flag, value))
+      }
       return .init(file: track.file.path, options: options)
     }
     let splitInfo = generateMkvmergeSplit(split: commonOptions.io.split, chapterCount: mkvinfo.chapters?.first?.numEntries ?? 0)
@@ -599,7 +602,7 @@ extension ChocoMuxer {
     var audioConverters = [AudioConverter]()
     var ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false),
                         ios: [
-                          .input(url: mkvinfo.fileName, options: [])
+                          .input(url: mkvinfo.fileName!, options: [])
                         ])
 
     let forceUseFilePrimaryLanguage: Bool
@@ -625,7 +628,7 @@ extension ChocoMuxer {
     // check track one by one
     logger.info("Checking tracks codec")
     var currentTrackIndex = tracks.startIndex
-    let baseFilename = URL(fileURLWithPath: mkvinfo.fileName).lastPathComponentWithoutExtension
+    let baseFilename = URL(fileURLWithPath: mkvinfo.fileName!).lastPathComponentWithoutExtension
 
     while currentTrackIndex < tracks.count {
       let currentTrack = tracks[currentTrackIndex]
@@ -638,7 +641,7 @@ extension ChocoMuxer {
           if commonOptions.video.progressiveOnly {
             logger.info("Progressive-only mode enabled, checking video track scan type.")
             // check scan type
-            let output = try! AnyExecutable(executableName: "mediainfo", arguments: ["--Output=JSON", "-f", mkvinfo.fileName])
+            let output = try! AnyExecutable(executableName: "mediainfo", arguments: ["--Output=JSON", "-f", mkvinfo.fileName!])
               .launch(use: TSCExecutableLauncher())
               .output.get()
 
@@ -664,7 +667,7 @@ extension ChocoMuxer {
           let cropInfo: CropInfo?
           if commonOptions.video.autoCrop {
             logger.info("Calculating crop info with ffmpeg..")
-            switch ffmpegCrop(file: mkvinfo.fileName, baseFilter: commonOptions.video.filter, limit: commonOptions.video.cropLimit, round: commonOptions.video.cropRound, skip: 0, logger: logger) {
+            switch ffmpegCrop(file: mkvinfo.fileName!, baseFilter: commonOptions.video.filter, limit: commonOptions.video.cropLimit, round: commonOptions.video.cropRound, skip: 0, logger: logger) {
             case .success(let v):
               logger.info("Calculated: \(v)")
               cropInfo = v
@@ -678,7 +681,7 @@ extension ChocoMuxer {
           if let encodeScript = commonOptions.video.encodeScript {
             // use script template
             let script = try! generateScript(
-              encodeScript: encodeScript, filePath: mkvinfo.fileName,
+              encodeScript: encodeScript, filePath: mkvinfo.fileName!,
               trackIndex: currentTrackIndex,
               cropInfo: cropInfo,
               encoderDepth: commonOptions.video.codec.depth)
@@ -730,7 +733,7 @@ extension ChocoMuxer {
             ffmpeg.ios.append(.output(url: encodedTrackFile.path, options: outputOptions))
           }
 
-          trackModifications[currentTrackIndex] = .replace(type: .video, files: [encodedTrackFile], lang: trackLanguage, trackName: currentTrack.properties?.trackName ?? "")
+          trackModifications[currentTrackIndex] = .replace(type: .video, files: [encodedTrackFile], lang: trackLanguage, trackName: currentTrack.properties?.trackName ?? "", flags: currentTrack.flags)
         case .none:
           trackModifications[currentTrackIndex] = .remove(type: .video, reason: .trackTypeDisabled)
         case .copy:
@@ -845,7 +848,7 @@ extension ChocoMuxer {
               replaceFiles.insert(finalDownmixAudioTrack, at: 0)
             }
 
-            trackModifications[currentTrackIndex] = .replace(type: .audio, files: replaceFiles, lang: trackLanguage, trackName: currentTrack.properties?.trackName ?? "")
+            trackModifications[currentTrackIndex] = .replace(type: .audio, files: replaceFiles, lang: trackLanguage, trackName: currentTrack.properties?.trackName ?? "", flags: currentTrack.flags)
             trackDone = true
           }
 
@@ -948,7 +951,7 @@ extension ChocoMuxer {
 
 enum TrackModification: CustomStringConvertible {
   case copy(type: MediaTrackType)
-  case replace(type: MediaTrackType, files: [URL], lang: Language, trackName: String)
+  case replace(type: MediaTrackType, files: [URL], lang: Language, trackName: String, flags: [MkvMerge.Input.InputOption.Flag: Bool])
   case remove(type: MediaTrackType, reason: RemoveReason)
 
   enum RemoveReason {
@@ -961,7 +964,7 @@ enum TrackModification: CustomStringConvertible {
 
   mutating func remove(reason: RemoveReason) {
     switch self {
-    case .replace(type: let type, files: let files, lang: _, trackName: _):
+    case .replace(type: let type, files: let files, _, _, _):
       files.forEach{ try? fm.removeItem(at: $0) }
       self = .remove(type: type, reason: reason)
     case .copy(type: let type):
@@ -973,7 +976,7 @@ enum TrackModification: CustomStringConvertible {
 
   var type: MediaTrackType {
     switch self {
-    case .replace(type: let type, files: _, lang: _, trackName: _):
+    case .replace(type: let type, _, _, _, _):
       return type
     case .copy(type: let type):
       return type
@@ -984,7 +987,7 @@ enum TrackModification: CustomStringConvertible {
 
   var description: String {
     switch self {
-    case .replace(type: let type, files: let files, lang: let lang, trackName: let trackName):
+    case .replace(type: let type, files: let files, lang: let lang, trackName: let trackName, _):
       return "replace(type: \(type), files: \(files.map(\.path)), lang: \(lang), trackName: \(trackName))"
     case .copy(type: let type):
       return "copy(type: \(type))"

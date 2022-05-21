@@ -35,7 +35,7 @@ public struct Mpls {
   public let compressed: Bool
 
   public init(filePath: String) throws {
-    let mkvid = try MkvMergeIdentification.init(filePath: filePath)
+    let mkvid = try MkvMergeIdentification(filePath: filePath)
     self.init(mkvid)
   }
 
@@ -64,7 +64,7 @@ public struct Mpls {
       self.duration = .init(ns: UInt64(durationValue))
     }
     trackLangs = info.tracks?.map { $0.properties?.language ?? "und" } ?? []
-    fileName = URL.init(fileURLWithPath: info.fileName)
+    fileName = URL(fileURLWithPath: info.fileName!)
     chapterCount = Int(info.container?.properties?.playlistChapters ?? 0)
   }
 

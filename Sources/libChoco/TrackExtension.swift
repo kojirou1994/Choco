@@ -76,7 +76,23 @@ extension MkvMergeIdentification.Track {
       str.append(" \(properties?.audioSamplingFrequency ?? 0)Hz")
       str.append(" \(properties?.audioChannels ?? 0)ch")
     }
+    if case let flags = self.flags, !flags.isEmpty {
+      str.append(" \(flags.sorted(by: {$0.key.rawValue < $1.key.rawValue}).map{"\($0.0.rawValue):\($0.1)"}.joined(separator: " "))")
+    }
     return str
+  }
+
+  public var flags: [MkvMerge.Input.InputOption.Flag: Bool] {
+    var result = [MkvMerge.Input.InputOption.Flag: Bool]()
+    result[.visualImpaired] = properties?.flagVisualImpaired
+    result[.commentary] = properties?.flagCommentary
+    result[.original] = properties?.flagOriginal
+    result[.hearingImpaired] = properties?.flagHearingImpaired
+    result[.defaultTrack] = properties?.defaultTrack
+    result[.forcedDisplay] = properties?.forcedTrack
+    result[.textDescriptions] = properties?.flagTextDescriptions
+    result[.trackEnabled] = properties?.enabledTrack
+    return result
   }
 }
 
