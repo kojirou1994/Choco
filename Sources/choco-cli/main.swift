@@ -49,15 +49,9 @@ struct ChocoCli: ParsableCommand {
         MplsCommand.self,
         TestFilter.self,
         Verify.self,
+        Explain.self,
       ]
     )
 }
-
-
-#if Xcode
-import ExecutableLauncher
-ExecutablePath.add("/opt/local/bin")
-ExecutablePath.add("/Users/kojirou/Executable/Universal")
-#endif
 
 ChocoCli.main()
