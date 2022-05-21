@@ -921,6 +921,12 @@ extension ChocoMuxer {
       }
     } // end of duplicated audio check
 
+    // clean temp flac
+    audioConverters.forEach { converter in
+      _ = try? AnyExecutable(executableName: "metaflac", arguments: ["--remove-tag", "encoder", converter.input.path])
+        .launch(use: TSCExecutableLauncher(outputRedirection: .none))
+    }
+
     // external temp flac -> final audio tracks
     audioConverters.forEach { converter in
       self.logConverterStart(name: converter.executable.executableName, input: converter.input.path, output: converter.output.path)
