@@ -29,11 +29,14 @@ struct VideoOptionsGroup: ParsableArguments {
   @Option(help: "Codec crf for video track, eg. crf:19 or bitrate:5000k")
   var videoQuality: ChocoCommonOptions.VideoOptions.VideoQuality = .crf(18)
 
-  @Option(help: "Tune for video encoder, std or choco-provided, x265-\(ChocoCommonOptions.VideoOptions.ChocoX265Tune.availableValues)")
+  @Option(help: "Tune for video encoder.")
   var videoTune: String?
 
   @Option(help: "Profile for video encoder")
   var videoProfile: String?
+
+  @Option(help: "Parameters for video encoder")
+  var videoParams: String?
 
   @Flag(help: "Auto crop video track")
   var autoCrop: Bool = false
@@ -60,6 +63,6 @@ struct VideoOptionsGroup: ParsableArguments {
   }
 
   var options: ChocoCommonOptions.VideoOptions {
-    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
+    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, params: videoParams, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
   }
 }
