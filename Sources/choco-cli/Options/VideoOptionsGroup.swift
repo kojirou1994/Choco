@@ -47,6 +47,9 @@ struct VideoOptionsGroup: ParsableArguments {
   @Option(help: "")
   var cropRound: UInt8 = 2
 
+  @Option(help: "")
+  var cropSkip: UInt = 0
+
   @Flag(help: "Only encode progressive video track.")
   var progOnly: Bool = false
 
@@ -63,6 +66,6 @@ struct VideoOptionsGroup: ParsableArguments {
   }
 
   var options: ChocoCommonOptions.VideoOptions {
-    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, params: videoParams, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
+    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, params: videoParams, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, cropSkip: cropSkip, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
   }
 }

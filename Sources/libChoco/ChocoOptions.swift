@@ -290,7 +290,7 @@ extension ChocoCommonOptions {
                 tune: String?, profile: String?,
                 params: String?,
                 quality: VideoQuality,
-                autoCrop: Bool, cropLimit: UInt8, cropRound: UInt8,
+                autoCrop: Bool, cropLimit: UInt8, cropRound: UInt8, cropSkip: UInt,
                 keepPixelFormat: Bool,
                 useIntergratedVapoursynth: Bool) {
       self.process = process
@@ -304,6 +304,7 @@ extension ChocoCommonOptions {
       self.autoCrop = autoCrop
       self.cropLimit = cropLimit
       self.cropRound = cropRound
+      self.cropSkip = cropSkip
       self.tune = tune
       self.profile = profile
       self.params = params
