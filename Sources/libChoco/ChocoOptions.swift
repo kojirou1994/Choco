@@ -326,6 +326,7 @@ extension ChocoCommonOptions {
     public let autoCrop: Bool
     public let cropLimit: UInt8
     public let cropRound: UInt8
+    public let cropSkip: UInt
     public let keepPixelFormat: Bool
     public let useIntergratedVapoursynth: Bool
 
