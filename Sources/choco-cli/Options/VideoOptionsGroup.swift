@@ -2,7 +2,6 @@ import ArgumentParser
 import libChoco
 
 extension ChocoCommonOptions.VideoOptions.Codec: ExpressibleByArgument {}
-extension ChocoCommonOptions.VideoOptions.CodecPreset: ExpressibleByArgument {}
 extension ChocoCommonOptions.VideoOptions.ColorPreset: ExpressibleByArgument {}
 extension ChocoCommonOptions.VideoOptions.VideoProcess: ExpressibleByArgument {}
 extension ChocoCommonOptions.VideoOptions.VideoQuality: ExpressibleByArgument {}
@@ -23,8 +22,8 @@ struct VideoOptionsGroup: ParsableArguments {
   @Option(help: "VS script template path.")
   var encodeScript: String?
 
-  @Option(help: "Codec preset for video track, \(ChocoCommonOptions.VideoOptions.CodecPreset.availableValues)")
-  var videoPreset: ChocoCommonOptions.VideoOptions.CodecPreset = .medium
+  @Option(help: "Codec preset for video track")
+  var videoPreset: String?
 
   @Option(help: "Codec crf for video track, eg. crf:19 or bitrate:5000k")
   var videoQuality: ChocoCommonOptions.VideoOptions.VideoQuality = .crf(18)

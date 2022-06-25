@@ -285,7 +285,7 @@ extension ChocoCommonOptions {
                 filter: String,
                 encodeScript: String?,
                 codec: Codec,
-                preset: CodecPreset,
+                preset: String?,
                 colorPreset: ColorPreset?,
                 tune: String?, profile: String?,
                 params: String?,
@@ -320,7 +320,7 @@ extension ChocoCommonOptions {
     public let tune: String?
     public let profile: String?
     public let params: String?
-    public let preset: CodecPreset
+    public let preset: String?
     public let colorPreset: ColorPreset?
     public let quality: VideoQuality
     public let autoCrop: Bool
@@ -337,7 +337,7 @@ extension ChocoCommonOptions {
       case .copy:
         return "Copy"
       case .encode:
-        var str = "Encode(codec: \(codec), quality: \(quality), preset: \(preset)"
+        var str = "Encode(codec: \(codec), quality: \(quality), preset: \(preset?.description ?? "nil")"
         if let v = profile {
           str.append(", profile: \(v)")
         }
@@ -450,11 +450,6 @@ extension ChocoCommonOptions {
       public var description: String { rawValue }
     }
 
-    public enum CodecPreset: String, CaseIterable, CustomStringConvertible {
-      case ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo
-
-      public var description: String { rawValue }
-    }
   }
 
 }
@@ -567,7 +562,9 @@ extension ChocoCommonOptions.VideoOptions {
       options.append(.avOption(name: "allow_sw", value: "1", streamSpecifier: nil))
       options.append(.avOption(name: "require_sw", value: "1", streamSpecifier: nil))
     case .x265, .x264:
-      options.append(.avOption(name: "preset", value: preset.rawValue, streamSpecifier: nil))
+      if let preset = self.preset {
+        options.append(.avOption(name: "preset", value: preset, streamSpecifier: nil))
+      }
       if let tune = self.tune {
         options.append(.avOption(name: "tune", value: tune, streamSpecifier: nil))
       }
