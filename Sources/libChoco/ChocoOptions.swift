@@ -289,6 +289,7 @@ extension ChocoCommonOptions {
                 colorPreset: ColorPreset?,
                 tune: String?, profile: String?,
                 params: String?,
+                avcodecFlags: [String],
                 quality: VideoQuality,
                 autoCrop: Bool, cropLimit: UInt8, cropRound: UInt8, cropSkip: UInt,
                 keepPixelFormat: Bool,
@@ -308,6 +309,7 @@ extension ChocoCommonOptions {
       self.tune = tune
       self.profile = profile
       self.params = params
+      self.avcodecFlags = avcodecFlags
       self.keepPixelFormat = keepPixelFormat
       self.useIntergratedVapoursynth = useIntergratedVapoursynth
     }
@@ -320,6 +322,7 @@ extension ChocoCommonOptions {
     public let tune: String?
     public let profile: String?
     public let params: String?
+    public let avcodecFlags: [String]
     public let preset: String?
     public let colorPreset: ColorPreset?
     public let quality: VideoQuality
@@ -583,6 +586,10 @@ extension ChocoCommonOptions.VideoOptions {
 
     if let profile = self.profile {
       options.append(.avOption(name: "profile", value: profile, streamSpecifier: nil))
+    }
+
+    avcodecFlags.forEach { flag in
+      options.append(.raw(flag))
     }
 
     return options

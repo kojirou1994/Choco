@@ -37,6 +37,11 @@ struct VideoOptionsGroup: ParsableArguments {
   @Option(help: "Parameters for video encoder")
   var videoParams: String?
 
+  @Option(name: .customLong("Xavcodec", withSingleDash: true),
+          parsing: .unconditionalSingleValue,
+          help: "Pass flag through to ffmpeg")
+  var avcodecFlags: [String] = []
+
   @Flag(help: "Auto crop video track")
   var autoCrop: Bool = false
 
@@ -65,6 +70,6 @@ struct VideoOptionsGroup: ParsableArguments {
   }
 
   var options: ChocoCommonOptions.VideoOptions {
-    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, params: videoParams, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, cropSkip: cropSkip, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
+    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, params: videoParams, avcodecFlags: avcodecFlags, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, cropSkip: cropSkip, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
   }
 }
