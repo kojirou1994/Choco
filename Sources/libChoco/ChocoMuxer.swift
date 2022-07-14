@@ -328,6 +328,9 @@ extension ChocoMuxer {
         files.append(.init(input: inputInfo, output: outputResult, timeSummary: .init(startTime: startTime)))
       } else {
         // copy
+        if currentFileURL.lastPathComponent == ".DS_Store" {
+          return
+        }
         if options.copyNormalFiles {
           let outputResult: Result<ChocoMuxer.IOFileInfo, ChocoError>
           let dstPath = outputDirectoryURL.appendingPathComponent(currentFileURL.lastPathComponent)
