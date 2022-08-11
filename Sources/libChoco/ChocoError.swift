@@ -18,7 +18,6 @@ public enum ChocoError: Error {
   case parseBDMV(Error)
   case terminated
   case noCropInfo
-  case encodingMultipleVideoTracks
   case nonProgTrackInProgOnlyMode
   case createDirectory(URL)
   case subTask(Error)

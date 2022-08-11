@@ -582,11 +582,6 @@ extension ChocoMuxer {
   private func _makeTrackModification(mkvinfo: MkvMergeIdentification,
                                       temporaryPath: URL) -> Result<[TrackModification], ChocoError> {
 
-    if commonOptions.video.process == .encode,
-       (mkvinfo.tracks ?? []).count(where: {$0.trackType == .video}) > 1 {
-      return .failure(.encodingMultipleVideoTracks)
-    }
-
     let primaryLanguage: Language = mkvinfo.tracks?
       .first { $0.trackType == .audio }?
       .properties?.language.flatMap { str in
@@ -633,12 +628,18 @@ extension ChocoMuxer {
     var currentTrackIndex = tracks.startIndex
     let baseFilename = URL(fileURLWithPath: mkvinfo.fileName!).lastPathComponentWithoutExtension
 
+    var videoHandled = false
+
     while currentTrackIndex < tracks.count {
       let currentTrack = tracks[currentTrackIndex]
       let trackLanguage = currentTrack.trackLanguageCode
       logger.info("\(currentTrack.remuxerInfo)")
       switch currentTrack.trackType {
       case .video:
+      if videoHandled {
+        break
+      }
+      videoHandled = true
         switch commonOptions.video.process {
         case .encode:
           if commonOptions.video.progressiveOnly {
