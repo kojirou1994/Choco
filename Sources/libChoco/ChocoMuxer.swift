@@ -647,10 +647,10 @@ extension ChocoMuxer {
       logger.info("\(currentTrack.remuxerInfo)")
       switch currentTrack.trackType {
       case .video:
-      if videoHandled {
-        break
-      }
-      videoHandled = true
+        if videoHandled {
+          break
+        }
+        videoHandled = true
         switch commonOptions.video.process {
         case .encode:
           if commonOptions.video.progressiveOnly {
