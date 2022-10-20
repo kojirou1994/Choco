@@ -8,7 +8,7 @@ extension ChocoCommonOptions.MetaOptions.Metadata: EnumerableFlag {
     case .trackName: return "track-name"
     case .tags: return "global-tags"
     case .videoLanguage: return "video-language"
-    case .title, .attachments: return rawValue
+    case .title, .attachments, .disabled: return rawValue
     }
   }
 
