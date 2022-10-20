@@ -20,8 +20,8 @@ let package = Package(
     .package(url: "https://github.com/kojirou1994/PrettyBytes.git", from: "0.0.1"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0"),
     .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
-    .package(url: "https://github.com/kojirou1994/MediaUtility.git", from: "0.3.0"),
-    .package(url: "https://github.com/kojirou1994/Executable.git", from: "0.4.0"),
+    .package(url: "https://github.com/kojirou1994/MediaUtility.git", from: "0.6.0"),
+    .package(url: "https://github.com/kojirou1994/Executable.git", from: "0.5.0"),
     .package(url: "https://github.com/kojirou1994/IOUtility.git", from: "0.0.1"),
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
@@ -53,7 +53,8 @@ let package = Package(
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
         .product(name: "MediaUtility", package: "MediaUtility"),
         .product(name: "MediaTools", package: "MediaUtility"),
-        .product(name: "Logging", package: "swift-log")
+        .product(name: "Logging", package: "swift-log"),
+        .product(name: "FPExecutableLauncher", package: "Executable"),
       ]
     ),
     .target(
@@ -70,7 +71,7 @@ let package = Package(
     .target(
       name: "chapter-tool",
       dependencies: [
-        "Executable",
+        .product(name: "TSCExecutableLauncher", package: "Executable"),
         "URLFileManager",
         .product(name: "Logging", package: "swift-log"),
         .product(name: "MediaUtility", package: "MediaUtility"),

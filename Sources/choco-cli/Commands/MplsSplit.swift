@@ -3,7 +3,7 @@ import Foundation
 import ArgumentParser
 import MediaTools
 import IOStreams
-import ExecutableLauncher
+import TSCExecutableLauncher
 
 struct MplsCommand: ParsableCommand {
   static var configuration: CommandConfiguration {
@@ -71,6 +71,8 @@ extension MplsCommand {
         mpls.chapters.forEach { chapter in
           items[Int(chapter.playItemIndex)].chapters.append(chapter.relativeTimestamp)
         }
+        
+        print("total chapters: \(items.count)")
 
         var restItems = items[items.startIndex...]
 

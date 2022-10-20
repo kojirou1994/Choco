@@ -90,9 +90,12 @@ extension ChocoCommonOptions {
 extension ChocoCommonOptions {
 
   public struct MetaOptions: CustomStringConvertible {
-    public init(keepMetadatas: Set<MetaOptions.Metadata>, sortTrackType: Bool) {
+    public init(keepMetadatas: Set<Metadata>,
+                sortTrackType: Bool,
+                minPGSCount: Int) {
       self.keepMetadatas = keepMetadatas
       self.sortTrackType = sortTrackType
+      self.minPGSCount = minPGSCount
     }
 
     public enum Metadata: String, CaseIterable {
@@ -101,10 +104,12 @@ extension ChocoCommonOptions {
       case trackName
       case videoLanguage
       case title
+      case disabled
     }
 
     private let keepMetadatas: Set<Metadata>
     public let sortTrackType: Bool
+    public let minPGSCount: Int
 
     public func keep(_ metadata: Metadata) -> Bool {
       keepMetadatas.contains(metadata)

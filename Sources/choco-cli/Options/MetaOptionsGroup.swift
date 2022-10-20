@@ -33,7 +33,10 @@ struct MetaOptionsGroup: ParsableArguments {
   @Flag(help: "Sort track order by track type, priority: video > audio > subtitle.")
   var sortTrackType: Bool = false
 
+  @Option(help: "Filter pgs subtitle by minimum count.")
+  var minPGSCount = 3
+
   var options: ChocoCommonOptions.MetaOptions {
-    .init(keepMetadatas: .init(keepMetadatas), sortTrackType: sortTrackType)
+    .init(keepMetadatas: .init(keepMetadatas), sortTrackType: sortTrackType, minPGSCount: minPGSCount)
   }
 }

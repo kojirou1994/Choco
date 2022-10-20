@@ -12,6 +12,7 @@ public enum ChocoError: Error {
   case inputNotExists
   case bdmvInputNotDirectory
   case mkvmergeIdentification(Error)
+  case mediainfo(Error)
   case ffmpegExtractAudio(Error)
   case validateFlacMD5(Error)
   case mkvmergeMux(Error)

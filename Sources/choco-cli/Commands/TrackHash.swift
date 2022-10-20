@@ -1,6 +1,6 @@
 import Foundation
 import ArgumentParser
-import ExecutableLauncher
+import TSCExecutableLauncher
 import MediaTools
 #if canImport(CryptoKit)
 import CryptoKit

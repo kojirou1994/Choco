@@ -1,4 +1,4 @@
-import ExecutableLauncher
+import TSCExecutableLauncher
 import Foundation
 import KwiftUtility
 import MediaTools
@@ -9,6 +9,7 @@ import URLFileManager
 import Logging
 import ISOCodes
 import Precondition
+import FPExecutableLauncher
 
 let fm = URLFileManager.default
 
@@ -61,7 +62,7 @@ public final class ChocoMuxer {
         if commonOptions.video.useIntergratedVapoursynth {
           try preconditionOrThrow(ffmpegCodecs.vapoursynth, "no vapoursynth!")
         } else {
-          try ExecutablePath.lookup("vspipe")
+          try ExecutablePath.lookup("vspipe", alternativeExecutableNames: []).get()
         }
       }
     }
@@ -113,15 +114,15 @@ public final class ChocoMuxer {
 
   private func launch<E: Executable>(externalExecutable: E,
                                      checkAllowedExitCodes codes: [CInt]) throws {
-    logger.debug("Running \(externalExecutable.commandLineArguments)")
+//    logger.debug("Running \(externalExecutable.commandLineArguments)")
     let result = try launch(externalExecutable: externalExecutable)
     switch result.exitStatus {
     case .terminated(code: let code):
       if !codes.contains(code) {
-        throw ExecutableError.nonZeroExit(result.exitStatus)
+        throw ExecutableError.nonZeroExit
       }
     case .signalled(signal: _):
-      throw ExecutableError.nonZeroExit(result.exitStatus)
+      throw ExecutableError.nonZeroExit
     }
   }
 
@@ -161,7 +162,7 @@ public final class ChocoMuxer {
       do {
         let result = try launch(externalExecutable: task.joinWorker!.executable)
         if result.exitStatus == .terminated(code: 2) {
-          throw ExecutableError.nonZeroExit(result.exitStatus)
+          throw ExecutableError.nonZeroExit
         }
         return .success([task.joinWorker!.outputURL])
       } catch {
@@ -503,7 +504,7 @@ extension ChocoMuxer {
     let mkvmerge = MkvMerge(
       global: mkvGlobal,
       output: outputURL.path, inputs: [mainInput] + externalInputs)
-    logger.debug("\(mkvmerge.commandLineArguments.joined(separator: " "))")
+//    logger.debug("\(mkvmerge.commandLineArguments.joined(separator: " "))")
 
     logger.info("Mkvmerge: \(file.path) -------> \(outputURL.path)")
     do {
@@ -623,6 +624,16 @@ extension ChocoMuxer {
       display(modiifcations: trackModifications)
     }
 
+    let mediainfo: [String: Any]
+    do {
+      let output = try AnyExecutable(executableName: "mediainfo", arguments: ["--Output=JSON", "-f", mkvinfo.fileName!])
+        .launch(use: TSCExecutableLauncher())
+        .output.get()
+      mediainfo = try JSONSerialization.jsonObject(with: Data(output), options: []) as! [String : Any]
+    } catch {
+      return .failure(.mediainfo(error))
+    }
+
     // check track one by one
     logger.info("Checking tracks codec")
     var currentTrackIndex = tracks.startIndex
@@ -645,12 +656,8 @@ extension ChocoMuxer {
           if commonOptions.video.progressiveOnly {
             logger.info("Progressive-only mode enabled, checking video track scan type.")
             // check scan type
-            let output = try! AnyExecutable(executableName: "mediainfo", arguments: ["--Output=JSON", "-f", mkvinfo.fileName!])
-              .launch(use: TSCExecutableLauncher())
-              .output.get()
 
-            let json = try! JSONSerialization.jsonObject(with: Data(output), options: []) as! [String : Any]
-            let media = try! (json["media"] as? [String : Any]).unwrap()
+            let media = try! (mediainfo["media"] as? [String : Any]).unwrap()
             let tracks = try! (media["track"] as? [[String : Any]]).unwrap()
             let videoTrack = tracks.first(where: { $0["@type"] as! String == "Video" })!
             if let scanType = videoTrack["ScanType"] as? String {
@@ -745,8 +752,25 @@ extension ChocoMuxer {
         }
       case .audio, .subtitles:
         var embbedAC3Removed = false
+        // language filter
         if commonOptions.language.shouldMuxTrack(trackLanguage: trackLanguage, trackType: currentTrack.trackType, primaryLanguage: primaryLanguage, forcePrimary: forceUseFilePrimaryLanguage) {
           var trackDone = false
+          // check subtitle(pgs) count
+          if currentTrack.trackType == .subtitles {
+            let media = try! (mediainfo["media"] as? [String : Any]).unwrap()
+            let tracks = try! (media["track"] as? [[String : Any]]).unwrap()
+            let subtitleTrack = tracks[currentTrackIndex+1]
+            precondition(subtitleTrack["ID"] as! String == "\(currentTrackIndex+1)", "track id mismatch between mkvmerge and mediainfo")
+            precondition(subtitleTrack["@type"] as! String == "Text", "track type mismatch between mkvmerge and mediainfo")
+            if (subtitleTrack["Format"] as? String) == "PGS",
+               let elementCountString = subtitleTrack["ElementCount"] as? String,
+               let elementCount = Int(elementCountString) {
+              if elementCount < commonOptions.meta.minPGSCount {
+                trackModifications[currentTrackIndex] = .remove(type: .subtitles, reason: .subtitleCount(elementCount))
+                trackDone = true
+              }
+            }
+          }
           // keep true-hd
           if currentTrack.isTrueHD, commonOptions.audio.shouldCopy(.truehd) {
             trackModifications[currentTrackIndex] = .copy(type: currentTrack.trackType)
@@ -862,7 +886,7 @@ extension ChocoMuxer {
         } else {
           // invalid language
           trackModifications[currentTrackIndex] = .remove(type: currentTrack.trackType, reason: .languageFilter(trackLanguage))
-        }
+        } // language end
 
         // handle truehd
         if !embbedAC3Removed, currentTrack.isTrueHD, currentTrackIndex + 1 < tracks.count,
@@ -888,7 +912,7 @@ extension ChocoMuxer {
 
     if ffmpeg.ios.contains(where: { $0.isOutput }) {
       // ffmpeg has output, should launch ffmpeg
-      logger.info("\(ffmpeg.commandLineArguments)")
+//      logger.info("\(ffmpeg.commandLineArguments)")
       // file's audio tracks -> external temp flac
       do {
         try launch(externalExecutable: ffmpeg, checkAllowedExitCodes: [0])
@@ -959,6 +983,7 @@ enum TrackModification: CustomStringConvertible {
   case remove(type: MediaTrackType, reason: RemoveReason)
 
   enum RemoveReason {
+    case subtitleCount(Int)
     case duplicateAudioHash
     case trackTypeDisabled
     case embedAC3InTrueHD
