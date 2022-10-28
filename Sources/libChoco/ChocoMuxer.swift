@@ -62,7 +62,7 @@ public final class ChocoMuxer {
         if commonOptions.video.useIntergratedVapoursynth {
           try preconditionOrThrow(ffmpegCodecs.vapoursynth, "no vapoursynth!")
         } else {
-          try ExecutablePath.lookup("vspipe", alternativeExecutableNames: []).get()
+          _ = try ExecutablePath.lookup("vspipe", alternativeExecutableNames: []).get()
         }
       }
     }
@@ -645,6 +645,12 @@ extension ChocoMuxer {
       let currentTrack = tracks[currentTrackIndex]
       let trackLanguage = currentTrack.trackLanguageCode
       logger.info("\(currentTrack.remuxerInfo)")
+      if currentTrack.properties?.enabledTrack == false,
+         !commonOptions.meta.keep(.disabled) {
+        trackModifications[currentTrackIndex] = .remove(type: currentTrack.trackType, reason: .trackDisabled)
+        currentTrackIndex += 1
+        continue
+      }
       switch currentTrack.trackType {
       case .video:
         if videoHandled {
@@ -989,6 +995,7 @@ enum TrackModification: CustomStringConvertible {
     case embedAC3InTrueHD
     case extraDTSHD
     case languageFilter(Language)
+    case trackDisabled
   }
 
   mutating func remove(reason: RemoveReason) {
