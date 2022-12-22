@@ -92,7 +92,9 @@ struct ChapterTool: ParsableCommand {
             var chapterAtoms = chapter.entries[0].chapters
             if chapterAtoms.count > titles.count {
               if removeExtraChapter {
-                chapterAtoms.removeLast(chapterAtoms.count - titles.count)
+                let extraCount = chapterAtoms.count - titles.count
+                print("removing extra \(extraCount) chapters")
+                chapterAtoms.removeLast(extraCount)
               } else {
                 throw ValidationError("Chapter count mismatch")
               }
@@ -118,7 +120,7 @@ struct ChapterTool: ParsableCommand {
 
             try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
           } catch {
-            print("Error: ", error, fileURL)
+            print("Error: ", error, fileURL.path)
           }
         }
         if !succ {
@@ -227,7 +229,7 @@ struct ChapterTool: ParsableCommand {
 
         try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
       } catch {
-        print("Error \(error)")
+        print("Error: \(error)")
       }
     }
   }

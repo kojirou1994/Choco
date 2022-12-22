@@ -24,10 +24,36 @@ extension MediaTrackType: EnumerableFlag {
   }
 }
 
+struct AudioTrackHashSpec: Hashable {
+  let channels: UInt
+  let samplerate: UInt
+  let bits: UInt
+}
+
+extension MkvMergeIdentification.Track {
+  var spec: AudioTrackHashSpec {
+    .init(channels: properties?.audioChannels ?? 0, samplerate: properties?.audioSamplingFrequency ?? 0, bits: properties?.audioBitsPerSample ?? 0)
+  }
+}
+
 struct TrackHash: ParsableCommand {
+
+  enum Tool: String, ExpressibleByArgument, CaseIterable {
+    case ffmpeg
+    case mkvextract
+  }
 
   @Option(help: "Temp dir to extract tracks.")
   var tmp: String = "./tmp"
+
+  @Option(help: "Tool selection: \(Tool.allCases.map(\.rawValue)).")
+  var tool: Tool = .ffmpeg
+
+  @Flag
+  var slowVideo: Bool = false
+
+  @Flag
+  var dedup: Bool = false
 
   @Flag
   var disabledTrackTypes: [MediaTrackType] = []
@@ -40,8 +66,13 @@ struct TrackHash: ParsableCommand {
     if !disabledTrackTypes.isEmpty {
       print("Disabled track types: \(disabledTrackTypes)")
     }
+    if dedup {
+      print("De-duplicate enabled")
+    }
+
     let formatter = BytesStringFormatter(uppercase: true)
     let tmpDir = URL(fileURLWithPath: tmp)
+
     inputs.forEach { file in
       do {
         print("")
@@ -49,42 +80,89 @@ struct TrackHash: ParsableCommand {
         let info = try MkvMergeIdentification(filePath: file)
 
         let tracks = try info.tracks.unwrap("no tracks!").notEmpty("no tracks!")
-        
-        let extractedTrackIDAndURLs: [(id: Int, url: URL)] = tracks
+
+        var specCount = [AudioTrackHashSpec: Int]()
+        tracks.forEach { track in
+          if track.trackType == .audio {
+            specCount[track.spec, default: 0] += 1
+          }
+        }
+
+        let extractedTracks: [MkvMergeIdentification.Track] = tracks
           .filter { track in
             if disabledTrackTypes.contains(track.trackType) {
               return false
             }
+            if dedup, track.trackType == .audio {
+              if specCount[track.spec, default: 0] <= 1 {
+                print("track \(track.id) disabled because of unique spec.")
+                return false
+              }
+            }
             return true
           }
-          .map { ($0.id, tmpDir.appendingPathComponent(UUID().uuidString)) }
 
-        if extractedTrackIDAndURLs.isEmpty {
-          print("No tracks need to be extracted.")
+        if extractedTracks.isEmpty {
+          print("No tracks need to be hashed.")
           return
         }
 
-        let extractor = MkvExtract(
-          filepath: file,
-          extractions: [.tracks(outputs: extractedTrackIDAndURLs.map { .init(trackID: $0.id, filename: $0.url.path) })])
-        try extractor.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
-        let hashes = try extractedTrackIDAndURLs.map(\.url).map { trackFileURL -> String in
-          var hash = SHA256()
-          try BufferEnumerator(options: .init(bufferSizeLimit: 4*1024))
-            .enumerateBuffer(file: trackFileURL) { (buffer, _, _) in
-            hash.update(bufferPointer: buffer)
+        let hashes: [String]
+        var tempFilePaths = [URL]()
+
+        switch tool {
+        case .ffmpeg:
+          var outputOptions: [FFmpeg.InputOutputOption] = []
+          extractedTracks.forEach { track in
+            outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamIndex(track.id), isOptional: false, isNegativeMapping: false))
           }
-          return formatter.bytesToHexString(hash.finalize())
+          if !slowVideo {
+            outputOptions.append(.codec("copy", streamSpecifier: .streamType(.video)))
+          }
+          outputOptions.append(.codec("copy", streamSpecifier: .streamType(.subtitle)))
+          outputOptions.append(.format("streamhash"))
+
+          let ffmpeg = FFmpeg(
+            global: .init(logLevel: .init(level: .error), hideBanner: true),
+            ios: [
+              .input(url: file),
+              .output(url: "-", options: outputOptions),
+            ])
+          print(ffmpeg.arguments.joined(separator: " "))
+          let output = try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
+          print(try output.utf8stderrOutput())
+          hashes = try output.utf8Output().split(separator: "\n").map(String.init)
+        case .mkvextract:
+          let extractedFilePaths = extractedTracks
+            .map { _ in tmpDir.appendingPathComponent(UUID().uuidString) }
+
+          let outputs = zip(extractedTracks, extractedFilePaths)
+            .map { track, path in
+              MkvExtractionMode.TrackOutput(trackID: track.id, filename: path.path)
+            }
+          let extractor = MkvExtract(
+            filepath: file,
+            extractions: [.tracks(outputs: outputs)])
+          try extractor.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
+          hashes = try extractedFilePaths.map { trackFileURL -> String in
+            var hash = SHA256()
+            try BufferEnumerator(options: .init(bufferSizeLimit: 4*1024))
+              .enumerateBuffer(file: trackFileURL) { (buffer, _, _) in
+                hash.update(bufferPointer: buffer)
+              }
+            return formatter.bytesToHexString(hash.finalize())
+          }
+          tempFilePaths = extractedFilePaths
         }
 
-        for (trackID, hash) in zip(extractedTrackIDAndURLs.map(\.id), hashes) {
-          print(tracks[trackID].remuxerInfo)
+        for (track, hash) in zip(extractedTracks, hashes) {
+          print(track.remuxerInfo)
           print("Hash:", hash)
         }
 
-        extractedTrackIDAndURLs.map(\.url).forEach { trackFileURL in
+        tempFilePaths.forEach { path in
           do {
-            try fm.removeItem(at: trackFileURL)
+            try fm.removeItem(at: path)
           } catch {
 
           }
