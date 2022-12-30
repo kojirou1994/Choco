@@ -19,7 +19,7 @@ struct MuxFile: ParsableCommand {
   @Flag(help: "Delete the source files after remuxing.")
   var removeSourceFiles: Bool = false
 
-  @OptionGroup
+  @OptionGroup(title: "Common")
   var common: CommonOptionsGroup
 
   @Argument(help: "path")

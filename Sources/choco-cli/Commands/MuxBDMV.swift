@@ -16,7 +16,7 @@ struct MuxBDMV: ParsableCommand {
   @Flag(help: "Direct mode")
   var direct: Bool = false
   
-  @OptionGroup
+  @OptionGroup(title: "Common")
   var common: CommonOptionsGroup
 
   @Argument(help: "path")
