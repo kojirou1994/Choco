@@ -4,12 +4,13 @@ import KwiftUtility
 import MediaTools
 import MplsParser
 import Rainbow
-import TSCBasic
+import struct TSCBasic.ProcessResult
 import URLFileManager
 import Logging
 import ISOCodes
 import Precondition
 import FPExecutableLauncher
+import JSON
 
 let fm = URLFileManager.default
 
@@ -624,12 +625,12 @@ extension ChocoMuxer {
       display(modiifcations: trackModifications)
     }
 
-    let mediainfo: [String: Any]
+    let mediainfo: JSON
     do {
       let output = try AnyExecutable(executableName: "mediainfo", arguments: ["--Output=JSON", "-f", mkvinfo.fileName!])
         .launch(use: TSCExecutableLauncher())
         .output.get()
-      mediainfo = try JSONSerialization.jsonObject(with: Data(output), options: []) as! [String : Any]
+      mediainfo = try .read(bytes: output).get()
     } catch {
       return .failure(.mediainfo(error))
     }
@@ -663,10 +664,10 @@ extension ChocoMuxer {
             logger.info("Progressive-only mode enabled, checking video track scan type.")
             // check scan type
 
-            let media = try! (mediainfo["media"] as? [String : Any]).unwrap()
-            let tracks = try! (media["track"] as? [[String : Any]]).unwrap()
-            let videoTrack = tracks.first(where: { $0["@type"] as! String == "Video" })!
-            if let scanType = videoTrack["ScanType"] as? String {
+            let media = try! (mediainfo.root?["media"]).unwrap()
+            let tracks = try! (media["track"]?.array).unwrap()
+            let videoTrack = tracks.first(where: { $0["@type"]! == "Video" })!
+            if let scanType = videoTrack["ScanType"]?.string {
               logger.info("Scan type: \(scanType)")
               if scanType.lowercased() != "progressive" {
                 logger.info("Non progressive detected, skip this file.")
@@ -763,14 +764,13 @@ extension ChocoMuxer {
           var trackDone = false
           // check subtitle(pgs) count
           if currentTrack.trackType == .subtitles {
-            let media = try! (mediainfo["media"] as? [String : Any]).unwrap()
-            let tracks = try! (media["track"] as? [[String : Any]]).unwrap()
-            currentTrack.properties?.number
-            let subtitleTrack = tracks.first(where: { $0["StreamOrder"] as? String == "\(currentTrackIndex)" })!
-            precondition(subtitleTrack["StreamOrder"] as! String == "\(currentTrackIndex)", "track id mismatch between mkvmerge and mediainfo")
-            precondition(subtitleTrack["@type"] as! String == "Text", "track type mismatch between mkvmerge and mediainfo")
-            if (subtitleTrack["Format"] as? String) == "PGS",
-               let elementCountString = subtitleTrack["ElementCount"] as? String,
+            let media = try! (mediainfo.root?["media"]).unwrap()
+            let tracks = try! (media["track"]?.array).unwrap()
+            let subtitleTrack = tracks.first(where: { $0["StreamOrder"]?.string == "\(currentTrackIndex)" })!
+            precondition(subtitleTrack["StreamOrder"]! == "\(currentTrackIndex)", "track id mismatch between mkvmerge and mediainfo")
+            precondition(subtitleTrack["@type"]! == "Text", "track type mismatch between mkvmerge and mediainfo")
+            if subtitleTrack["Format"]?.string == "PGS",
+               let elementCountString = subtitleTrack["ElementCount"]?.string,
                let elementCount = Int(elementCountString) {
               if elementCount < commonOptions.meta.minPGSCount {
                 trackModifications[currentTrackIndex] = .remove(type: .subtitles, reason: .subtitleCount(elementCount))
