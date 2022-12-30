@@ -26,6 +26,7 @@ let package = Package(
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
     .package(url: "https://github.com/kojirou1994/BufferUtility.git", from: "0.0.1"),
+    .package(url: "https://github.com/kojirou1994/YYJSONEncoder.git", from: "0.0.2"),
     .package(url: "https://github.com/AlwaysRightInstitute/mustache.git", .upToNextMajor(from: "1.0.0")),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
     .package(url: "https://github.com/kojirou1994/ISOCodes.git", .exact("0.1.0")),
@@ -55,6 +56,7 @@ let package = Package(
         .product(name: "MediaTools", package: "MediaUtility"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "FPExecutableLauncher", package: "Executable"),
+        .product(name: "JSON", package: "YYJSONEncoder"),
       ]
     ),
     .target(
