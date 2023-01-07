@@ -1,0 +1,250 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "BufferUtility",
+        "repositoryURL": "https://github.com/kojirou1994/BufferUtility.git",
+        "state": {
+          "branch": null,
+          "revision": "33971bf709469825ee28c93931664969ae5121d5",
+          "version": "0.0.5"
+        }
+      },
+      {
+        "package": "CUtility",
+        "repositoryURL": "https://github.com/kojirou1994/CUtility.git",
+        "state": {
+          "branch": null,
+          "revision": "acd35be02969988c627a995681350e7d7507a6a1",
+          "version": "0.2.0"
+        }
+      },
+      {
+        "package": "Endianness",
+        "repositoryURL": "https://github.com/kojirou1994/Endianness.git",
+        "state": {
+          "branch": null,
+          "revision": "b4a0c081ed60a6f2c12f2b3d152445e1f96aa079",
+          "version": "1.0.0"
+        }
+      },
+      {
+        "package": "Executable",
+        "repositoryURL": "https://github.com/kojirou1994/Executable.git",
+        "state": {
+          "branch": null,
+          "revision": "9ba0aabcb4789c85d7f5d699ade3193246eaf81c",
+          "version": "0.5.2"
+        }
+      },
+      {
+        "package": "IOUtility",
+        "repositoryURL": "https://github.com/kojirou1994/IOUtility.git",
+        "state": {
+          "branch": null,
+          "revision": "2ed244b8eb29a16f183e4de7d7ed6bdcb693bc70",
+          "version": "0.0.4"
+        }
+      },
+      {
+        "package": "ISOCodes",
+        "repositoryURL": "https://github.com/kojirou1994/ISOCodes.git",
+        "state": {
+          "branch": null,
+          "revision": "d0d832328f276d7ba03afe7276d3728b185929a1",
+          "version": "0.1.0"
+        }
+      },
+      {
+        "package": "Kwift",
+        "repositoryURL": "https://github.com/kojirou1994/Kwift.git",
+        "state": {
+          "branch": null,
+          "revision": "9261a1508b935fe574c2aff29ffc4bbca7a034e8",
+          "version": "1.0.1"
+        }
+      },
+      {
+        "package": "MediaUtility",
+        "repositoryURL": "https://github.com/kojirou1994/MediaUtility.git",
+        "state": {
+          "branch": null,
+          "revision": "0a620a7096bec2710ad4aeb80d66a7e20101569a",
+          "version": "0.6.1"
+        }
+      },
+      {
+        "package": "mustache",
+        "repositoryURL": "https://github.com/AlwaysRightInstitute/mustache.git",
+        "state": {
+          "branch": null,
+          "revision": "880e0eeb5c42f088cbdb6fa6aa313fa41c15bca8",
+          "version": "1.0.1"
+        }
+      },
+      {
+        "package": "Precondition",
+        "repositoryURL": "https://github.com/kojirou1994/Precondition.git",
+        "state": {
+          "branch": null,
+          "revision": "8bfd454560f5bfafe9bf0db3e929ef65ba189400",
+          "version": "1.0.0"
+        }
+      },
+      {
+        "package": "PrettyBytes",
+        "repositoryURL": "https://github.com/kojirou1994/PrettyBytes.git",
+        "state": {
+          "branch": null,
+          "revision": "be137c20bafe9e215b7ece821fb9ac71f7636ae8",
+          "version": "0.0.1"
+        }
+      },
+      {
+        "package": "Rainbow",
+        "repositoryURL": "https://github.com/onevcat/Rainbow.git",
+        "state": {
+          "branch": null,
+          "revision": "626c3d4b6b55354b4af3aa309f998fae9b31a3d9",
+          "version": "3.2.0"
+        }
+      },
+      {
+        "package": "swift-algorithms",
+        "repositoryURL": "https://github.com/apple/swift-algorithms.git",
+        "state": {
+          "branch": null,
+          "revision": "b14b7f4c528c942f121c8b860b9410b2bf57825e",
+          "version": "1.0.0"
+        }
+      },
+      {
+        "package": "swift-argument-parser",
+        "repositoryURL": "https://github.com/apple/swift-argument-parser.git",
+        "state": {
+          "branch": null,
+          "revision": "fddd1c00396eed152c45a46bea9f47b98e59301d",
+          "version": "1.2.0"
+        }
+      },
+      {
+        "package": "swift-collections",
+        "repositoryURL": "https://github.com/apple/swift-collections.git",
+        "state": {
+          "branch": null,
+          "revision": "937e904258d22af6e447a0b72c0bc67583ef64a2",
+          "version": "1.0.4"
+        }
+      },
+      {
+        "package": "swift-crypto",
+        "repositoryURL": "https://github.com/apple/swift-crypto.git",
+        "state": {
+          "branch": null,
+          "revision": "ddb07e896a2a8af79512543b1c7eb9797f8898a5",
+          "version": "1.1.7"
+        }
+      },
+      {
+        "package": "swift-log",
+        "repositoryURL": "https://github.com/apple/swift-log.git",
+        "state": {
+          "branch": null,
+          "revision": "6fe203dc33195667ce1759bf0182975e4653ba1c",
+          "version": "1.4.4"
+        }
+      },
+      {
+        "package": "swift-numerics",
+        "repositoryURL": "https://github.com/apple/swift-numerics",
+        "state": {
+          "branch": null,
+          "revision": "0a5bc04095a675662cf24757cc0640aa2204253b",
+          "version": "1.0.2"
+        }
+      },
+      {
+        "package": "swift-system",
+        "repositoryURL": "https://github.com/apple/swift-system.git",
+        "state": {
+          "branch": null,
+          "revision": "836bc4557b74fe6d2660218d56e3ce96aff76574",
+          "version": "1.1.1"
+        }
+      },
+      {
+        "package": "swift-tools-support-core",
+        "repositoryURL": "https://github.com/apple/swift-tools-support-core.git",
+        "state": {
+          "branch": null,
+          "revision": "284a41800b7c5565512ec6ae21ee818aac1f84ac",
+          "version": "0.4.0"
+        }
+      },
+      {
+        "package": "SyscallValue",
+        "repositoryURL": "https://github.com/kojirou1994/SyscallValue.git",
+        "state": {
+          "branch": null,
+          "revision": "a2576782e2f360a9a28ed7b4378d68109b443fd9",
+          "version": "0.0.1"
+        }
+      },
+      {
+        "package": "SystemUp",
+        "repositoryURL": "https://github.com/kojirou1994/SystemUp.git",
+        "state": {
+          "branch": null,
+          "revision": "67fe5256b9b85c00c561492f5d721975b7daab23",
+          "version": "0.2.2"
+        }
+      },
+      {
+        "package": "Units",
+        "repositoryURL": "https://github.com/kojirou1994/Units.git",
+        "state": {
+          "branch": null,
+          "revision": "af4decba5b9cdb9e788a2e348be5e0ec6cc5b780",
+          "version": "0.0.1"
+        }
+      },
+      {
+        "package": "URLFileManager",
+        "repositoryURL": "https://github.com/kojirou1994/URLFileManager.git",
+        "state": {
+          "branch": null,
+          "revision": "3472bc7e7b047429fcb1d128467ca5e675ecae72",
+          "version": "0.1.4"
+        }
+      },
+      {
+        "package": "XMLCoder",
+        "repositoryURL": "https://github.com/MaxDesiatov/XMLCoder.git",
+        "state": {
+          "branch": null,
+          "revision": "c438dad94f6a243b411b70a4b4bac54595064808",
+          "version": "0.15.0"
+        }
+      },
+      {
+        "package": "yyjson",
+        "repositoryURL": "https://github.com/ibireme/yyjson.git",
+        "state": {
+          "branch": null,
+          "revision": "7b210d66cb73536f351e8a82a63508bc77bffd20",
+          "version": "0.6.0"
+        }
+      },
+      {
+        "package": "YYJSONEncoder",
+        "repositoryURL": "https://github.com/kojirou1994/YYJSONEncoder.git",
+        "state": {
+          "branch": null,
+          "revision": "7be0fcc0a39bc91fe11efb7ff54a1909e673e704",
+          "version": "0.1.1"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
