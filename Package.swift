@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.5
 
 import PackageDescription
 
@@ -26,6 +26,7 @@ let package = Package(
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
     .package(url: "https://github.com/kojirou1994/BufferUtility.git", from: "0.0.1"),
+    .package(url: "https://github.com/kojirou1994/SystemUp.git", from: "0.2.4"),
     .package(url: "https://github.com/kojirou1994/YYJSONEncoder.git", from: "0.0.2"),
     .package(url: "https://github.com/AlwaysRightInstitute/mustache.git", .upToNextMajor(from: "1.0.0")),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
@@ -59,7 +60,7 @@ let package = Package(
         .product(name: "JSON", package: "YYJSONEncoder"),
       ]
     ),
-    .target(
+    .executableTarget(
       name: "choco-cli",
       dependencies: [
         "libChoco",
@@ -70,7 +71,7 @@ let package = Package(
         .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
       ]
     ),
-    .target(
+    .executableTarget(
       name: "chapter-tool",
       dependencies: [
         .product(name: "TSCExecutableLauncher", package: "Executable"),
