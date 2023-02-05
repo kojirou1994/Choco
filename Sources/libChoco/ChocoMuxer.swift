@@ -627,7 +627,7 @@ extension ChocoMuxer {
 
     let mediainfo: JSON
     do {
-      let output = try AnyExecutable(executableName: "mediainfo", arguments: ["--Output=JSON", "-f", mkvinfo.fileName!])
+      let output = try MediaInfo(full: true, output: .json, files: [mkvinfo.fileName!])
         .launch(use: TSCExecutableLauncher())
         .output.get()
       mediainfo = try .read(bytes: output).get()
