@@ -58,7 +58,7 @@ struct Crop: ParsableCommand {
   func run() throws {
     let tempDirURL = URL(fileURLWithPath: tmp)
     let tempFileURL = tempDirURL.appendingPathComponent("\(UUID()).mkv")
-    let logger = Logger(label: "crop", factory: StreamLogHandler.standardError)
+    let logger = Logger(label: "crop", factory: StreamLogHandler.standardError(label:))
     let info: CropInfo
     switch tool {
     case .ffmpeg:

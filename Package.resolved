@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/kojirou1994/CUtility.git",
         "state": {
           "branch": null,
-          "revision": "acd35be02969988c627a995681350e7d7507a6a1",
-          "version": "0.2.0"
+          "revision": "c9ed36fff94696294bf08c4bc38309097669f590",
+          "version": "0.2.1"
         }
       },
       {
@@ -24,8 +24,8 @@
         "repositoryURL": "https://github.com/kojirou1994/Endianness.git",
         "state": {
           "branch": null,
-          "revision": "b4a0c081ed60a6f2c12f2b3d152445e1f96aa079",
-          "version": "1.0.0"
+          "revision": "c297ce02b5f16f6e0d3067b2d3dcdad47313c8cc",
+          "version": "1.0.1"
         }
       },
       {
@@ -69,8 +69,8 @@
         "repositoryURL": "https://github.com/kojirou1994/MediaUtility.git",
         "state": {
           "branch": null,
-          "revision": "0a620a7096bec2710ad4aeb80d66a7e20101569a",
-          "version": "0.6.1"
+          "revision": "4e2309d536461a2e3db6c9f4d4d52cfaf91c410e",
+          "version": "0.6.2"
         }
       },
       {
@@ -123,8 +123,8 @@
         "repositoryURL": "https://github.com/apple/swift-argument-parser.git",
         "state": {
           "branch": null,
-          "revision": "fddd1c00396eed152c45a46bea9f47b98e59301d",
-          "version": "1.2.0"
+          "revision": "4ad606ba5d7673ea60679a61ff867cc1ff8c8e86",
+          "version": "1.2.1"
         }
       },
       {
@@ -150,8 +150,8 @@
         "repositoryURL": "https://github.com/apple/swift-log.git",
         "state": {
           "branch": null,
-          "revision": "6fe203dc33195667ce1759bf0182975e4653ba1c",
-          "version": "1.4.4"
+          "revision": "32e8d724467f8fe623624570367e3d50c5638e46",
+          "version": "1.5.2"
         }
       },
       {
@@ -195,8 +195,8 @@
         "repositoryURL": "https://github.com/kojirou1994/SystemUp.git",
         "state": {
           "branch": null,
-          "revision": "67fe5256b9b85c00c561492f5d721975b7daab23",
-          "version": "0.2.2"
+          "revision": "e018312888322c23a25515dcce36fce36d02ef22",
+          "version": "0.2.4"
         }
       },
       {
