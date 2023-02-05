@@ -12,6 +12,7 @@ let package = Package(
     .library(name: "libChoco", targets: ["libChoco"]),
     .executable(name: "choco-cli", targets: ["choco-cli"]),
     .executable(name: "chapter-tool", targets: ["chapter-tool"]),
+    .executable(name: "fix-rarbg", targets: ["fix-rarbg"]),
   ],
   dependencies: [
     .package(url: "https://github.com/kojirou1994/Kwift.git", from: "1.0.0"),
@@ -81,6 +82,17 @@ let package = Package(
         .product(name: "MediaTools", package: "MediaUtility"),
         .product(name: "ArgumentParser", package: "swift-argument-parser")
     ]),
+    .executableTarget(
+      name: "fix-rarbg",
+      dependencies: [
+        "ISOCodes",
+        .product(name: "TSCExecutableLauncher", package: "Executable"),
+        .product(name: "Logging", package: "swift-log"),
+        .product(name: "MediaUtility", package: "MediaUtility"),
+        .product(name: "MediaTools", package: "MediaUtility"),
+        .product(name: "SystemFileManager", package: "SystemUp"),
+        .product(name: "ArgumentParser", package: "swift-argument-parser")
+      ]),
     .testTarget(
       name: "MplsParserTests",
       dependencies: ["MplsParser"]),
