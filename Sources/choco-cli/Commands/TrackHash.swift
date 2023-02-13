@@ -13,6 +13,7 @@ import BufferUtility
 import MediaUtility
 import URLFileManager
 import PrettyBytes
+import SystemUp
 
 extension MediaTrackType: EnumerableFlag {
   public static var allCases: [MediaTrackType] {
@@ -21,6 +22,12 @@ extension MediaTrackType: EnumerableFlag {
 
   public static func name(for value: MediaTrackType) -> NameSpecification {
     .customLong("disable-\(value.rawValue)")
+  }
+}
+
+extension MkvPropEdit.EditSelector.TrackSelector {
+  static func trackID(_ n: Int) -> Self {
+    .trackNumber(n+1)
   }
 }
 
@@ -44,15 +51,15 @@ struct TrackHash: ParsableCommand {
   }
 
   @Option(help: "Temp dir to extract tracks.")
-  var tmp: String = "./tmp"
+  var tmp: String?
 
   @Option(help: "Tool selection: \(Tool.allCases.map(\.rawValue)).")
   var tool: Tool = .ffmpeg
 
-  @Flag
+  @Flag(help: "Decode every video frames.")
   var slowVideo: Bool = false
 
-  @Flag
+  @Flag(help: "Deduplicate same spec tracks with mkvpropedit, input must be mkv.")
   var dedup: Bool = false
 
   @Flag
@@ -71,7 +78,7 @@ struct TrackHash: ParsableCommand {
     }
 
     let formatter = BytesStringFormatter(uppercase: true)
-    let tmpDir = URL(fileURLWithPath: tmp)
+    let tmpDir = (PosixEnvironment.get(key: "TMPDIR") ?? tmp).map(URL.init(fileURLWithPath:)) ?? FileManager.default.temporaryDirectory
 
     inputs.forEach { file in
       do {
@@ -81,23 +88,10 @@ struct TrackHash: ParsableCommand {
 
         let tracks = try info.tracks.unwrap("no tracks!").notEmpty("no tracks!")
 
-        var specCount = [AudioTrackHashSpec: Int]()
-        tracks.forEach { track in
-          if track.trackType == .audio {
-            specCount[track.spec, default: 0] += 1
-          }
-        }
-
         let extractedTracks: [MkvMergeIdentification.Track] = tracks
           .filter { track in
             if disabledTrackTypes.contains(track.trackType) {
               return false
-            }
-            if dedup, track.trackType == .audio {
-              if specCount[track.spec, default: 0] <= 1 {
-                print("track \(track.id) disabled because of unique spec.")
-                return false
-              }
             }
             return true
           }
@@ -109,6 +103,15 @@ struct TrackHash: ParsableCommand {
 
         let hashes: [String]
         var tempFilePaths = [URL]()
+
+        defer {
+          tempFilePaths.forEach { path in
+            do {
+              try fm.removeItem(at: path)
+            } catch {
+            }
+          }
+        }
 
         switch tool {
         case .ffmpeg:
@@ -131,7 +134,7 @@ struct TrackHash: ParsableCommand {
           print(ffmpeg.arguments.joined(separator: " "))
           let output = try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
           print(try output.utf8stderrOutput())
-          hashes = try output.utf8Output().split(separator: "\n").map(String.init)
+          hashes = try output.utf8Output().split(separator: "\n").map { String($0.split(separator: "=")[1]) }
         case .mkvextract:
           let extractedFilePaths = extractedTracks
             .map { _ in tmpDir.appendingPathComponent(UUID().uuidString) }
@@ -160,13 +163,45 @@ struct TrackHash: ParsableCommand {
           print("Hash:", hash)
         }
 
-        tempFilePaths.forEach { path in
-          do {
-            try fm.removeItem(at: path)
-          } catch {
+        if dedup {
+          print("Dedup enabled, start checking.")
+          var disabledTrackIDs = [Int]()
+          var checkedAudios = [(spec: AudioTrackHashSpec, trackID: Int, hash: String)]()
+          var subtitleHashes = [(trackID: Int, hash: String)]()
+          zip(extractedTracks, hashes).forEach { track, hash in
+            switch track.trackType {
+            case .video: break
+            case .audio:
+              let spec = track.spec
+              if let existed = checkedAudios.first(where: { $0.hash == hash && $0.spec == spec }) {
+                print("dup audio track \(track.id) detected, dst trackID: \(existed.trackID)")
+                disabledTrackIDs.append(track.id)
+              } else {
+                checkedAudios.append((spec, track.id, hash))
+              }
+            case .subtitles:
+              if let existed = subtitleHashes.first(where: { $0.hash == hash }) {
+                print("dup subtitle track \(track.id) detected, dst trackID: \(existed.trackID)")
+                disabledTrackIDs.append(track.id)
+              } else {
+                subtitleHashes.append((track.id, hash))
+              }
+            }
+          }
+          if disabledTrackIDs.isEmpty {
+            print("no dup tracks")
+          } else {
+            print("disable tracks: \(disabledTrackIDs)")
 
+            var editor = MkvPropEdit(filepath: file)
+            disabledTrackIDs.forEach { trackID in
+              editor.actions.append(.init(selector: .track(.trackID(trackID)), modifications: [.set(name: "flag-enabled", value: "0")]))
+            }
+            print(editor.arguments)
+            try editor.launch(use: .tsc(outputRedirection: .none))
           }
         }
+
         print("")
       } catch {
         print("Failed, error: \(error)")
