@@ -21,7 +21,7 @@ extension MediaTrackType: EnumerableFlag {
   }
 
   public static func name(for value: MediaTrackType) -> NameSpecification {
-    .customLong("disable-\(value.rawValue)")
+    [.customLong("disable-\(value.rawValue)"), .customLong("no-\(value.mark.lowercased())")]
   }
 }
 
