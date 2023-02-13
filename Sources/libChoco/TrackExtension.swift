@@ -24,7 +24,7 @@ extension MkvMergeIdentification.Track {
       return false
     }
     switch codec {
-    case "FLAC", "ALAC" , "DTS-HD Master Audio", "PCM", "TrueHD Atmos", "TrueHD":
+    case "FLAC", "ALAC", "DTS-HD Master Audio", "PCM", "A_MS/ACM", "TrueHD Atmos", "TrueHD":
       return true
     default:
       return false
