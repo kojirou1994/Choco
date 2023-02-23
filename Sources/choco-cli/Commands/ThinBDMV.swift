@@ -17,10 +17,11 @@ struct ThinBDMV: ParsableCommand {
 
   func run() throws {
     let logger = Logger(label: "thin-bdmv")
+    let outputPath = try FileSyscalls.realPath(FilePath(output))
+    var buffer = [UInt8](repeating: 0, count: size)
+
     inputs.forEach { input in
       logger.info("START: \(input)")
-
-      var buffer = [UInt8](repeating: 0, count: size)
 
       func copyLimitedFile(src: FilePath, dst: FilePath) throws {
         let srcFD = try FileDescriptor.open(src, .readOnly)
@@ -42,7 +43,7 @@ struct ThinBDMV: ParsableCommand {
         let inputName = try inputPath.lastComponent.unwrap().string
         logger.info("Directory Name: \(inputName)")
 
-        let outputRootPath = FilePath(output).appending(inputName)
+        let outputRootPath = outputPath.appending(inputName)
 
         try Fts.open(path: inputPath, options: .physical).get()
           .closeAfter { stream in
