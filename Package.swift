@@ -70,6 +70,7 @@ let package = Package(
         .product(name: "Units", package: "Units"),
         .product(name: "BufferUtility", package: "BufferUtility"),
         .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
+        .product(name: "SystemFileManager", package: "SystemUp"),
       ]
     ),
     .executableTarget(
