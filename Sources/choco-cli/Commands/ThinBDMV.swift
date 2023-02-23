@@ -58,8 +58,10 @@ struct ThinBDMV: ParsableCommand {
               do {
                 switch entry.fileStatus!.pointee.fileType {
                 case .regular:
+                  print("copy")
                   try copyLimitedFile(src: entry.path, dst: newPath)
                 case .directory:
+                  print("mkdir")
                   try SystemFileManager.createDirectoryIntermediately(.absolute(newPath))
                 default:
                   print("skipped file type: \(entry.fileStatus!.pointee.fileType)")
