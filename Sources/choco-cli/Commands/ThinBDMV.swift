@@ -24,7 +24,13 @@ struct ThinBDMV: ParsableCommand {
 
       func copyLimitedFile(src: FilePath, dst: FilePath) throws {
         let srcFD = try FileDescriptor.open(src, .readOnly)
+        defer {
+          try? srcFD.close()
+        }
         let dstFD = try FileDescriptor.open(dst, .writeOnly, options: [.create, .exclusiveCreate], permissions: .fileDefault)
+        defer {
+          try? dstFD.close()
+        }
         try buffer.withUnsafeMutableBytes { buffer in
           let size = try srcFD.read(into: buffer)
           try dstFD.writeAll(UnsafeRawBufferPointer(rebasing: buffer.prefix(size)))
