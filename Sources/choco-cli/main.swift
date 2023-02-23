@@ -42,6 +42,7 @@ struct ChocoCli: ParsableCommand {
         TrackInfo.self,
         TrackHash.self,
         DumpBDMV.self,
+        ThinBDMV.self,
         Crop.self,
         MuxFile.self,
         MuxBDMV.self,
