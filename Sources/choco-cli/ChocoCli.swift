@@ -31,6 +31,7 @@ extension ChocoMuxer.TimeSummary {
   }
 }
 
+@main
 struct ChocoCli: ParsableCommand {
 
   static var muxer: ChocoMuxer?
@@ -54,5 +55,3 @@ struct ChocoCli: ParsableCommand {
       ]
     )
 }
-
-ChocoCli.main()
