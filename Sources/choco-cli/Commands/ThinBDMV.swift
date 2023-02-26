@@ -44,34 +44,31 @@ struct ThinBDMV: ParsableCommand {
         logger.info("Directory Name: \(inputName)")
 
         let outputRootPath = outputPath.appending(inputName)
+        try SystemFileManager.createDirectoryIntermediately(.absolute(outputRootPath))
 
-        try Fts.open(path: inputPath, options: .physical).get()
-          .closeAfter { stream in
-            while let entry = stream.read() {
-              if entry.name.hasPrefix(".") {
-                continue
-              }
-              if ![.file, .directoryPre].contains(entry.info) {
-                continue
-              }
-              let newPath = outputRootPath.appending(entry.path.components.dropFirst(inputPath.components.count))
-              print(entry.path, "--->", newPath)
-              do {
-                switch entry.fileStatus!.pointee.fileType {
-                case .regular:
-                  print("copy")
-                  try copyLimitedFile(src: entry.path, dst: newPath)
-                case .directory:
-                  print("mkdir")
-                  try SystemFileManager.createDirectoryIntermediately(.absolute(newPath))
-                default:
-                  print("skipped file type: \(entry.fileStatus!.pointee.fileType)")
-                }
-              } catch {
-                print("file failed: \(error)")
-              }
+        let allContents = try SystemFileManager.subpathsOfDirectory(atPath: inputPath)
+        print("Total items: \(allContents.count)")
+        allContents.forEach { relativePath in
+          let absolutePath = inputPath.appending(relativePath.components)
+          let newPath = outputRootPath.appending(relativePath.components)
+          print(absolutePath, "--->", newPath)
+
+          do {
+            let fileType = try SystemFileManager.fileStatus(.absolute(absolutePath)).get().fileType
+            switch fileType {
+            case .regular:
+              print("copy")
+              try copyLimitedFile(src: absolutePath, dst: newPath)
+            case .directory:
+              print("mkdir")
+              try SystemFileManager.createDirectoryIntermediately(.absolute(newPath))
+            default:
+              print("warning: skipped file type: \(fileType)")
             }
+          } catch {
+            print("file failed: \(error)")
           }
+        }
       } catch {
         logger.error("ERROR: \(error)")
       }
