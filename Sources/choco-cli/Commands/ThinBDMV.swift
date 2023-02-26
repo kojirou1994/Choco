@@ -9,6 +9,9 @@ struct ThinBDMV: ParsableCommand {
   @Option(name: .shortAndLong, help: "Output root directory.")
   var output: String = "./"
 
+  @Flag
+  var dry: Bool = false
+
   @Option(name: .shortAndLong, help: "Maximum copy bytes.")
   var size: Int = 50 * 1024 * 1024
 
@@ -52,7 +55,10 @@ struct ThinBDMV: ParsableCommand {
           let absolutePath = inputPath.appending(relativePath.components)
           let newPath = outputRootPath.appending(relativePath.components)
           print(absolutePath, "--->", newPath)
-
+          if dry {
+            print("DRY RUN")
+            return
+          }
           do {
             let fileType = try SystemFileManager.fileStatus(.absolute(absolutePath)).get().fileType
             switch fileType {
