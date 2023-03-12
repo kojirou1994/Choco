@@ -170,7 +170,7 @@ extension Chapter {
   func exportMkvChapXML(to dst: URL) throws {
     var mkvChapter = MatroskaChapter(entries: [.init(uid: 0, chapters: nodes.map { MatroskaChapter.EditionEntry.ChapterAtom(uid: 0, startTime: $0.timestamp.toString(displayNanoSecond: true)) })])
     mkvChapter.makeUIDs()
-    try mkvChapter.exportXML().write(to: dst, options: [.atomic])
+    try mkvChapter.exportXML().write(to: dst)
   }
 }
 
