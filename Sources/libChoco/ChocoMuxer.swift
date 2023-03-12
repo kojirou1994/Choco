@@ -704,7 +704,7 @@ extension ChocoMuxer {
               cropInfo: cropInfo,
               encoderDepth: commonOptions.video.codec.depth)
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
-            try! script.write(to: scriptFileURL, atomically: true, encoding: .utf8)
+            try! script.write(to: scriptFileURL, atomically: false, encoding: .utf8)
 
             var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: commonOptions.video.ffmpegIOOptions(cropInfo: nil))
 

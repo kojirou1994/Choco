@@ -569,7 +569,7 @@ struct MkvToMp4: ParsableCommand {
          case let chapter = try Chapter(ogmFileURL: chapterFileURL),
          !chapter.isEmpty {
         let appleChapterFileURL = tempFileURL(pathExtension: "ttxt")
-        try chapter.exportApple().write(to: appleChapterFileURL, atomically: true, encoding: .utf8)
+        try chapter.exportApple().write(to: appleChapterFileURL, atomically: false, encoding: .utf8)
         allTempFiles.append(appleChapterFileURL)
 
         importings.append(.init(filename: appleChapterFileURL.path, trackSelection: nil, name: "", fps: nil, group: nil, par: nil, language: nil, isChapter: true, hdlr: nil, layout: nil))

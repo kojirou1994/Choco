@@ -70,7 +70,7 @@ struct MplsParse: ParsableCommand {
         var chapter = MatroskaChapter(entries: [.init(chapters: atoms)])
         chapter.fillUIDs()
 
-        try chapter.exportXML().write(to: outputFileURL, options: .atomic)
+        try chapter.exportXML().write(to: outputFileURL)
       }
     }
   }

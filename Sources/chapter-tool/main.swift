@@ -366,7 +366,7 @@ struct ChapterTool: ParsableCommand {
 
         var chapter = MatroskaChapter(entries: [.init(chapters: outputChapters)])
         chapter.fillUIDs()
-        try chapter.exportXML().write(to: outputURL, options: .atomic)
+        try chapter.exportXML().write(to: outputURL)
       }
     }
   }

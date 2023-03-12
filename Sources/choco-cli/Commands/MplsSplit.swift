@@ -100,7 +100,7 @@ extension MplsCommand {
             var chapter = MatroskaChapter(entries: [.init(chapters: atoms)])
             chapter.fillUIDs()
 
-            try chapter.exportXML().write(to: chapterOutputFileURL, options: .atomic)
+            try chapter.exportXML().write(to: chapterOutputFileURL)
             print("chapter wrote to \(chapterOutputFileURL.path)")
           }
 
