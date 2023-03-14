@@ -340,12 +340,10 @@ extension ChocoMuxer {
             outputResult = .failure(.outputExist)
           } else {
             do {
-              try? fm.removeItem(at: dstPath)
               try fm.createDirectory(at: outputDirectoryURL)
-              try fm.copyItem(at: currentFileURL, to: dstPath)
-              if options.removeSourceFiles {
-                try? fm.removeItem(at: currentFileURL)
-              }
+              let cmd = options.removeSourceFiles ? "mv" : "cp"
+              try AnyExecutable(executableName: cmd, arguments: [currentFileURL.path, dstPath.path])
+                .launch(use: TSCExecutableLauncher(outputRedirection: .none))
               outputResult = .success(.init(path: dstPath))
             } catch {
               outputResult = .failure(.copyFile(error))
@@ -982,6 +980,33 @@ extension ChocoMuxer {
 
     return .success(trackModifications)
   }
+}
+
+struct InputProperties {
+  struct Common {
+    let codec: String
+    let duration: String
+    let bitrate: String
+    let streamSize: String
+  }
+
+  struct Video {
+    let colorSpace: String
+    let chromaSubsampling: String
+    let isProgressive: Bool
+  }
+
+  struct Audio {
+    let samplingRate: String
+    let bitDepth: String
+  }
+}
+
+struct TrackHandleStatus {
+  var handled: Bool
+  let id: Int
+
+
 }
 
 enum TrackModification: CustomStringConvertible {
