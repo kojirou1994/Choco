@@ -62,6 +62,9 @@ struct TrackHash: ParsableCommand {
   @Flag(help: "Deduplicate same spec tracks with mkvpropedit, input must be mkv.")
   var dedup: Bool = false
 
+  @Option(parsing: .unconditional, help: "Extra ffmpeg input options, seperated by comma.")
+  var ffmpegOptions: String?
+
   @Flag
   var disabledTrackTypes: [MediaTrackType] = []
 
@@ -125,10 +128,13 @@ struct TrackHash: ParsableCommand {
           outputOptions.append(.codec("copy", streamSpecifier: .streamType(.subtitle)))
           outputOptions.append(.format("streamhash"))
 
+          var inputOptions: [FFmpeg.InputOutputOption] = []
+          ffmpegOptions?.split(separator: ",").forEach { inputOptions.append(.raw(String($0))) }
+
           let ffmpeg = FFmpeg(
             global: .init(logLevel: .init(level: .error), hideBanner: true),
             ios: [
-              .input(url: file),
+              .input(url: file, options: inputOptions),
               .output(url: "-", options: outputOptions),
             ])
           print(ffmpeg.arguments.joined(separator: " "))
