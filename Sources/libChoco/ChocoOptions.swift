@@ -296,7 +296,7 @@ extension ChocoCommonOptions {
                 params: String?,
                 avcodecFlags: [String],
                 quality: VideoQuality,
-                autoCrop: Bool, cropLimit: UInt8, cropRound: UInt8, cropSkip: UInt,
+                autoCrop: Bool, cropLimit: Double?, cropRound: UInt8, cropSkip: UInt,
                 keepPixelFormat: Bool,
                 useIntergratedVapoursynth: Bool) {
       self.process = process
@@ -332,7 +332,7 @@ extension ChocoCommonOptions {
     public let colorPreset: ColorPreset?
     public let quality: VideoQuality
     public let autoCrop: Bool
-    public let cropLimit: UInt8
+    public let cropLimit: Double?
     public let cropRound: UInt8
     public let cropSkip: UInt
     public let keepPixelFormat: Bool

@@ -41,7 +41,7 @@ struct Crop: ParsableCommand {
   var previews: Int = 200
 
   @Option(help: "Set higher black value threshold, which can be optionally specified from nothing (0) to everything (255 for 8-bit based formats).")
-  var limit: UInt8 = 24
+  var limit: Double?
 
   @Option(help: "")
   var round: UInt8 = 2

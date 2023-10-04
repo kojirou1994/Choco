@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/kojirou1994/CUtility.git",
         "state": {
           "branch": null,
-          "revision": "c9ed36fff94696294bf08c4bc38309097669f590",
-          "version": "0.2.1"
+          "revision": "2aec2ee762b19efcf55a9d72061f72df5a331704",
+          "version": "0.3.1"
         }
       },
       {
@@ -29,12 +29,21 @@
         }
       },
       {
+        "package": "Escape",
+        "repositoryURL": "https://github.com/kojirou1994/Escape.git",
+        "state": {
+          "branch": null,
+          "revision": "3c728a5eb731ea0d990291778c5bbe168613a4b4",
+          "version": "0.0.1"
+        }
+      },
+      {
         "package": "Executable",
         "repositoryURL": "https://github.com/kojirou1994/Executable.git",
         "state": {
           "branch": null,
-          "revision": "9ba0aabcb4789c85d7f5d699ade3193246eaf81c",
-          "version": "0.5.2"
+          "revision": "e68acfcbb3a79431735a4732047ae1a578e1d441",
+          "version": "0.5.4"
         }
       },
       {
@@ -69,8 +78,8 @@
         "repositoryURL": "https://github.com/kojirou1994/MediaUtility.git",
         "state": {
           "branch": null,
-          "revision": "c894a261673d7d1bfb67bbe5f7eff04df87f73de",
-          "version": "0.6.3"
+          "revision": "5b46e31fd93aed77289824202ec44d45484a3c02",
+          "version": "0.6.4"
         }
       },
       {
@@ -123,8 +132,8 @@
         "repositoryURL": "https://github.com/apple/swift-argument-parser.git",
         "state": {
           "branch": null,
-          "revision": "4ad606ba5d7673ea60679a61ff867cc1ff8c8e86",
-          "version": "1.2.1"
+          "revision": "8f4d2753f0e4778c76d5f05ad16c74f707390531",
+          "version": "1.2.3"
         }
       },
       {
@@ -132,8 +141,8 @@
         "repositoryURL": "https://github.com/apple/swift-collections.git",
         "state": {
           "branch": null,
-          "revision": "937e904258d22af6e447a0b72c0bc67583ef64a2",
-          "version": "1.0.4"
+          "revision": "a902f1823a7ff3c9ab2fba0f992396b948eda307",
+          "version": "1.0.5"
         }
       },
       {
@@ -150,8 +159,8 @@
         "repositoryURL": "https://github.com/apple/swift-log.git",
         "state": {
           "branch": null,
-          "revision": "32e8d724467f8fe623624570367e3d50c5638e46",
-          "version": "1.5.2"
+          "revision": "532d8b529501fb73a2455b179e0bbb6d49b652ed",
+          "version": "1.5.3"
         }
       },
       {
@@ -168,8 +177,8 @@
         "repositoryURL": "https://github.com/apple/swift-system.git",
         "state": {
           "branch": null,
-          "revision": "836bc4557b74fe6d2660218d56e3ce96aff76574",
-          "version": "1.1.1"
+          "revision": "025bcb1165deab2e20d4eaba79967ce73013f496",
+          "version": "1.2.1"
         }
       },
       {
@@ -177,8 +186,8 @@
         "repositoryURL": "https://github.com/apple/swift-tools-support-core.git",
         "state": {
           "branch": null,
-          "revision": "284a41800b7c5565512ec6ae21ee818aac1f84ac",
-          "version": "0.4.0"
+          "revision": "3b13e439a341bbbfe0f710c7d1be37221745ef1a",
+          "version": "0.6.1"
         }
       },
       {
@@ -195,8 +204,8 @@
         "repositoryURL": "https://github.com/kojirou1994/SystemUp.git",
         "state": {
           "branch": null,
-          "revision": "e018312888322c23a25515dcce36fce36d02ef22",
-          "version": "0.2.4"
+          "revision": "dd4e523e57dd0f5ceb8e664c2c2e3982f091c8a0",
+          "version": "0.4.0"
         }
       },
       {
@@ -222,8 +231,8 @@
         "repositoryURL": "https://github.com/MaxDesiatov/XMLCoder.git",
         "state": {
           "branch": null,
-          "revision": "c438dad94f6a243b411b70a4b4bac54595064808",
-          "version": "0.15.0"
+          "revision": "b1e944cbd0ef33787b13f639a5418d55b3bed501",
+          "version": "0.17.1"
         }
       },
       {
@@ -231,8 +240,8 @@
         "repositoryURL": "https://github.com/ibireme/yyjson.git",
         "state": {
           "branch": null,
-          "revision": "7b210d66cb73536f351e8a82a63508bc77bffd20",
-          "version": "0.6.0"
+          "revision": "e01ae9d89eaf858894d366169329097171a28d67",
+          "version": "0.8.0"
         }
       },
       {
@@ -240,8 +249,8 @@
         "repositoryURL": "https://github.com/kojirou1994/YYJSONEncoder.git",
         "state": {
           "branch": null,
-          "revision": "7be0fcc0a39bc91fe11efb7ff54a1909e673e704",
-          "version": "0.1.1"
+          "revision": "5d3426eaba62005b1d439825aca8ea9afa89aabd",
+          "version": "0.2.0"
         }
       }
     ]

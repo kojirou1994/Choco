@@ -46,7 +46,7 @@ struct VideoOptionsGroup: ParsableArguments {
   var autoCrop: Bool = false
 
   @Option(help: "Set higher black value threshold, which can be optionally specified from nothing (0) to everything (255 for 8-bit based formats).")
-  var cropLimit: UInt8 = 24
+  var cropLimit: Double?
 
   @Option(help: "")
   var cropRound: UInt8 = 2
