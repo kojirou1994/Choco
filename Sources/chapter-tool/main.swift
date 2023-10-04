@@ -13,6 +13,7 @@ struct ChapterTool: ParsableCommand {
 
   static var configuration: CommandConfiguration {
     .init(subcommands: [
+      Ts2str.self,
       Rename.self,
       Clean.self,
       AutoRename.self,
@@ -20,6 +21,19 @@ struct ChapterTool: ParsableCommand {
       ConvertLosslessCut.self,
       Join.self,
     ])
+  }
+
+  struct Ts2str: ParsableCommand {
+
+    @Flag
+    var nanoSecond: Bool = false
+
+    @Argument
+    var timestamp: UInt64
+
+    func run() throws {
+      print(Timestamp(ns: timestamp).toString(displayNanoSecond: nanoSecond))
+    }
   }
 
   struct ConvertLosslessCut: ParsableCommand {
