@@ -25,10 +25,10 @@ extension CropTool: ExpressibleByArgument {}
 
 struct Crop: ParsableCommand {
 
-  @Option(help: "Available: \(OutputFormat.allCases)")
+  @Option(name: .shortAndLong, help: "Available: \(OutputFormat.allCases)")
   var format: OutputFormat = .text
 
-  @Option(help: "Available: \(CropTool.allCases)")
+  @Option(name: .shortAndLong, help: "Available: \(CropTool.allCases)")
   var tool: CropTool
 
   @Option(help: "Base filter for ffmpeg")
@@ -49,6 +49,9 @@ struct Crop: ParsableCommand {
   @Option(help: "")
   var skip: UInt = 0
 
+  @Option(help: "")
+  var frames: UInt?
+
   @Option()
   var tmp: String = sysTempDir()
 
@@ -62,7 +65,7 @@ struct Crop: ParsableCommand {
     let info: CropInfo
     switch tool {
     case .ffmpeg:
-      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, skip: skip, hw: hw, logger: logger).get()
+      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, skip: skip, frames: frames, hw: hw, logger: logger).get()
     case .handbrake:
       info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFileURL)
     }

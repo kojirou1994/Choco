@@ -30,7 +30,7 @@ private struct HandBrakePreview: Executable {
   }
 }
 
-public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: UInt8, skip: UInt, hw: String? = nil, logger: Logger) -> Result<CropInfo, ChocoError> {
+public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: UInt8, skip: UInt, frames: UInt? = nil, hw: String? = nil, logger: Logger) -> Result<CropInfo, ChocoError> {
   var filters = [String]()
   if !baseFilter.isEmpty {
     filters.append(baseFilter)
@@ -50,7 +50,7 @@ public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: 
   if let hw = hw {
     inputOptions.append(.hardwareAcceleration(hw, streamSpecifier: nil))
   }
-  let ffmpeg = FFmpeg(
+  var ffmpeg = FFmpeg(
     global: .init(hideBanner: true, enableStdin: false),
     ios: [
       .input(url: file, options: inputOptions),
@@ -60,6 +60,10 @@ public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: 
         .format("null"),
       ])
     ])
+
+  if let frames {
+    ffmpeg.ios[1].options.append(.avOption(name: "frames", value: "\(frames)", streamSpecifier: nil))
+  }
 
   logger.info("running ffmpeg: \(ffmpeg.arguments)")
   do {
