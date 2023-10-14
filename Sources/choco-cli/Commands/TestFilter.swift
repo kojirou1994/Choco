@@ -64,7 +64,7 @@ struct TestFilter: ParsableCommand {
               inputOptions.append(.startPosition(start))
             }
 
-            let ffmpeg = FFmpeg(global: .init(enableStdin: false), ios: [
+            let ffmpeg = FFmpeg(global: .init(hideBanner: true, enableStdin: false), ios: [
               .input(url: input, options: inputOptions),
               .output(url: outputFile.path, options: outputOptions)
             ])
