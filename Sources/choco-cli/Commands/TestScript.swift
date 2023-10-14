@@ -61,10 +61,9 @@ struct TestScript: ParsableCommand {
       let outputFile = outputDirectoryURL.appendingPathComponent("%05d.png")
       var outputOptions = [FFmpeg.InputOutputOption]()
       outputOptions.append(.format("image2"))
-      var inputOptions = [FFmpeg.InputOutputOption]()
       
       let ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false), ios: [
-        .input(url: input, options: inputOptions),
+        .input(url: "pipe:"),
         .output(url: outputFile.path, options: outputOptions)
       ])
 
