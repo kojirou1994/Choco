@@ -3,6 +3,7 @@ import TSCExecutableLauncher
 import Foundation
 import libChoco
 import FPExecutableLauncher
+import URLFileManager
 
 struct TestScript: ParsableCommand {
 
@@ -40,6 +41,7 @@ struct TestScript: ParsableCommand {
     let encodeScript = try String(contentsOfFile: template)
 
     let inputURL = URL(fileURLWithPath: input)
+    let inputBasename = inputURL.deletingPathExtension().lastPathComponent
 
     let vsCrop: CropInfo? = if crop == .vs {
       try ffmpegCrop(file: input, baseFilter: "", limit: nil, round: 2, skip: 0, logger: nil).get()
@@ -57,13 +59,15 @@ struct TestScript: ParsableCommand {
       encoderDepth: depth ?? 10)
     let scriptFileURL = inputURL
       .deletingLastPathComponent()
-      .appendingPathComponent("\(inputURL.deletingPathExtension().lastPathComponent)-gen_script.py")
+      .appendingPathComponent("\(inputBasename)-gen_script.py")
     try! script.write(to: scriptFileURL, atomically: false, encoding: .utf8)
 
     try AnyExecutable(executableName: "vspipe", arguments: ["--info", scriptFileURL.path])
       .launch(use: TSCExecutableLauncher(outputRedirection: .none), options: .init(checkNonZeroExitCode: false))
 
-    if let outputDirectoryURL = previewDirectory.map(URL.init(fileURLWithPath:)) {
+    if let outputDirectoryURL = previewDirectory.map({ URL(fileURLWithPath: $0).appendingPathComponent(inputBasename) }) {
+
+      try URLFileManager.default.createDirectory(at: outputDirectoryURL)
 
       var vspipeArgs = [String]()
 
