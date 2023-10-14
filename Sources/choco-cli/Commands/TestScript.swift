@@ -15,6 +15,17 @@ struct TestScript: ParsableCommand {
   @Option
   var end: Int?
 
+  @Option(help: "vs output depth")
+  var depth: Int?
+
+  @Option
+  var crop: CropTime?
+
+  enum CropTime: String, ExpressibleByArgument {
+    case vs
+//    case encode
+  }
+
   @Argument
   var template: String
 
@@ -27,11 +38,17 @@ struct TestScript: ParsableCommand {
 
     let inputURL = URL(fileURLWithPath: input)
 
+    let vsCrop: CropInfo? = if crop == .vs {
+      try ffmpegCrop(file: input, baseFilter: "", limit: nil, round: 2, skip: 0, logger: nil).get()
+    } else {
+      nil
+    }
+
     let script = try generateScript(
       encodeScript: encodeScript, filePath: input,
       trackIndex: 0,
-      cropInfo: nil,
-      encoderDepth: 10)
+      cropInfo: vsCrop,
+      encoderDepth: depth ?? 10)
     let scriptFileURL = inputURL
       .deletingLastPathComponent()
       .appendingPathComponent("\(inputURL.deletingPathExtension().lastPathComponent)-gen_script.py")
