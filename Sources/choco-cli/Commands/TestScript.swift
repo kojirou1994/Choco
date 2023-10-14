@@ -43,6 +43,9 @@ struct TestScript: ParsableCommand {
     } else {
       nil
     }
+    if let vsCrop {
+      print("crop at vspipe: \(vsCrop)")
+    }
 
     let script = try generateScript(
       encodeScript: encodeScript, filePath: input,
@@ -78,7 +81,7 @@ struct TestScript: ParsableCommand {
       let outputFile = outputDirectoryURL.appendingPathComponent("%05d.png")
       var outputOptions = [FFmpeg.InputOutputOption]()
       outputOptions.append(.format("image2"))
-      
+
       let ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false), ios: [
         .input(url: "pipe:"),
         .output(url: outputFile.path, options: outputOptions)
