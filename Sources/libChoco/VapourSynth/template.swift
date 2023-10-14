@@ -8,6 +8,7 @@ public func generateScript(encodeScript: String, filePath: String, trackIndex: I
   let tree = parser.parse(string: encodeScript)
   var dic = [
     "filePath": "r\"" + filePath + "\"",
+    "filePath_WIN": "r\"" + filePath.replacingOccurrences(of: "/", with: "\\") + "\"",
 //    "trackIndex": trackIndex,
     "encoderDepth": encoderDepth
   ] as [String : Any]
