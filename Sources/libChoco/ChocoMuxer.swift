@@ -718,7 +718,7 @@ extension ChocoMuxer {
                 runningProcessID = nil
               }
               do {
-                let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-y", scriptFileURL.path, "-"]))
+                let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-c", "y4m", scriptFileURL.path, "-"]))
 
                 let vspipeFFmpeg = FFmpeg(global: .init(hideBanner: true), ios: [
                   .input(url: "pipe:"),
