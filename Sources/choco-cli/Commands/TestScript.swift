@@ -9,6 +9,9 @@ struct TestScript: ParsableCommand {
   @Option
   var previewDirectory: String?
 
+  @Option(name: .shortAndLong, help: "preview images output format")
+  var format: String = "jpeg"
+
   @Option
   var start: Int?
 
@@ -78,7 +81,7 @@ struct TestScript: ParsableCommand {
 
       let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: vspipeArgs))
 
-      let outputFile = outputDirectoryURL.appendingPathComponent("%05d.png")
+      let outputFile = outputDirectoryURL.appendingPathComponent("%05d.\(format)")
       var outputOptions = [FFmpeg.InputOutputOption]()
       outputOptions.append(.format("image2"))
 
