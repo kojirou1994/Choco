@@ -30,7 +30,7 @@ private struct HandBrakePreview: Executable {
   }
 }
 
-public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: UInt8, skip: UInt, frames: UInt? = nil, hw: String? = nil, logger: Logger) -> Result<CropInfo, ChocoError> {
+public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: UInt8, skip: UInt, frames: UInt? = nil, hw: String? = nil, logger: Logger?) -> Result<CropInfo, ChocoError> {
   var filters = [String]()
   if !baseFilter.isEmpty {
     filters.append(baseFilter)
@@ -65,7 +65,7 @@ public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: 
     ffmpeg.ios[1].options.append(.avOption(name: "frames", value: "\(frames)", streamSpecifier: nil))
   }
 
-  logger.info("running ffmpeg: \(ffmpeg.arguments)")
+  logger?.info("running ffmpeg: \(ffmpeg.arguments)")
   do {
     let result = try ffmpeg.launch(use: TSCExecutableLauncher())
     for line in try! result.utf8stderrOutput().components(separatedBy: .newlines).reversed() {
