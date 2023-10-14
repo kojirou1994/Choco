@@ -13,13 +13,14 @@ public func generateScript(encodeScript: String, filePath: String, trackIndex: I
   ] as [String : Any]
 
   /*
-   if "{{{cropWidth}}}" == "":
+   if "{{{cropMode}}}" == "relative":
      src = core.std.Crop(src, {{{cropLeft}}}, {{{cropRight}}}, {{{cropTop}}}, {{{cropBottom}}})
    else:
      src = core.std.CropAbs(src, {{{cropWidth}}}, {{{cropHeight}}}, {{{cropLeft}}}, {{{cropTop}}})
    */
   switch cropInfo {
   case .relative(let top, let bottom, let left, let right):
+    dic["cropMode"] = "relative"
     dic["cropWidth"] = "0"
     dic["cropHeight"] = "0"
     dic["cropLeft"] = left
@@ -27,6 +28,7 @@ public func generateScript(encodeScript: String, filePath: String, trackIndex: I
     dic["cropTop"] = top
     dic["cropBottom"] = bottom
   case .absolute(let width, let height, let x, let y):
+    dic["cropMode"] = "absolute"
     dic["cropRight"] = "0"
     dic["cropBottom"] = "0"
     dic["cropWidth"] = width
