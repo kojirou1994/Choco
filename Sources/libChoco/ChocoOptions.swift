@@ -287,7 +287,7 @@ extension ChocoCommonOptions {
   public struct VideoOptions: CustomStringConvertible {
     public init(process: VideoProcess,
                 progressiveOnly: Bool,
-                filter: String,
+                filter: String, cropFilter: String?,
                 encodeScript: String?,
                 codec: Codec,
                 preset: String?,
@@ -302,6 +302,7 @@ extension ChocoCommonOptions {
       self.process = process
       self.progressiveOnly = progressiveOnly
       self.filter = filter
+      self.cropFilter = cropFilter ?? filter
       self.encodeScript = encodeScript
       self.codec = codec
       self.preset = preset
@@ -322,6 +323,7 @@ extension ChocoCommonOptions {
     public let process: VideoProcess
     public let progressiveOnly: Bool
     public let filter: String
+    public let cropFilter: String
     public let encodeScript: String?
     public let codec: Codec
     public let tune: String?
