@@ -32,6 +32,7 @@ let package = Package(
     .package(url: "https://github.com/AlwaysRightInstitute/mustache.git", .upToNextMajor(from: "1.0.0")),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
     .package(url: "https://github.com/kojirou1994/ISOCodes.git", .exact("0.1.0")),
+    .package(url: "https://github.com/objecthub/swift-numberkit.git", from: "2.4.0"),
   ],
   targets: [
     .target(
@@ -59,6 +60,7 @@ let package = Package(
         .product(name: "Logging", package: "swift-log"),
         .product(name: "FPExecutableLauncher", package: "Executable"),
         .product(name: "JSON", package: "YYJSONEncoder"),
+        .product(name: "NumberKit", package: "swift-numberkit"),
       ]
     ),
     .executableTarget(

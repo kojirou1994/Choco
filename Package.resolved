@@ -78,8 +78,8 @@
         "repositoryURL": "https://github.com/kojirou1994/MediaUtility.git",
         "state": {
           "branch": null,
-          "revision": "5b46e31fd93aed77289824202ec44d45484a3c02",
-          "version": "0.6.4"
+          "revision": "ead4cf99364cc233c3171fda59a96f99d780d51a",
+          "version": "0.6.5"
         }
       },
       {
@@ -123,8 +123,8 @@
         "repositoryURL": "https://github.com/apple/swift-algorithms.git",
         "state": {
           "branch": null,
-          "revision": "b14b7f4c528c942f121c8b860b9410b2bf57825e",
-          "version": "1.0.0"
+          "revision": "bcd4f369ac962bc3e5244c9df778739f8f5bdbf1",
+          "version": "1.1.0"
         }
       },
       {
@@ -161,6 +161,15 @@
           "branch": null,
           "revision": "532d8b529501fb73a2455b179e0bbb6d49b652ed",
           "version": "1.5.3"
+        }
+      },
+      {
+        "package": "NumberKit",
+        "repositoryURL": "https://github.com/objecthub/swift-numberkit.git",
+        "state": {
+          "branch": null,
+          "revision": "0f9c918dcea73f6ff4ff762b8e83a0991ca668d9",
+          "version": "2.4.2"
         }
       },
       {

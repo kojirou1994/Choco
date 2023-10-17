@@ -290,7 +290,7 @@ extension ChocoCommonOptions {
                 filter: String, cropFilter: String?,
                 encodeScript: String?,
                 codec: Codec,
-                preset: String?,
+                preset: String?, sar: VideoSAR,
                 colorPreset: ColorPreset?,
                 tune: String?, profile: String?,
                 params: String?,
@@ -306,6 +306,7 @@ extension ChocoCommonOptions {
       self.encodeScript = encodeScript
       self.codec = codec
       self.preset = preset
+      self.sar = sar
       self.colorPreset = colorPreset
       self.quality = quality
       self.autoCrop = autoCrop
@@ -331,6 +332,7 @@ extension ChocoCommonOptions {
     public let params: String?
     public let avcodecFlags: [String]
     public let preset: String?
+    public let sar: VideoSAR
     public let colorPreset: ColorPreset?
     public let quality: VideoQuality
     public let autoCrop: Bool
@@ -408,6 +410,14 @@ extension ChocoCommonOptions {
 
       public var description: String { rawValue }
     }
+
+    public enum VideoSAR: String, CustomStringConvertible, CaseIterable {
+      case notset
+      case source
+
+      public var description: String { rawValue }
+    }
+
 
     public enum Codec: String, CaseIterable, CustomStringConvertible {
       case x265
@@ -522,9 +532,14 @@ extension ChocoCommonOptions.VideoOptions.Codec {
   }
 }
 
+import NumberKit
+typealias SampleAspectRatio = Rational<UInt>
+
 extension ChocoCommonOptions.VideoOptions {
 
-  func ffmpegIOOptions(cropInfo: CropInfo?) -> [FFmpeg.InputOutputOption] {
+  // only for single video track
+  // sar: input sar
+  func ffmpegIOOptions(cropInfo: CropInfo?, sourceSAR: SampleAspectRatio) -> [FFmpeg.InputOutputOption] {
     var options = [FFmpeg.InputOutputOption]()
     options.append(.codec(codec.ffCodec, streamSpecifier: .streamType(.video)))
     if !keepPixelFormat {
@@ -537,8 +552,13 @@ extension ChocoCommonOptions.VideoOptions {
       if !filter.isEmpty {
         usedFilters.append(filter)
       }
-      if let cropInfo = cropInfo {
+      if let cropInfo {
         usedFilters.append(cropInfo.ffmpegArgument)
+      }
+      switch sar {
+      case .source:
+        usedFilters.append("setsar=sar=\(sourceSAR.numerator)/\(sourceSAR.denominator)")
+      case .notset: break
       }
       if !usedFilters.isEmpty {
         options.append(.filter(filtergraph: usedFilters.joined(separator: ","), streamSpecifier: .streamType(.video)))
@@ -591,7 +611,7 @@ extension ChocoCommonOptions.VideoOptions {
       options.append(.avOption(name: "tag", value: "hvc1", streamSpecifier: nil))
     }
 
-    if let profile = self.profile {
+    if let profile {
       options.append(.avOption(name: "profile", value: profile, streamSpecifier: nil))
     }
 

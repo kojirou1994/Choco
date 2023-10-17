@@ -5,6 +5,7 @@ extension ChocoCommonOptions.VideoOptions.Codec: ExpressibleByArgument {}
 extension ChocoCommonOptions.VideoOptions.ColorPreset: ExpressibleByArgument {}
 extension ChocoCommonOptions.VideoOptions.VideoProcess: ExpressibleByArgument {}
 extension ChocoCommonOptions.VideoOptions.VideoQuality: ExpressibleByArgument {}
+extension ChocoCommonOptions.VideoOptions.VideoSAR: ExpressibleByArgument {}
 
 struct VideoOptionsGroup: ParsableArguments {
   @Option(name: [.customShort("v"), .long], help: "Video processing method, \(ChocoCommonOptions.VideoOptions.VideoProcess.availableValues).")
@@ -24,6 +25,9 @@ struct VideoOptionsGroup: ParsableArguments {
 
   @Option(help: "Codec preset for video track")
   var videoPreset: String?
+
+  @Option(help: "SAR handling for video track, \(ChocoCommonOptions.VideoOptions.VideoSAR.availableValues)")
+  var videoSAR: ChocoCommonOptions.VideoOptions.VideoSAR = .source
 
   @Option(help: "Codec crf for video track, eg. crf:19 or bitrate:5000k")
   var videoQuality: ChocoCommonOptions.VideoOptions.VideoQuality = .crf(18)
@@ -73,6 +77,6 @@ struct VideoOptionsGroup: ParsableArguments {
   }
 
   var options: ChocoCommonOptions.VideoOptions {
-    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, cropFilter: cropFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, colorPreset: videoColor, tune: videoTune, profile: videoProfile, params: videoParams, avcodecFlags: avcodecFlags, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, cropSkip: cropSkip, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
+    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, cropFilter: cropFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, sar: videoSAR, colorPreset: videoColor, tune: videoTune, profile: videoProfile, params: videoParams, avcodecFlags: avcodecFlags, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, cropSkip: cropSkip, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
   }
 }

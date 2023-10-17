@@ -656,15 +656,42 @@ extension ChocoMuxer {
           break
         }
         videoHandled = true
+
+        // mediainfo infos
+        let media = try! (mediainfo.root?["media"]).unwrap()
+        let tracks = try! (media["track"]?.array).unwrap()
+        let videoTrack = tracks.first(where: { $0["@type"]! == "Video" })!
+        _ = consume media
+        _ = consume tracks
+
+
+        /*
+         "Width":"720",
+         "Height":"480",
+         "Sampled_Width":"720",
+         "Sampled_Height":"480",
+         "PixelAspectRatio":"1.212",
+         "DisplayAspectRatio":"1.819",
+         "DisplayAspectRatio_String":"16:9",
+         "DisplayAspectRatio_Original":"1.818",
+         "DisplayAspectRatio_Original_String":"16:9",
+         */
+        let width = try! (videoTrack["Width"]?.string.flatMap(UInt.init)).unwrap("no width")
+        let height = try! (videoTrack["Height"]?.string.flatMap(UInt.init)).unwrap("no height")
+        let dar = try! {
+          let darString = try (videoTrack["DisplayAspectRatio_String"]?.string).unwrap("no dar")
+          let errInfo = "invalid dar format: \(darString)"
+          let parts = try darString.splitTwoPart(":").unwrap()
+          return try SampleAspectRatio(.init(parts.0).unwrap(errInfo), .init(parts.1).unwrap(errInfo))
+        }()
+        let sar = dar.divided(by: SampleAspectRatio(width, height))
+        logger.info("video track sar: \(sar)")
+
         switch commonOptions.video.process {
         case .encode:
           if commonOptions.video.progressiveOnly {
             logger.info("Progressive-only mode enabled, checking video track scan type.")
             // check scan type
-
-            let media = try! (mediainfo.root?["media"]).unwrap()
-            let tracks = try! (media["track"]?.array).unwrap()
-            let videoTrack = tracks.first(where: { $0["@type"]! == "Video" })!
             if let scanType = videoTrack["ScanType"]?.string {
               logger.info("Scan type: \(scanType)")
               if scanType.lowercased() != "progressive" {
@@ -704,7 +731,7 @@ extension ChocoMuxer {
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
             try! script.write(to: scriptFileURL, atomically: false, encoding: .utf8)
 
-            var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: commonOptions.video.ffmpegIOOptions(cropInfo: nil))
+            var videoOutput = FFmpeg.FFmpegIO.output(url: encodedTrackFile.path, options: commonOptions.video.ffmpegIOOptions(cropInfo: nil, sourceSAR: sar))
 
             if commonOptions.video.useIntergratedVapoursynth {
               logger.info("Using ffmpeg integrated Vapoursynth!")
@@ -744,7 +771,7 @@ extension ChocoMuxer {
               .mapMetadata(outputSpec: nil, inputFileIndex: -1, inputSpec: nil),
               .mapChapters(inputFileIndex: -1),
             ]
-            outputOptions.append(contentsOf: commonOptions.video.ffmpegIOOptions(cropInfo: cropInfo))
+            outputOptions.append(contentsOf: commonOptions.video.ffmpegIOOptions(cropInfo: cropInfo, sourceSAR: sar))
             // output
             ffmpeg.ios.append(.output(url: encodedTrackFile.path, options: outputOptions))
           }
