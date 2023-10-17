@@ -693,9 +693,15 @@ extension ChocoMuxer {
         }()
         let sar = dar.divided(by: SampleAspectRatio(width, height))
         let fps = try! {
-          let num = try (videoTrack["FrameRate_Original_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num")
-          let den = try (videoTrack["FrameRate_Original_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den")
-          return Rational(num, den)
+          do {
+            let num = try (videoTrack["FrameRate_Original_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num origin")
+            let den = try (videoTrack["FrameRate_Original_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den origin")
+            return Rational(num, den)
+          } catch {
+            let num = try (videoTrack["FrameRate_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num")
+            let den = try (videoTrack["FrameRate_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den")
+            return Rational(num, den)
+          }
         }()
         logger.info("video track sar: \(sar)")
         logger.info("video track fps: \(fps)")
@@ -1341,11 +1347,23 @@ extension ChocoMuxer {
   }
 }
 
-struct ChocoTrackInfo {
+struct ChocoVideoTrackInfo {
   let trackIndex: Int
   let trackIndexForSameType: Int
-  let trackType: MediaTrackType
   let codec: String
   let lang: String
   let name: String
+  let bitrate: Int
+  let width: Int
+  let height: Int
+  let croppingMeta: CropInfo?
+}
+
+struct ChocoAudioTrackInfo {
+  let trackIndex: Int
+  let trackIndexForSameType: Int
+  let codec: String
+  let lang: String
+  let name: String
+  let bitrate: Int
 }
