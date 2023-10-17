@@ -22,6 +22,15 @@ public enum CropInfo: Equatable {
     self = .absolute(width: numbers[0], height: numbers[1], x: numbers[2], y: numbers[3])
   }
 
+  public init<S: StringProtocol>(mkvProperty string: S) throws {
+    let numbers = try string
+      .split(separator: ",")
+      .map { try Int32($0).unwrap("Invalid number in crop info: \($0), full string: \(string)") } // it's UInt actually
+
+    try preconditionOrThrow(numbers.count == 4, "CropInfo must have 4 numbers")
+    self = .relative(top: numbers[1], bottom: numbers[3], left: numbers[0], right: numbers[2])
+  }
+
   public var ffmpegArgument: String {
     switch self {
     case .relative(let top, let bottom, let left, let right):
