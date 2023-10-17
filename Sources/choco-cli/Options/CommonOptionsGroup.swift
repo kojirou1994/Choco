@@ -6,19 +6,19 @@ import KwiftUtility
 extension Logger.Level: ExpressibleByArgument {}
 
 struct CommonOptionsGroup: ParsableArguments {
-  @OptionGroup
+  @OptionGroup(title : "IO")
   var io: IOOptionsGroup
 
-  @OptionGroup
+  @OptionGroup(title : "Metadata")
   var meta: MetaOptionsGroup
 
-  @OptionGroup
+  @OptionGroup(title : "Video")
   var video: VideoOptionsGroup
 
-  @OptionGroup
+  @OptionGroup(title : "Audio")
   var audio: AudioOptionsGroup
 
-  @OptionGroup
+  @OptionGroup(title : "Language")
   var language: LanguageOptionsGroup
 
   @Option(help: "Log level, \(Logger.Level.availableValues)")
