@@ -68,6 +68,11 @@ struct TestScript: ParsableCommand {
       .launch(use: TSCExecutableLauncher(outputRedirection: .collect), options: .init(checkNonZeroExitCode: false))
     do {
       let info = try VsPipe.Info.parse(output.utf8Output())
+      print("Info Parsed!")
+      print("Resolution: \(info.width)x\(info.height)")
+      print("FPS: \(info.fps.0)/\(info.fps.1)")
+      print("Frames: \(info.frames)")
+      print("Format: \(info.formatName)")
     } catch {
       print("cannot parse vspipe!")
       try? print("stdout:\n\(output.utf8Output())")
