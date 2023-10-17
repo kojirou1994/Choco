@@ -64,7 +64,7 @@ public final class ChocoMuxer {
         if commonOptions.video.useIntergratedVapoursynth {
           try preconditionOrThrow(ffmpegCodecs.vapoursynth, "no vapoursynth!")
         } else {
-          _ = try ExecutablePath.lookup("vspipe", alternativeExecutableNames: []).get()
+          _ = try ExecutablePath.lookup(type: VsPipe.self).get()
         }
       }
     }
@@ -766,7 +766,7 @@ extension ChocoMuxer {
                 runningProcessID = nil
               }
               do {
-                let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: ["-c", "y4m", scriptFileURL.path, "-"]))
+                let pipeline = try ContiguousPipeline(VsPipe(script: scriptFileURL.path, output: .file(.stdout), container: .y4m))
 
                 let vspipeFFmpeg = FFmpeg(global: .init(hideBanner: true), ios: [
                   .input(url: "pipe:"),

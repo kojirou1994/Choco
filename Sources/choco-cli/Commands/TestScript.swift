@@ -64,28 +64,23 @@ struct TestScript: ParsableCommand {
       .appendingPathComponent("\(inputBasename)-gen_script.py")
     try! script.write(to: scriptFileURL, atomically: false, encoding: .utf8)
 
-    try AnyExecutable(executableName: "vspipe", arguments: ["--info", scriptFileURL.path])
-      .launch(use: TSCExecutableLauncher(outputRedirection: .none), options: .init(checkNonZeroExitCode: false))
+    let output = try VsPipe(script: scriptFileURL.path, output: .info)
+      .launch(use: TSCExecutableLauncher(outputRedirection: .collect), options: .init(checkNonZeroExitCode: false))
+    do {
+      let info = try VsPipe.Info.parse(output.utf8Output())
+    } catch {
+      print("cannot parse vspipe!")
+      try? print("stdout:\n\(output.utf8Output())")
+      try? print("stderr:\n\(output.utf8stderrOutput())")
+    }
 
     if let outputDirectoryURL = previewDirectory.map({ URL(fileURLWithPath: $0).appendingPathComponent(inputBasename) }) {
 
       try URLFileManager.default.createDirectory(at: outputDirectoryURL)
 
-      var vspipeArgs = [String]()
+      let vspipe = VsPipe(script: scriptFileURL.path, output: .file(.stdout), start: start, end: end, container: .y4m)
 
-      vspipeArgs.append(contentsOf: ["-c", "y4m", scriptFileURL.path, "-"])
-
-      if let start {
-        vspipeArgs.append("--start")
-        vspipeArgs.append(start.description)
-      }
-
-      if let end {
-        vspipeArgs.append("--end")
-        vspipeArgs.append(end.description)
-      }
-
-      let pipeline = try ContiguousPipeline(AnyExecutable(executableName: "vspipe", arguments: vspipeArgs))
+      let pipeline = try ContiguousPipeline(vspipe)
 
       let outputFile = outputDirectoryURL.appendingPathComponent("%05d.\(format)")
       var outputOptions = [FFmpeg.InputOutputOption]()
