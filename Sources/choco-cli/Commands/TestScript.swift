@@ -56,7 +56,9 @@ struct TestScript: ParsableCommand {
       encodeScript: encodeScript, filePath: input,
       trackIndex: 0,
       cropInfo: vsCrop,
-      encoderDepth: depth ?? 10)
+      encoderDepth: depth ?? 10,
+      fps: nil
+    )
     let scriptFileURL = inputURL
       .deletingLastPathComponent()
       .appendingPathComponent("\(inputBasename)-gen_script.py")

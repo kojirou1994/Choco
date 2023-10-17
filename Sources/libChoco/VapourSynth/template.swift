@@ -1,8 +1,8 @@
 import Foundation
 import mustache
+import NumberKit
 
-
-public func generateScript(encodeScript: String, filePath: String, trackIndex: Int, cropInfo: CropInfo?, encoderDepth: Int) throws -> String {
+public func generateScript(encodeScript: String, filePath: String, trackIndex: Int, cropInfo: CropInfo?, encoderDepth: Int, fps: Rational<UInt>?) throws -> String {
 //  let template = try String(contentsOfFile: templatePath)
   let parser = MustacheParser()
   let tree = parser.parse(string: encodeScript)
@@ -19,6 +19,15 @@ public func generateScript(encodeScript: String, filePath: String, trackIndex: I
     "cropRight": 0,
     "encoderDepth": encoderDepth
   ] as [String : Any]
+
+
+  if let fps {
+    dic["fpsNum"] = fps.numerator
+    dic["fpsDen"] = fps.denominator
+  } else {
+    dic["fpsNum"] = 0
+    dic["fpsDen"] = 1
+  }
 
   /*
    if "{{{cropMode}}}" == "relative":

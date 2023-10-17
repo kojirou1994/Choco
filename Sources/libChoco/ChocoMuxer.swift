@@ -11,6 +11,7 @@ import ISOCodes
 import Precondition
 import FPExecutableLauncher
 import JSON
+import NumberKit
 
 let fm = URLFileManager.default
 
@@ -675,6 +676,12 @@ extension ChocoMuxer {
          "DisplayAspectRatio_String":"16:9",
          "DisplayAspectRatio_Original":"1.818",
          "DisplayAspectRatio_Original_String":"16:9",
+         "FrameRate":"59.940",
+         "FrameRate_String":"59.940 FPS",
+         "FrameRate_Original":"29.970",
+         "FrameRate_Original_String":"29.970 (30000/1001) FPS",
+         "FrameRate_Original_Num":"30000",
+         "FrameRate_Original_Den":"1001",
          */
         let width = try! (videoTrack["Width"]?.string.flatMap(UInt.init)).unwrap("no width")
         let height = try! (videoTrack["Height"]?.string.flatMap(UInt.init)).unwrap("no height")
@@ -685,7 +692,13 @@ extension ChocoMuxer {
           return try SampleAspectRatio(.init(parts.0).unwrap(errInfo), .init(parts.1).unwrap(errInfo))
         }()
         let sar = dar.divided(by: SampleAspectRatio(width, height))
+        let fps = try! {
+          let num = try (videoTrack["FrameRate_Original_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num")
+          let den = try (videoTrack["FrameRate_Original_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den")
+          return Rational(num, den)
+        }()
         logger.info("video track sar: \(sar)")
+        logger.info("video track fps: \(fps)")
 
         switch commonOptions.video.process {
         case .encode:
@@ -727,7 +740,9 @@ extension ChocoMuxer {
               encodeScript: encodeScript, filePath: mkvinfo.fileName!,
               trackIndex: currentTrackIndex,
               cropInfo: cropInfo,
-              encoderDepth: commonOptions.video.codec.depth)
+              encoderDepth: commonOptions.video.codec.depth,
+              fps: fps
+            )
             let scriptFileURL = temporaryPath.appendingPathComponent("\(baseFilename)-\(currentTrackIndex)-generated_script.py")
             try! script.write(to: scriptFileURL, atomically: false, encoding: .utf8)
 
