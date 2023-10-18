@@ -90,6 +90,9 @@ struct TestScript: ParsableCommand {
       let outputFile = outputDirectoryURL.appendingPathComponent("%05d.\(format)")
       var outputOptions = [FFmpeg.InputOutputOption]()
       outputOptions.append(.format("image2"))
+      if let start {
+        outputOptions.append(.avOption(name: "start_number", value: start.description, streamSpecifier: nil))
+      }
 
       let ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false), ios: [
         .input(url: "pipe:"),
