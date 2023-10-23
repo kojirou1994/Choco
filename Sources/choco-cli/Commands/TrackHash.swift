@@ -56,6 +56,9 @@ struct TrackHash: ParsableCommand {
   @Option(help: "Tool selection: \(Tool.allCases.map(\.rawValue)).")
   var tool: Tool = .ffmpeg
 
+  @Option(help: "ffmpeg hash algorithm")
+  var hash: String = "murmur3"
+
   @Flag(help: "Decode every video frames.")
   var slowVideo: Bool = false
 
@@ -127,6 +130,7 @@ struct TrackHash: ParsableCommand {
           }
           outputOptions.append(.codec("copy", streamSpecifier: .streamType(.subtitle)))
           outputOptions.append(.format("streamhash"))
+          outputOptions.append(.avOption(name: "hash", value: hash, streamSpecifier: nil))
 
           var inputOptions: [FFmpeg.InputOutputOption] = []
           ffmpegOptions?.split(separator: ",").forEach { inputOptions.append(.raw(String($0))) }
