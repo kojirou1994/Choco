@@ -14,6 +14,7 @@ import MediaUtility
 import URLFileManager
 import PrettyBytes
 import SystemUp
+import SystemPackage
 
 extension MediaTrackType: EnumerableFlag {
   public static var allCases: [MediaTrackType] {
@@ -65,6 +66,9 @@ struct TrackHash: ParsableCommand {
   @Flag(help: "Deduplicate same spec tracks with mkvpropedit, input must be mkv.")
   var dedup: Bool = false
 
+  @Flag(help: "Remove duplicated files.")
+  var removeDup: Bool = false
+
   @Option(parsing: .unconditional, help: "Extra ffmpeg input options, seperated by comma.")
   var ffmpegOptions: String?
 
@@ -85,6 +89,9 @@ struct TrackHash: ParsableCommand {
 
     let formatter = BytesStringFormatter(uppercase: true)
     let tmpDir = (PosixEnvironment.get(key: "TMPDIR") ?? tmp).map(URL.init(fileURLWithPath:)) ?? FileManager.default.temporaryDirectory
+
+    /// key is hashes
+    var dedupFileDatas = [[String]: [String]]()
 
     inputs.forEach { file in
       do {
@@ -173,6 +180,10 @@ struct TrackHash: ParsableCommand {
           print("Hash:", hash)
         }
 
+        if removeDup {
+          dedupFileDatas[hashes, default: []].append(file)
+        }
+
         if dedup {
           print("Dedup enabled, start checking.")
           var disabledTrackIDs = [Int]()
@@ -215,6 +226,22 @@ struct TrackHash: ParsableCommand {
         print("")
       } catch {
         print("Failed, error: \(error)")
+      }
+    }
+
+    if removeDup {
+      print("Start checking duplicated files...")
+      for (_, files) in dedupFileDatas where files.count > 1 {
+        print("keep file: \(files[0])")
+        files.dropFirst().forEach { file in
+          do {
+            print("removing \(file)")
+            try FileSyscalls.unlink(.absolute(FilePath(file))).get()
+          } catch {
+            print("error: ", error)
+          }
+        }
+        print()
       }
     }
   }
