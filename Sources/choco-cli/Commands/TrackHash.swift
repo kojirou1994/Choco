@@ -26,12 +26,6 @@ extension MediaTrackType: EnumerableFlag {
   }
 }
 
-extension MkvPropEdit.EditSelector.TrackSelector {
-  static func trackID(_ n: Int) -> Self {
-    .trackNumber(n+1)
-  }
-}
-
 struct AudioTrackHashSpec: Hashable {
   let channels: UInt
   let samplerate: UInt
@@ -186,7 +180,7 @@ struct TrackHash: ParsableCommand {
 
         if dedup {
           print("Dedup enabled, start checking.")
-          var disabledTrackIDs = [Int]()
+          var disabledTrackIDs = [UInt]()
           var checkedAudios = [(spec: AudioTrackHashSpec, trackID: Int, hash: String)]()
           var subtitleHashes = [(trackID: Int, hash: String)]()
           zip(extractedTracks, hashes).forEach { track, hash in
@@ -196,14 +190,14 @@ struct TrackHash: ParsableCommand {
               let spec = track.spec
               if let existed = checkedAudios.first(where: { $0.hash == hash && $0.spec == spec }) {
                 print("dup audio track \(track.id) detected, dst trackID: \(existed.trackID)")
-                disabledTrackIDs.append(track.id)
+                disabledTrackIDs.append(track.properties!.uid!)
               } else {
                 checkedAudios.append((spec, track.id, hash))
               }
             case .subtitles:
               if let existed = subtitleHashes.first(where: { $0.hash == hash }) {
                 print("dup subtitle track \(track.id) detected, dst trackID: \(existed.trackID)")
-                disabledTrackIDs.append(track.id)
+                disabledTrackIDs.append(track.properties!.uid!)
               } else {
                 subtitleHashes.append((track.id, hash))
               }
@@ -215,8 +209,8 @@ struct TrackHash: ParsableCommand {
             print("disable tracks: \(disabledTrackIDs)")
 
             var editor = MkvPropEdit(filepath: file)
-            disabledTrackIDs.forEach { trackID in
-              editor.actions.append(.init(selector: .track(.trackID(trackID)), modifications: [.set(name: "flag-enabled", value: "0")]))
+            disabledTrackIDs.forEach { trackUID in
+              editor.actions.append(.init(selector: .track(.uid(trackUID.description)), modifications: [.set(name: "flag-enabled", value: "0")]))
             }
             print(editor.arguments)
             try editor.launch(use: .tsc(outputRedirection: .none))
