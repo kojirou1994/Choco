@@ -1,14 +1,15 @@
 import Foundation
 import mustache
 import NumberKit
+import Escape
 
 public func generateScript(encodeScript: String, filePath: String, trackIndex: Int, cropInfo: CropInfo?, encoderDepth: Int, fps: Rational<UInt>?) throws -> String {
 //  let template = try String(contentsOfFile: templatePath)
   let parser = MustacheParser()
   let tree = parser.parse(string: encodeScript)
   var dic = [
-    "filePath": "r\"" + filePath + "\"",
-    "filePath_WIN": "r\"" + filePath.replacingOccurrences(of: "/", with: "\\") + "\"",
+    "filePath": filePath.pythonEscaped(),
+    "filePath_WIN": filePath.replacingOccurrences(of: "/", with: "\\").pythonEscaped(),
 //    "trackIndex": trackIndex,
     // default crop props, make py happy
     "cropTop": 0,
