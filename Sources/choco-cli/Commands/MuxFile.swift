@@ -30,8 +30,10 @@ struct MuxFile: ParsableCommand {
       let fileRemuxOptions = FileRemuxOptions(recursive: recursive, copyNormalFiles: copyNormalFiles, copyOverwrite: copyOverwrite, removeSourceFiles: removeSourceFiles, fileTypes: FileRemuxOptions.defaultFileTypes)
 
       var endlessLoopCount = 0
+      var hasFailureTasks = false
 
       while true {
+        hasFailureTasks = false
 
         let results = inputs.map { input in
           muxer.mux(file: URL(fileURLWithPath: input), options: fileRemuxOptions)
@@ -63,6 +65,7 @@ struct MuxFile: ParsableCommand {
                   print("success ==>")
                   print("\(output.path.path) \(ByteCountFormatter.string(fromByteCount: numericCast(output.size), countStyle: .file))")
                 case .failure(let error):
+                  hasFailureTasks = true
                   print("failure: \(error)")
                 }
                 print()
@@ -81,6 +84,10 @@ struct MuxFile: ParsableCommand {
         }
 
       } // loop end
+
+      if hasFailureTasks {
+        throw ExitCode(1)
+      }
     }
 
   }
