@@ -323,6 +323,11 @@ extension ChocoMuxer {
       let inputInfo = IOFileInfo(path: currentFileURL)
       let startTime = Date()
 
+      // macOS resource files
+      if currentFileURL.lastPathComponent == ".DS_Store" || currentFileURL.lastPathComponent.hasPrefix("._") {
+        return
+      }
+
       if options.fileTypes.contains(currentFileURL.pathExtension.lowercased()) {
         // remux
         let outputResult = self.withTemporaryDirectory { tempDirectory in
@@ -331,9 +336,6 @@ extension ChocoMuxer {
         files.append(.init(input: inputInfo, output: outputResult, timeSummary: .init(startTime: startTime)))
       } else {
         // copy
-        if currentFileURL.lastPathComponent == ".DS_Store" {
-          return
-        }
         if options.copyNormalFiles {
           let outputResult: Result<ChocoMuxer.IOFileInfo, ChocoError>
           let dstPath = outputDirectoryURL.appendingPathComponent(currentFileURL.lastPathComponent)
