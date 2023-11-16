@@ -687,13 +687,21 @@ extension ChocoMuxer {
          */
         let width = try! (videoTrack["Width"]?.string.flatMap(UInt.init)).unwrap("no width")
         let height = try! (videoTrack["Height"]?.string.flatMap(UInt.init)).unwrap("no height")
-        let dar = try! {
-          let darString = try (videoTrack["DisplayAspectRatio_String"]?.string).unwrap("no dar")
-          let errInfo = "invalid dar format: \(darString)"
-          let parts = try darString.splitTwoPart(":").unwrap()
-          return try SampleAspectRatio(.init(parts.0).unwrap(errInfo), .init(parts.1).unwrap(errInfo))
-        }()
-        let sar = dar.divided(by: SampleAspectRatio(width, height))
+        let sar: SampleAspectRatio
+        if videoTrack["PixelAspectRatio"]?.string == "1.000" {
+          sar = .init(1)
+        } else {
+          do {
+            let darString = try (videoTrack["DisplayAspectRatio_String"]?.string).unwrap("no dar")
+            let errInfo = "invalid dar format: \(darString)"
+            let parts = try darString.splitTwoPart(":").unwrap()
+            let dar = try SampleAspectRatio(.init(parts.0).unwrap(errInfo), .init(parts.1).unwrap(errInfo))
+
+            sar = dar.divided(by: SampleAspectRatio(width, height))
+          } catch {
+            fatalError("cannot detect sar from dar! error: \(error)")
+          }
+        }
         let fps = try! {
           do {
             let num = try (videoTrack["FrameRate_Original_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num origin")
