@@ -22,4 +22,6 @@ public enum ChocoError: Error {
   case nonProgTrackInProgOnlyMode
   case createDirectory(URL)
   case subTask(Error)
+
+  case invalidFPS(String)
 }
