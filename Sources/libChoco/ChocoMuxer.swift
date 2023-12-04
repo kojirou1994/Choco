@@ -708,9 +708,19 @@ extension ChocoMuxer {
             let den = try (videoTrack["FrameRate_Original_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den origin")
             return Rational(num, den)
           } catch {
-            let num = try (videoTrack["FrameRate_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num")
-            let den = try (videoTrack["FrameRate_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den")
-            return Rational(num, den)
+            do {
+              let num = try (videoTrack["FrameRate_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num")
+              let den = try (videoTrack["FrameRate_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den")
+              return Rational(num, den)
+            } catch {
+              // try find known fps values
+              let value = try (videoTrack["FrameRate"]?.string).unwrap("no framerate value (FrameRate)")
+              switch value {
+              case "23.976": return .init(24000, 1001)
+              case "29.97": return .init(30000, 1001)
+              default: throw ChocoError.invalidFPS(value)
+              }
+            }
           }
         }()
         logger.info("video track sar: \(sar)")
