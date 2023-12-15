@@ -685,49 +685,50 @@ extension ChocoMuxer {
          "FrameRate_Original_Num":"30000",
          "FrameRate_Original_Den":"1001",
          */
-        let width = try! (videoTrack["Width"]?.string.flatMap(UInt.init)).unwrap("no width")
-        let height = try! (videoTrack["Height"]?.string.flatMap(UInt.init)).unwrap("no height")
-        let sar: SampleAspectRatio
-        if videoTrack["PixelAspectRatio"]?.string == "1.000" {
-          sar = .init(1)
-        } else {
-          do {
-            let darString = try (videoTrack["DisplayAspectRatio_String"]?.string).unwrap("no dar")
-            let errInfo = "invalid dar format: \(darString)"
-            let parts = try darString.splitTwoPart(":").unwrap()
-            let dar = try SampleAspectRatio(.init(parts.0).unwrap(errInfo), .init(parts.1).unwrap(errInfo))
-
-            sar = dar.divided(by: SampleAspectRatio(width, height))
-          } catch {
-            fatalError("cannot detect sar from dar! error: \(error)")
-          }
-        }
-        let fps = try! {
-          do {
-            let num = try (videoTrack["FrameRate_Original_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num origin")
-            let den = try (videoTrack["FrameRate_Original_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den origin")
-            return Rational(num, den)
-          } catch {
-            do {
-              let num = try (videoTrack["FrameRate_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num")
-              let den = try (videoTrack["FrameRate_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den")
-              return Rational(num, den)
-            } catch {
-              // try find known fps values
-              let value = try (videoTrack["FrameRate"]?.string).unwrap("no framerate value (FrameRate)")
-              switch value {
-              case "23.976": return .init(24000, 1001)
-              case "29.97": return .init(30000, 1001)
-              default: throw ChocoError.invalidFPS(value)
-              }
-            }
-          }
-        }()
-        logger.info("video track sar: \(sar)")
-        logger.info("video track fps: \(fps)")
 
         switch commonOptions.video.process {
         case .encode:
+          let width = try! (videoTrack["Width"]?.string.flatMap(UInt.init)).unwrap("no width")
+          let height = try! (videoTrack["Height"]?.string.flatMap(UInt.init)).unwrap("no height")
+          let sar: SampleAspectRatio
+          if videoTrack["PixelAspectRatio"]?.string == "1.000" {
+            sar = .init(1)
+          } else {
+            do {
+              let darString = try (videoTrack["DisplayAspectRatio_String"]?.string).unwrap("no dar")
+              let errInfo = "invalid dar format: \(darString)"
+              let parts = try darString.splitTwoPart(":").unwrap()
+              let dar = try SampleAspectRatio(.init(parts.0).unwrap(errInfo), .init(parts.1).unwrap(errInfo))
+
+              sar = dar.divided(by: SampleAspectRatio(width, height))
+            } catch {
+              fatalError("cannot detect sar from dar! error: \(error)")
+            }
+          }
+          let fps = try! {
+            do {
+              let num = try (videoTrack["FrameRate_Original_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num origin")
+              let den = try (videoTrack["FrameRate_Original_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den origin")
+              return Rational(num, den)
+            } catch {
+              do {
+                let num = try (videoTrack["FrameRate_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num")
+                let den = try (videoTrack["FrameRate_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den")
+                return Rational(num, den)
+              } catch {
+                // try find known fps values
+                let value = try (videoTrack["FrameRate"]?.string).unwrap("no framerate value (FrameRate)")
+                switch value {
+                case "23.976": return .init(24000, 1001)
+                case "29.97": return .init(30000, 1001)
+                default: throw ChocoError.invalidFPS(value)
+                }
+              }
+            }
+          }()
+          logger.info("video track sar: \(sar)")
+          logger.info("video track fps: \(fps)")
+
           if commonOptions.video.progressiveOnly {
             logger.info("Progressive-only mode enabled, checking video track scan type.")
             // check scan type
