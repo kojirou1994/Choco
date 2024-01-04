@@ -1,6 +1,7 @@
 import ArgumentParser
 import Command
 import SystemPackage
+import SystemUp
 
 @main
 struct VideoEncoder: ParsableCommand {
@@ -38,8 +39,10 @@ struct VideoEncoder: ParsableCommand {
     switch input {
     case "-": break // stdin passthrough
     default:
-      command.stdin = .path(.init(input), mode: .readOnly, options: [])
+      let path = try FileSyscalls.realPath(.init(input))
+      command.stdin = .path(path, mode: .readOnly, options: [])
     }
+    command.cwd = "/"
     let output = try command.output()
     throw ExitCode(output.status.exitStatus)
   }
