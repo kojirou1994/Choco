@@ -15,6 +15,9 @@ struct VideoEncoder: ParsableCommand {
   @Option(name: .shortAndLong)
   var output: String
 
+  @Option(help: "useful for wsl fuse paths")
+  var cwd: String?
+
   @Argument(parsing: .allUnrecognized)
   var params: [String]
 
@@ -22,7 +25,6 @@ struct VideoEncoder: ParsableCommand {
     print("encoder", encoder)
     print("input", input)
     print("output", output)
-    print("params", params.joined(separator: " "))
 
     let executable: String = switch encoder {
     case "qsv": "qsvencc"
@@ -34,6 +36,7 @@ struct VideoEncoder: ParsableCommand {
     params.append("-")
     params.append("--output")
     params.append(output)
+    print("params", params.joined(separator: " "))
 
     var command = Command(executable: executable, arguments: params)
     switch input {
@@ -42,7 +45,7 @@ struct VideoEncoder: ParsableCommand {
       let path = try FileSyscalls.realPath(.init(input))
       command.stdin = .path(path, mode: .readOnly, options: [])
     }
-    command.cwd = "/"
+    command.cwd = cwd
     let output = try command.output()
     throw ExitCode(output.status.exitStatus)
   }
