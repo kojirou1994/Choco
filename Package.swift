@@ -13,6 +13,7 @@ let package = Package(
     .executable(name: "choco-cli", targets: ["choco-cli"]),
     .executable(name: "chapter-tool", targets: ["chapter-tool"]),
     .executable(name: "fix-rarbg", targets: ["fix-rarbg"]),
+    .executable(name: "video-encoder", targets: ["video-encoder"]),
   ],
   dependencies: [
     .package(url: "https://github.com/kojirou1994/Kwift.git", from: "1.0.0"),
@@ -63,6 +64,13 @@ let package = Package(
         .product(name: "JSON", package: "YYJSONEncoder"),
         .product(name: "NumberKit", package: "swift-numberkit"),
         .product(name: "Escape", package: "Escape"),
+      ]
+    ),
+    .executableTarget(
+      name: "video-encoder",
+      dependencies: [
+        .product(name: "ArgumentParser", package: "swift-argument-parser"),
+        .product(name: "Command", package: "SystemUp"),
       ]
     ),
     .executableTarget(
