@@ -70,13 +70,12 @@ struct VideoOptionsGroup: ParsableArguments {
   @Flag(help: "Use ffmpeg integrated Vapoursynth")
   var useIntergratedVapoursynth: Bool = false
 
-  private func scriptTemplate() -> String? {
-    // replace error
-    try? encodeScript
+  private func scriptTemplate() throws -> String? {
+    try encodeScript
       .map { try String(contentsOfFile: $0) }
   }
 
-  var options: ChocoCommonOptions.VideoOptions {
-    .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, cropFilter: cropFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, sar: videoSAR, colorPreset: videoColor, tune: videoTune, profile: videoProfile, params: videoParams, avcodecFlags: avcodecFlags, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, cropSkip: cropSkip, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
+  func getOptions() throws -> ChocoCommonOptions.VideoOptions {
+    try .init(process: videoProcess, progressiveOnly: progOnly, filter: videoFilter, cropFilter: cropFilter, encodeScript: scriptTemplate(), codec: videoCodec, preset: videoPreset, sar: videoSAR, colorPreset: videoColor, tune: videoTune, profile: videoProfile, params: videoParams, avcodecFlags: avcodecFlags, quality: videoQuality, autoCrop: autoCrop, cropLimit: cropLimit, cropRound: cropRound, cropSkip: cropSkip, keepPixelFormat: keepPixelFormat, useIntergratedVapoursynth: useIntergratedVapoursynth)
   }
 }
