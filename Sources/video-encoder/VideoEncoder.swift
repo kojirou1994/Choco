@@ -94,12 +94,12 @@ struct VideoEncoder: ParsableCommand {
     init(argument: String) {
       switch argument {
       case "-": self = .stdin
-      default: self = .path(argument)
+      default: self = .path(.init(argument))
       }
     }
 
     case stdin
-    case path(String)
+    case path(FilePath)
   }
 
   @Option(name: .shortAndLong)
@@ -141,14 +141,14 @@ struct VideoEncoder: ParsableCommand {
 
     print("encoder", encoder)
     print("input", input ?? "none")
-    print("output", output)
+    print("output", output ?? "none")
     print("overwrite", overwrite, "removeInput", removeInput, "removeUnfinished", removeUnfinished)
 
     var inputDurations: [DurationResult]?
     if checkOutput != nil {
       switch input {
       case .path(let path):
-        inputDurations = try readDurations(path: path)
+        inputDurations = try readDurations(path: path.string)
       default: break
       }
     }
@@ -169,7 +169,7 @@ struct VideoEncoder: ParsableCommand {
         params.append("pipe:")
       case .path(let path):
         params.append("-i")
-        params.append(redirectInputToEncoderStdIn ? "pipe:" : path)
+        params.append(redirectInputToEncoderStdIn ? "pipe:" : path.string)
       case .none: break
       }
 
@@ -185,7 +185,7 @@ struct VideoEncoder: ParsableCommand {
         params.append("-")
       case .path(let path):
         params.append("--input")
-        params.append(redirectInputToEncoderStdIn ? "-" : path)
+        params.append(redirectInputToEncoderStdIn ? "-" : path.string)
       case .none: break
       }
       if let output {
@@ -196,17 +196,17 @@ struct VideoEncoder: ParsableCommand {
 
     print("params:", params.joined(separator: " "))
 
-    var command = Command(executable: executable, arguments: params)
+    var encoderCommand = Command(executable: executable, arguments: params)
     switch input {
-    case .stdin, .none: command.stdin = .inherit // stdin passthrough
+    case .stdin, .none: encoderCommand.stdin = .inherit // stdin passthrough
     case .path(let path):
       if redirectInputToEncoderStdIn {
-        let path = try FileSyscalls.realPath(.init(path))
-        command.stdin = .path(path, mode: .readOnly, options: [])
+        let path = try FileSyscalls.realPath(path)
+        encoderCommand.stdin = .path(path, mode: .readOnly, options: [])
       }
     }
-    command.cwd = cwd
-    let statusCode = try command.output().status.exitStatus
+    encoderCommand.cwd = cwd
+    let statusCode = try encoderCommand.output().status.exitStatus
 
     func removeUnfinishedOutput() {
       if let output, removeUnfinished {
@@ -263,7 +263,7 @@ struct VideoEncoder: ParsableCommand {
         if removeInput {
           switch input {
           case .path(let path):
-            print("remove input", FileSyscalls.unlink(.absolute(.init(path))))
+            print("remove input", FileSyscalls.unlink(.absolute(path)))
           default: break
           }
         }
