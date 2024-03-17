@@ -88,7 +88,19 @@ struct VideoEncoder: ParsableCommand {
   var encoder: String
 
   @Option(name: .shortAndLong)
-  var input: String = "-"
+  var input: Input?
+
+  enum Input: ExpressibleByArgument {
+    init(argument: String) {
+      switch argument {
+      case "-": self = .stdin
+      default: self = .path(argument)
+      }
+    }
+
+    case stdin
+    case path(String)
+  }
 
   @Option(name: .shortAndLong)
   var output: String
@@ -117,18 +129,26 @@ struct VideoEncoder: ParsableCommand {
       }
     }
 
-    let setStdIn: Bool
+    let redirectInputToEncoderStdIn: Bool
     #if canImport(Darwin)
-    setStdIn = false
+    redirectInputToEncoderStdIn = false
     #else
     setStdIn = true
     #endif
 
     print("encoder", encoder)
-    print("input", input)
+    print("input", input ?? "none")
     print("output", output)
+    print("overwrite", overwrite, "removeInput", removeInput, "removeUnfinished", removeUnfinished)
 
-    let inputDurations = try checkOutput.map { _ in try readDurations(path: input) }
+    var inputDurations: [DurationResult]?
+    if checkOutput != nil {
+      switch input {
+      case .path(let path):
+        inputDurations = try readDurations(path: path)
+      default: break
+      }
+    }
 
     let executable: String = switch encoder {
     case "qsv": "qsvencc"
@@ -140,26 +160,41 @@ struct VideoEncoder: ParsableCommand {
     case "ffmpeg":
       // TODO: support use / to separate in/out options
       params = [String]()
-      params.append("-i")
-      params.append(setStdIn ? "pipe:" : input)
+      switch input {
+      case .stdin:
+        params.append("-i")
+        params.append("pipe:")
+      case .path(let path):
+        params.append("-i")
+        params.append(redirectInputToEncoderStdIn ? "pipe:" : path)
+      case .none: break
+      }
+
       params.append(contentsOf: arguments)
       params.append(output)
     default:
       params = arguments
-      params.append("--input")
-      params.append(setStdIn ? "-" : input)
+      switch input {
+      case .stdin:
+        params.append("--input")
+        params.append("-")
+      case .path(let path):
+        params.append("--input")
+        params.append(redirectInputToEncoderStdIn ? "-" : path)
+      case .none: break
+      }
       params.append("--output")
       params.append(output)
     }
 
-    print("params", params.joined(separator: " "))
+    print("params:", params.joined(separator: " "))
 
     var command = Command(executable: executable, arguments: params)
     switch input {
-    case "-": break // stdin passthrough
-    default:
-      if setStdIn {
-        let path = try FileSyscalls.realPath(.init(input))
+    case .stdin, .none: command.stdin = .inherit // stdin passthrough
+    case .path(let path):
+      if redirectInputToEncoderStdIn {
+        let path = try FileSyscalls.realPath(.init(path))
         command.stdin = .path(path, mode: .readOnly, options: [])
       }
     }
@@ -216,7 +251,11 @@ struct VideoEncoder: ParsableCommand {
     case .success:
       print("encode succeess, output file existed!")
       if removeInput {
-        print("remove input", FileSyscalls.unlink(.absolute(.init(input))))
+        switch input {
+        case .path(let path):
+          print("remove input", FileSyscalls.unlink(.absolute(.init(path))))
+        default: break
+        }
       }
     case .failure:
       print("encoder exit 0 but output not existed!")
