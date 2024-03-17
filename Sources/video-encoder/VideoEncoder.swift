@@ -20,7 +20,10 @@ struct DurationResult: CustomStringConvertible {
     case "A": .audio
     default: fatalError("invalid mediainfo output!")
     }
-    duration = Double(string.dropFirst())!
+    guard let duration = Double(string.dropFirst()) else {
+      fatalError("invalid mediainfo output: \(string)")
+    }
+    self.duration = duration
   }
 
   enum DurationTrack: String, CustomStringConvertible {
@@ -93,12 +96,13 @@ struct VideoEncoder: ParsableCommand {
   enum Input: ExpressibleByArgument {
     init(argument: String) {
       switch argument {
-      case "-": self = .stdin
+      case "-": self = .fd(.standardInput)
       default: self = .path(.init(argument))
       }
     }
 
-    case stdin
+    /// encoder's stdin stream fd, close after encoder started
+    case fd(FileDescriptor)
     case path(FilePath)
   }
 
@@ -111,47 +115,39 @@ struct VideoEncoder: ParsableCommand {
 //  @Option(name: .shortAndLong, help: "tmp dir for unfinished file")
 //  var tmp: String?
 
+  @Option(help: "alter input path for checking duration")
+  var checkFile: String?
+
   @Option(help: "check output's duration is identical to input")
   var checkOutput: CheckDurationMode?
 
   @Argument(parsing: .postTerminator)
   var arguments: [String] = []
 
-  func run() throws {
-    var status = FileStatus()
+  func prepareEncoder() throws -> [Command.ChildProcess] {
+    var processes = [Command.ChildProcess]() // sub processes
 
-    // MARK: check output overwrite
-    if let output {
-      if overwrite {
-        _ = FileSyscalls.unlink(.absolute(.init(output)))
-      } else {
-        switch FileSyscalls.fileStatus(.absolute(.init(output)), into: &status) {
-        case .success: throw Errno.fileExists
-        case .failure: break
-        }
+    var encoderInput = input
+    switch input {
+    case .path(let filePath):
+      if let ext = filePath.extension,
+         (ext == "vpy" || ext == "py") {
+        print("use vspipe as decoder")
+        var vspipe = Command(executable: "vspipe", arguments: ["-c", "y4m", filePath.string, "-"])
+        vspipe.stdout = .makePipe
+        var process = try vspipe.spawn()
+        encoderInput = .fd(process.pipes.takeStdOut()!.local)
+        processes.append(process)
       }
+    default: break
     }
 
     let redirectInputToEncoderStdIn: Bool
     #if canImport(Darwin)
     redirectInputToEncoderStdIn = false
     #else
-    setStdIn = true
+    redirectInputToEncoderStdIn = true
     #endif
-
-    print("encoder", encoder)
-    print("input", input ?? "none")
-    print("output", output ?? "none")
-    print("overwrite", overwrite, "removeInput", removeInput, "removeUnfinished", removeUnfinished)
-
-    var inputDurations: [DurationResult]?
-    if checkOutput != nil {
-      switch input {
-      case .path(let path):
-        inputDurations = try readDurations(path: path.string)
-      default: break
-      }
-    }
 
     let executable: String = switch encoder {
     case "qsv": "qsvencc"
@@ -163,8 +159,8 @@ struct VideoEncoder: ParsableCommand {
     case "ffmpeg":
       // TODO: support use / to separate in/out options
       params = [String]()
-      switch input {
-      case .stdin:
+      switch encoderInput {
+      case .fd:
         params.append("-i")
         params.append("pipe:")
       case .path(let path):
@@ -179,8 +175,8 @@ struct VideoEncoder: ParsableCommand {
       }
     default:
       params = arguments
-      switch input {
-      case .stdin:
+      switch encoderInput {
+      case .fd:
         params.append("--input")
         params.append("-")
       case .path(let path):
@@ -197,16 +193,68 @@ struct VideoEncoder: ParsableCommand {
     print("params:", params.joined(separator: " "))
 
     var encoderCommand = Command(executable: executable, arguments: params)
-    switch input {
-    case .stdin, .none: encoderCommand.stdin = .inherit // stdin passthrough
+    switch encoderInput {
+    case .fd(let fd):
+      encoderCommand.stdin = .fd(fd)
     case .path(let path):
       if redirectInputToEncoderStdIn {
         let path = try FileSyscalls.realPath(path)
         encoderCommand.stdin = .path(path, mode: .readOnly, options: [])
       }
+    case .none: encoderCommand.stdin = .null
     }
     encoderCommand.cwd = cwd
-    let statusCode = try encoderCommand.output().status.exitStatus
+
+    try processes.append(encoderCommand.spawn())
+
+    // close input fd
+    switch encoderInput {
+    case .fd(let fd):
+      try fd.close()
+    default: break
+    }
+
+    return processes
+  }
+
+  func run() throws {
+    var status = FileStatus()
+
+    // MARK: check output overwrite
+    if let output {
+      if overwrite {
+        _ = FileSyscalls.unlink(.absolute(.init(output)))
+      } else {
+        switch FileSyscalls.fileStatus(.absolute(.init(output)), into: &status) {
+        case .success: throw Errno.fileExists
+        case .failure: break
+        }
+      }
+    }
+
+    print("encoder", encoder)
+    print("input", input ?? "none")
+    print("output", output ?? "none")
+    print("overwrite", overwrite, "removeInput", removeInput, "removeUnfinished", removeUnfinished)
+
+    var inputDurations: [DurationResult]?
+    if checkOutput != nil {
+      var inputPathForChecking: String?
+      if let checkFile {
+        inputPathForChecking = checkFile
+      } else {
+        switch input {
+        case .path(let path):
+          inputPathForChecking = path.string
+        default: break
+        }
+      }
+      inputDurations = try inputPathForChecking.map { try readDurations(path: $0) }
+    }
+
+    var processes = try prepareEncoder()
+
+    let statuses = try processes.indices.map { try processes[$0].waitOutput().status }
 
     func removeUnfinishedOutput() {
       if let output, removeUnfinished {
@@ -214,10 +262,10 @@ struct VideoEncoder: ParsableCommand {
       }
     }
 
-    if statusCode != 0 {
-      print("encoder non-zero exit code: \(statusCode)")
+    if !statuses.allSatisfy({ $0.exited && $0.exitStatus == 0 })  {
+      print("encoder processe have non-zero exit code: \(statuses)")
       removeUnfinishedOutput()
-      throw ExitCode(statusCode)
+      throw ExitCode(1)
     }
 
     // MARK: compare input output durations
