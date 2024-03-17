@@ -13,7 +13,7 @@ struct DurationResult: CustomStringConvertible {
   let type: DurationTrack
   let duration: Double
 
-  init(_ string: Substring) {
+  internal init(_ string: Substring) {
     assert(!string.isEmpty)
     type = switch string[string.startIndex] {
     case "V": .video
@@ -80,6 +80,9 @@ struct VideoEncoder: ParsableCommand {
 
   @Flag
   var removeInput: Bool = false
+
+  @Flag
+  var removeUnfinished: Bool = false
 
   @Option(name: .shortAndLong)
   var encoder: String
@@ -162,34 +165,48 @@ struct VideoEncoder: ParsableCommand {
     }
     command.cwd = cwd
     let statusCode = try command.output().status.exitStatus
+
+    func removeUnfinishedOutput() {
+      if removeUnfinished {
+        _ = FileSyscalls.unlink(.absolute(.init(output)))
+      }
+    }
+
     if statusCode != 0 {
       print("encoder non-zero exit code: \(statusCode)")
+      removeUnfinishedOutput()
       throw ExitCode(statusCode)
     }
 
     if let inputDurations {
-      let outputDurations = try readDurations(path: output)
-      switch checkOutput {
-      case .all:
-        if inputDurations.count != outputDurations.count {
-          fatalError("track number changes!")
-        }
-        print("comparing each track's duration")
-        for (inputDuration, outputDuration) in zip(inputDurations, outputDurations) {
-          try compareDuration(inputDuration, outputDuration)
-        }
-      case .first:
-        print("comparing first track's duration")
-        let types = [DurationResult.DurationTrack.video, .audio]
-        for type in types {
-          if let inputDuration = inputDurations.first(where: { $0.type == type }),
-             let outputDuration = outputDurations.first(where: { $0.type == type }) {
+      do {
+        let outputDurations = try readDurations(path: output)
+        switch checkOutput {
+        case .all:
+          if inputDurations.count != outputDurations.count {
+            fatalError("track number changes!")
+          }
+          print("comparing each track's duration")
+          for (inputDuration, outputDuration) in zip(inputDurations, outputDurations) {
             try compareDuration(inputDuration, outputDuration)
           }
+        case .first:
+          print("comparing first track's duration")
+          let types = [DurationResult.DurationTrack.video, .audio]
+          for type in types {
+            if let inputDuration = inputDurations.first(where: { $0.type == type }),
+               let outputDuration = outputDurations.first(where: { $0.type == type }) {
+              try compareDuration(inputDuration, outputDuration)
+            }
+          }
+        case nil:
+          assertionFailure("impossible!")
+          break
         }
-      case nil:
-        assertionFailure("impossible!")
-        break
+      } catch {
+        // check failed
+        removeUnfinishedOutput()
+        throw error
       }
 
       print("output file's duration validated, good!")
