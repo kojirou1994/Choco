@@ -103,7 +103,7 @@ struct VideoEncoder: ParsableCommand {
   }
 
   @Option(name: .shortAndLong)
-  var output: String
+  var output: String?
 
   @Option(help: "useful for wsl fuse paths")
   var cwd: String?
@@ -120,12 +120,15 @@ struct VideoEncoder: ParsableCommand {
   func run() throws {
     var status = FileStatus()
 
-    if overwrite {
-      _ = FileSyscalls.unlink(.absolute(.init(output)))
-    } else {
-      switch FileSyscalls.fileStatus(.absolute(.init(output)), into: &status) {
-      case .success: throw Errno.fileExists
-      case .failure: break
+    // MARK: check output overwrite
+    if let output {
+      if overwrite {
+        _ = FileSyscalls.unlink(.absolute(.init(output)))
+      } else {
+        switch FileSyscalls.fileStatus(.absolute(.init(output)), into: &status) {
+        case .success: throw Errno.fileExists
+        case .failure: break
+        }
       }
     }
 
@@ -171,7 +174,9 @@ struct VideoEncoder: ParsableCommand {
       }
 
       params.append(contentsOf: arguments)
-      params.append(output)
+      if let output {
+        params.append(output)
+      }
     default:
       params = arguments
       switch input {
@@ -183,8 +188,10 @@ struct VideoEncoder: ParsableCommand {
         params.append(redirectInputToEncoderStdIn ? "-" : path)
       case .none: break
       }
-      params.append("--output")
-      params.append(output)
+      if let output {
+        params.append("--output")
+        params.append(output)
+      }
     }
 
     print("params:", params.joined(separator: " "))
@@ -202,7 +209,7 @@ struct VideoEncoder: ParsableCommand {
     let statusCode = try command.output().status.exitStatus
 
     func removeUnfinishedOutput() {
-      if removeUnfinished {
+      if let output, removeUnfinished {
         _ = FileSyscalls.unlink(.absolute(.init(output)))
       }
     }
@@ -213,7 +220,8 @@ struct VideoEncoder: ParsableCommand {
       throw ExitCode(statusCode)
     }
 
-    if let inputDurations {
+    // MARK: compare input output durations
+    if let inputDurations, let output {
       do {
         let outputDurations = try readDurations(path: output)
         switch checkOutput {
@@ -247,19 +255,22 @@ struct VideoEncoder: ParsableCommand {
       print("output file's duration validated, good!")
     }
 
-    switch FileSyscalls.fileStatus(.absolute(.init(output)), into: &status) {
-    case .success:
-      print("encode succeess, output file existed!")
-      if removeInput {
-        switch input {
-        case .path(let path):
-          print("remove input", FileSyscalls.unlink(.absolute(.init(path))))
-        default: break
+    // MARK: check output exist, remove input optionally
+    if let output {
+      switch FileSyscalls.fileStatus(.absolute(.init(output)), into: &status) {
+      case .success:
+        print("encode succeess, output file existed!")
+        if removeInput {
+          switch input {
+          case .path(let path):
+            print("remove input", FileSyscalls.unlink(.absolute(.init(path))))
+          default: break
+          }
         }
+      case .failure:
+        print("encoder exit 0 but output not existed!")
+        throw Errno.noSuchFileOrDirectory
       }
-    case .failure:
-      print("encoder exit 0 but output not existed!")
-      throw Errno.noSuchFileOrDirectory
     }
   }
 
