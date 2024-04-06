@@ -52,6 +52,7 @@ let package = Package(
         "MplsParser",
         "Rainbow",
         "URLFileManager",
+        .product(name: "SystemUp", package: "SystemUp"),
         "ISOCodes",
         .product(name: "Precondition", package: "Precondition"),
         .product(name: "mustache", package: "mustache"),

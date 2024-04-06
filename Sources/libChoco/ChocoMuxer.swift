@@ -12,6 +12,7 @@ import Precondition
 import FPExecutableLauncher
 import JSON
 import NumberKit
+import SystemUp
 
 let fm = URLFileManager.default
 
@@ -307,56 +308,60 @@ extension ChocoMuxer {
     var files: [FileSummary.FileTask] = []
     var normalFiles: [FileSummary.NormalFileTask] = []
 
-    let succ = fm.forEachContent(in: file, handleFile: true, handleDirectory: false, skipHiddenFiles: false) { currentFileURL in
-      guard !terminated else {
-        return
-      }
-      let fileDirPath = currentFileURL.deletingLastPathComponent().path
-      guard fileDirPath.hasPrefix(inputPrefix) else {
-        logger.error("Path handling incorrect")
-        return
-      }
-      let outputDirectoryURL = commonOptions.io.outputRootDirectory
-        .appendingPathComponent(dirName)
-        .appendingPathComponent(String(fileDirPath.dropFirst(inputPrefix.count)))
+    do {
+      let stream = try Fts.open(path: file.path, options: [.physical, .noChdir]).get()
+      defer { stream.close() }
+      while !terminated, let entry = stream.read() {
+        if entry.info == .file {
+          let currentFileURL = URL(fileURLWithPath: entry.path.string)
 
-      let inputInfo = IOFileInfo(path: currentFileURL)
-      let startTime = Date()
+          let fileDirPath = currentFileURL.deletingLastPathComponent().path
+          guard fileDirPath.hasPrefix(inputPrefix) else {
+            logger.error("Path handling incorrect")
+            continue
+          }
+          let outputDirectoryURL = commonOptions.io.outputRootDirectory
+            .appendingPathComponent(dirName)
+            .appendingPathComponent(String(fileDirPath.dropFirst(inputPrefix.count)))
 
-      // macOS resource files
-      if currentFileURL.lastPathComponent == ".DS_Store" || currentFileURL.lastPathComponent.hasPrefix("._") {
-        return
-      }
+          let inputInfo = IOFileInfo(path: currentFileURL)
+          let startTime = Date()
 
-      if options.fileTypes.contains(currentFileURL.pathExtension.lowercased()) {
-        // remux
-        let outputResult = self.withTemporaryDirectory { tempDirectory in
-          _remux(file: currentFileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
-        }
-        files.append(.init(input: inputInfo, output: outputResult, timeSummary: .init(startTime: startTime)))
-      } else {
-        // copy
-        if options.copyNormalFiles {
-          let outputResult: Result<ChocoMuxer.IOFileInfo, ChocoError>
-          let dstPath = outputDirectoryURL.appendingPathComponent(currentFileURL.lastPathComponent)
-          if fm.fileExistance(at: dstPath).exists, !options.copyOverwrite {
-            outputResult = .failure(.outputExist)
+          // macOS resource files
+          if currentFileURL.lastPathComponent == ".DS_Store" || currentFileURL.lastPathComponent.hasPrefix("._") {
+            continue
+          }
+
+          if options.fileTypes.contains(currentFileURL.pathExtension.lowercased()) {
+            // remux
+            let outputResult = self.withTemporaryDirectory { tempDirectory in
+              _remux(file: currentFileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
+            }
+            files.append(.init(input: inputInfo, output: outputResult, timeSummary: .init(startTime: startTime)))
           } else {
-            do {
-              try fm.createDirectory(at: outputDirectoryURL)
-              let cmd = options.removeSourceFiles ? "mv" : "cp"
-              try AnyExecutable(executableName: cmd, arguments: [currentFileURL.path, dstPath.path])
-                .launch(use: TSCExecutableLauncher(outputRedirection: .none))
-              outputResult = .success(.init(path: dstPath))
-            } catch {
-              outputResult = .failure(.copyFile(error))
+            // copy
+            if options.copyNormalFiles {
+              let outputResult: Result<ChocoMuxer.IOFileInfo, ChocoError>
+              let dstPath = outputDirectoryURL.appendingPathComponent(currentFileURL.lastPathComponent)
+              if fm.fileExistance(at: dstPath).exists, !options.copyOverwrite {
+                outputResult = .failure(.outputExist)
+              } else {
+                do {
+                  try fm.createDirectory(at: outputDirectoryURL)
+                  let cmd = options.removeSourceFiles ? "mv" : "cp"
+                  try AnyExecutable(executableName: cmd, arguments: [currentFileURL.path, dstPath.path])
+                    .launch(use: TSCExecutableLauncher(outputRedirection: .none))
+                  outputResult = .success(.init(path: dstPath))
+                } catch {
+                  outputResult = .failure(.copyFile(error))
+                }
+              }
+              normalFiles.append(.init(input: inputInfo, output: outputResult))
             }
           }
-          normalFiles.append(.init(input: inputInfo, output: outputResult))
         }
       }
-    }
-    if !succ {
+    } catch {
       logger.error("Failed to open the directory: \(file.path)")
       return .failure(.openDirectory(file))
     }
