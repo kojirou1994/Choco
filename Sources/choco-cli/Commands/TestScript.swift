@@ -44,7 +44,7 @@ struct TestScript: ParsableCommand {
     let inputBasename = inputURL.deletingPathExtension().lastPathComponent
 
     let vsCrop: CropInfo? = if crop == .vs {
-      try ffmpegCrop(file: input, baseFilter: "", limit: nil, round: 2, skip: 0, logger: nil).get()
+      try ffmpegCrop(file: input, baseFilter: "", limit: nil, round: 2, skip: 0, frames: nil, logger: nil).get()
     } else {
       nil
     }

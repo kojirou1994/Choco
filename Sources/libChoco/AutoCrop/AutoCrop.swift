@@ -30,7 +30,7 @@ private struct HandBrakePreview: Executable {
   }
 }
 
-public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: UInt8, skip: UInt, frames: UInt? = nil, hw: String? = nil, logger: Logger?) -> Result<CropInfo, ChocoError> {
+public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: UInt8, skip: UInt, frames: UInt?, hw: String? = nil, logger: Logger?) -> Result<CropInfo, ChocoError> {
   var filters = [String]()
   if !baseFilter.isEmpty {
     filters.append(baseFilter)
