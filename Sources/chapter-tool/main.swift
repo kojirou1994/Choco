@@ -145,6 +145,10 @@ struct ChapterTool: ParsableCommand {
   }
 
   struct Rename: ParsableCommand {
+
+    @Option(help: "Chapter entry number (start from 0)")
+    var entry: UInt = 0
+
     @Argument(help: ArgumentHelp("Mkv file path", discussion: "", valueName: "file-path"))
     var filePath: String
 
@@ -159,11 +163,15 @@ struct ChapterTool: ParsableCommand {
 
       var chapter = try utility.extractAndReadChapter(from: fileURL, keepChapterFile: true)
 
-      precondition(chapter.entries.count == 1)
+      print("total entries: \(chapter.entries.count)")
+      let entryIndex = Int(entry)
+      guard chapter.entries.indices.contains(entryIndex) else {
+        throw ValidationError("invalid entry index: \(entry)")
+      }
 
       let titles = try String(contentsOfFile: chapterPath).components(separatedBy: .newlines)
 
-      var chapterAtoms = chapter.entries[0].chapters
+      var chapterAtoms = chapter.entries[entryIndex].chapters
       guard chapterAtoms.count == titles.count else {
         throw ValidationError("Chapter count mismatch")
       }
@@ -182,7 +190,7 @@ struct ChapterTool: ParsableCommand {
         }
       }
 
-      chapter.entries[0].chapters = chapterAtoms
+      chapter.entries[entryIndex].chapters = chapterAtoms
 
       try utility.write(chapter: chapter, to: fileURL, keepChapterFile: true)
 
