@@ -5,10 +5,9 @@ import ArgumentParser
 import MediaTools
 import URLFileManager
 import Precondition
+import RegexBuilder
 
-let fm = URLFileManager.default
-let utility = ChapterUtility()
-
+@main
 struct ChapterTool: ParsableCommand {
 
   static var configuration: CommandConfiguration {
@@ -201,11 +200,14 @@ struct ChapterTool: ParsableCommand {
     @Argument(help: ArgumentHelp("Mkv file path", discussion: "", valueName: "file-path"))
     var inputs: [String]
 
-    @Flag()
+    @Flag(help: "Remove all chapter titles")
     var removeTitle: Bool = false
 
     @Flag(name: .shortAndLong)
     var recursive: Bool = false
+
+    @Flag(help: "Clean generated meaningless chapter titles automatically")
+    var auto: Bool = false
 
     static let minChapterInterval = Timestamp.second * 3
 
@@ -243,7 +245,24 @@ struct ChapterTool: ParsableCommand {
             precondition(chapter.timestamp != nil, "Invalid timestamp \(chapter.startTime)")
             precondition(chapter.timestamp!.toString(displayNanoSecond: true) == chapter.startTime, "Invalid timestamp \(chapter.startTime) decoded: \(Timestamp(string: chapter.startTime)!)")
 
-            if removeTitle {
+            if auto, var displays = chapter.displays, !displays.isEmpty {
+              displays.mutateEach { display in
+                let prefix = "Chapter"
+                if #available(macOS 13.0, *) {
+                  let regex = Regex {
+                    prefix
+                    Capture {
+                      .digit
+                    }
+                  }.ignoresCase()
+                } else {
+                  if display.string.compare(prefix, options: [.caseInsensitive, .anchored]) == .orderedSame {
+
+                  }
+                }
+              }
+              chapter.displays = displays
+            } else if removeTitle {
               chapter.displays = nil
             }
           }
@@ -253,6 +272,7 @@ struct ChapterTool: ParsableCommand {
       } catch {
         print("Error: \(error)")
       }
+      print()
     }
   }
 
@@ -394,5 +414,3 @@ struct ChapterTool: ParsableCommand {
   }
 
 }
-
-ChapterTool.main()

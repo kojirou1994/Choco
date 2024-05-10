@@ -5,6 +5,9 @@ import Logging
 import MediaTools
 import URLFileManager
 
+let fm = URLFileManager.default
+let utility = ChapterUtility()
+
 enum ChapterToolError: Error {
   case noChapter
 }
