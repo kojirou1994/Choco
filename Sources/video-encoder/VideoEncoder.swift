@@ -109,6 +109,13 @@ struct VideoEncoder: ParsableCommand {
   @Option(name: .shortAndLong)
   var output: String?
 
+  @Option(help: "auto mux output stream to other type file, output must be path")
+  var autoMux: AutoMux?
+
+  enum AutoMux: String, ExpressibleByArgument {
+    case mkv
+  }
+
   @Option(help: "useful for wsl fuse paths")
   var cwd: String?
 
@@ -309,6 +316,18 @@ struct VideoEncoder: ParsableCommand {
       switch FileSyscalls.fileStatus(.absolute(.init(output)), into: &status) {
       case .success:
         print("encode succeess, output file existed!")
+        // MARK: auto-mux output
+        switch autoMux {
+        case .mkv:
+          print("auto-mux to mkv!")
+          var outputPath = FilePath(output)
+          outputPath.extension = "mkv"
+          let muxerStatus = try Command(executable: "mkvmerge", arguments: ["-o", outputPath.string, output])
+            .status()
+          print("muxer exit status: \(muxerStatus)")
+        case nil:
+          break
+        }
         if removeInput {
           switch input {
           case .path(let path):
