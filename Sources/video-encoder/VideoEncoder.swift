@@ -151,6 +151,7 @@ struct VideoEncoder: ParsableCommand {
 
     let executable: String = switch encoder {
     case "qsv": "qsvencc"
+    case "svt-av1", "av1": "SvtAv1EncApp"
     default: encoder
     }
 
