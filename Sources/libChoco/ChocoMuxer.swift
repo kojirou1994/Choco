@@ -24,6 +24,7 @@ public final class ChocoMuxer {
   struct FFmpegCodecs {
     let x265: Bool
     let x264: Bool
+    let svtav1: Bool
     let fdkAAC: Bool
     let libopus: Bool
     let videotoolbox: Bool
@@ -36,6 +37,7 @@ public final class ChocoMuxer {
         .utf8stderrOutput()
       x265 = options.contains("--enable-libx265")
       x264 = options.contains("--enable-libx264")
+      svtav1 = options.contains("--enable-libsvtav1")
       fdkAAC = options.contains("--enable-libfdk-aac")
       libopus = options.contains("--enable-libopus")
       videotoolbox = options.contains("--enable-videotoolbox")
@@ -52,6 +54,8 @@ public final class ChocoMuxer {
         try preconditionOrThrow(ffmpegCodecs.x264, "ffmpeg no x264!")
       case .x265:
         try preconditionOrThrow(ffmpegCodecs.x265, "ffmpeg no x265!")
+      case .svtav1:
+        try preconditionOrThrow(ffmpegCodecs.svtav1, "ffmpeg no svtav1!")
       case .h264VT, .hevcVT, .h264VTSW, .hevcVTSW:
         try preconditionOrThrow(ffmpegCodecs.videotoolbox, "ffmpeg no videotoolbox!")
         switch commonOptions.video.quality {
