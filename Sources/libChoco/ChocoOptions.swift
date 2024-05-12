@@ -316,7 +316,7 @@ extension ChocoCommonOptions {
       self.cropFrames = cropFrames
       self.tune = tune
       self.profile = profile
-      self.params = params
+      self.params = params ?? ""
       self.avcodecFlags = avcodecFlags
       self.keepPixelFormat = keepPixelFormat
       self.useIntergratedVapoursynth = useIntergratedVapoursynth
@@ -330,7 +330,7 @@ extension ChocoCommonOptions {
     public let codec: Codec
     public let tune: String?
     public let profile: String?
-    public let params: String?
+    public let params: String
     public let avcodecFlags: [String]
     public let preset: String?
     public let sar: VideoSAR
@@ -424,6 +424,7 @@ extension ChocoCommonOptions {
     public enum Codec: String, CaseIterable, CustomStringConvertible {
       case x265
       case x264
+      case svtav1
       case h264VT = "h264_vt"
       case hevcVT = "hevc_vt"
       case h264VTSW = "h264_vt_sw"
@@ -510,6 +511,8 @@ extension ChocoCommonOptions.VideoOptions.Codec {
       return "h264_videotoolbox"
     case .hevcVT, .hevcVTSW:
       return "hevc_videotoolbox"
+    case .svtav1:
+      return "libsvtav1"
     }
   }
 
@@ -517,7 +520,7 @@ extension ChocoCommonOptions.VideoOptions.Codec {
     switch self {
     case .x264, .h264VT, .h264VTSW:
       return "yuv420p"
-    case .x265:
+    case .x265, .svtav1:
       return "yuv420p10le"
     case .hevcVT, .hevcVTSW:
       return "p010le"
@@ -528,7 +531,7 @@ extension ChocoCommonOptions.VideoOptions.Codec {
     switch self {
     case .x264, .h264VT, .h264VTSW:
       return 8
-    case .x265, .hevcVT, .hevcVTSW:
+    case .x265, .hevcVT, .hevcVTSW, .svtav1:
       return 10
     }
   }
@@ -593,14 +596,24 @@ extension ChocoCommonOptions.VideoOptions {
     case .h264VTSW, .hevcVTSW:
       options.append(.avOption(name: "allow_sw", value: "1", streamSpecifier: nil))
       options.append(.avOption(name: "require_sw", value: "1", streamSpecifier: nil))
-    case .x265, .x264:
+    case .x265, .x264, .svtav1:
       if let preset = self.preset {
         options.append(.avOption(name: "preset", value: preset, streamSpecifier: nil))
       }
+      var params = self.params
       if let tune = self.tune {
-        options.append(.avOption(name: "tune", value: tune, streamSpecifier: nil))
+        switch codec {
+        case .svtav1:
+          if !params.isEmpty {
+            params.append(":")
+          }
+          params.append("tune=")
+          params.append(tune)
+        default:
+          options.append(.avOption(name: "tune", value: tune, streamSpecifier: nil))
+        }
       }
-      if let params = self.params {
+      if !params.isEmpty {
         options.append(.avOption(name: "\(codec.rawValue)-params",
                                  value: params,
                                  streamSpecifier: nil))
