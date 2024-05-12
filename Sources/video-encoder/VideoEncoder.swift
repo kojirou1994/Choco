@@ -322,8 +322,9 @@ struct VideoEncoder: ParsableCommand {
           print("auto-mux to mkv!")
           var outputPath = FilePath(output)
           outputPath.extension = "mkv"
-          let muxerStatus = try Command(executable: "mkvmerge", arguments: ["-o", outputPath.string, output])
-            .status()
+          var mkvmerge = Command(executable: "mkvmerge", arguments: ["-o", outputPath.string, output])
+          mkvmerge.stdin = .null
+          let muxerStatus = try mkvmerge.status()
           print("muxer exit status: \(muxerStatus)")
         case nil:
           break
