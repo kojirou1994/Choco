@@ -15,7 +15,7 @@ struct AudioConverter {
   let trackIndex: Int
   
   private var ffmpeg: AnyExecutable {
-    var options = [FFmpeg.InputOutputOption]()
+    var options = [FFmpeg.OutputOption]()
     switch codec {
     case .flac:
       break
@@ -44,10 +44,10 @@ struct AudioConverter {
       options.append(.codec("alac", streamSpecifier: .streamType(.audio)))
     }
     options.append(.bitrate("\(bitrate)k", streamSpecifier: .streamType(.audio)))
-    return FFmpeg(global: .init(enableStdin: false), ios: [
-      .input(url: input.path),
-      .output(url: output.path, options: options)
-    ])
+    return FFmpeg(
+      global: .init(enableStdin: false),
+      inputs: [.init(url: input.path)],
+      outputs: [.init(url: output.path, options: options)])
     .eraseToAnyExecutable()
   }
   

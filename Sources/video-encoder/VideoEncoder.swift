@@ -206,7 +206,7 @@ struct VideoEncoder: ParsableCommand {
       encoderCommand.stdin = .fd(fd)
     case .path(let path):
       if redirectInputToEncoderStdIn {
-        let path = try FileSyscalls.realPath(path)
+        let path: FilePath = try SystemCall.realPath(path).get()
         encoderCommand.stdin = .path(path, mode: .readOnly, options: [])
       }
     case .none: encoderCommand.stdin = .null
@@ -231,9 +231,9 @@ struct VideoEncoder: ParsableCommand {
     // MARK: check output overwrite
     if let output {
       if overwrite {
-        _ = FileSyscalls.unlink(.absolute(.init(output)))
+        _ = SystemCall.unlink(output)
       } else {
-        switch FileSyscalls.fileStatus(.absolute(.init(output)), into: &status) {
+        switch SystemCall.fileStatus(output, into: &status) {
         case .success: throw Errno.fileExists
         case .failure: break
         }
@@ -266,7 +266,7 @@ struct VideoEncoder: ParsableCommand {
 
     func removeUnfinishedOutput() {
       if let output, removeUnfinished {
-        _ = FileSyscalls.unlink(.absolute(.init(output)))
+        _ = SystemCall.unlink(output)
       }
     }
 
@@ -313,7 +313,7 @@ struct VideoEncoder: ParsableCommand {
 
     // MARK: check output exist, remove input optionally
     if let output {
-      switch FileSyscalls.fileStatus(.absolute(.init(output)), into: &status) {
+      switch SystemCall.fileStatus(output, into: &status) {
       case .success:
         print("encode succeess, output file existed!")
         // MARK: auto-mux output
@@ -332,7 +332,7 @@ struct VideoEncoder: ParsableCommand {
         if removeInput {
           switch input {
           case .path(let path):
-            print("remove input", FileSyscalls.unlink(.absolute(path)))
+            print("remove input", SystemCall.unlink(path))
           default: break
           }
         }

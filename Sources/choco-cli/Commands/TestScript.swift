@@ -88,16 +88,16 @@ struct TestScript: ParsableCommand {
       let pipeline = try ContiguousPipeline(vspipe)
 
       let outputFile = outputDirectoryURL.appendingPathComponent("%05d.\(format)")
-      var outputOptions = [FFmpeg.InputOutputOption]()
+      var outputOptions = [FFmpeg.OutputOption]()
       outputOptions.append(.format("image2"))
       if let start {
         outputOptions.append(.avOption(name: "start_number", value: start.description, streamSpecifier: nil))
       }
 
-      let ffmpeg = FFmpeg(global: .init(hideBanner: true, overwrite: true, enableStdin: false), ios: [
-        .input(url: "pipe:"),
-        .output(url: outputFile.path, options: outputOptions)
-      ])
+      let ffmpeg = FFmpeg(
+        global: .init(hideBanner: true, overwrite: true, enableStdin: false),
+        inputs: [.init(url: "pipe:")],
+        outputs: [.init(url: outputFile.path, options: outputOptions)])
 
       print(ffmpeg.arguments)
 

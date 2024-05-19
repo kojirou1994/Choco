@@ -13,14 +13,15 @@ func fileContentsLevel1(ofDir path: FilePath) throws -> [FilePath] {
   try Directory.open(path)
     .get()
     .closeAfter { directory in
-      DirectoryEntrySequence(directory: directory)
-        .compactMap { entry in
-          if entry.isHidden {
-            return nil
-          }
-          let filePath = path.appending(entry.name)
-          return filePath
+      var result = [FilePath]()
+      try directory.forEachEntries { entry, stop in
+        if entry.isHidden {
+          return
         }
+        let filePath = path.appending(entry.name)
+        result.append(filePath)
+      }
+      return result
     }
 }
 
@@ -65,7 +66,7 @@ struct FixRarbg: ParsableCommand {
     inputs.forEach { input in
       do {
         print("OPENING DIRECTORY: \(input)")
-        let inputPath = try FileSyscalls.realPath(FilePath(input))
+        let inputPath: FilePath = try SystemCall.realPath(input).get()
         let subtitleDirPath = inputPath.appending("Subs")
         print("will read subtitles from \(subtitleDirPath)")
         let outputRARBGPath = try outputRootPath.appending(inputPath.lastComponent.unwrap("input has no directory name!"))
@@ -73,8 +74,10 @@ struct FixRarbg: ParsableCommand {
         try Directory.open(inputPath)
           .get()
           .closeAfter { directory in
-            for entry in DirectoryEntrySequence(directory: directory)
-            where !entry.isHidden && entry.fileType == .regular && entry.name.hasSuffix(".mp4") {
+            try directory.forEachEntries { entry, _ in
+              guard !entry.isHidden && entry.fileType == .regular && entry.name.hasSuffix(".mp4") else {
+                return
+              }
               do {
                 let filePath = inputPath.appending(entry.name)
                 print("fix file: \(filePath)")
@@ -83,7 +86,7 @@ struct FixRarbg: ParsableCommand {
                 let subs = ((try? fileContentsLevel1(ofDir: fileSubDirPath)) ?? [])
                 guard subs.allSatisfy({ $0.extension == "srt" }) else {
                   print("sub has unsupported formats")
-                  continue
+                  return
                 }
                 var subInfos = subs.compactMap { path in
                   do {
@@ -108,7 +111,7 @@ struct FixRarbg: ParsableCommand {
                 }
                 let outputFilePath = outputRARBGPath.appending("\(mainFilename).mkv")
                 print("->\(outputFilePath)")
-                try preconditionOrThrow(!SystemFileManager.fileExists(atPath: .absolute(outputFilePath)), "output file already existed!")
+                try preconditionOrThrow(!SystemFileManager.fileExists(atPath: outputFilePath), "output file already existed!")
 
                 var mergeInputs = [MkvMerge.Input(file: filePath.string)]
                 usedSubInfos.forEach { sub in
@@ -117,7 +120,7 @@ struct FixRarbg: ParsableCommand {
                 let merge = MkvMerge(global: .init(quiet: false, flushOnClose: true), output: outputFilePath.string,
                                      inputs: mergeInputs)
                 print("MUXING")
-                try SystemFileManager.createDirectoryIntermediately(.absolute(outputRARBGPath))
+                try SystemFileManager.createDirectoryIntermediately(outputRARBGPath)
                 try merge.launch(use: TSCExecutableLauncher(outputRedirection: .none))
                 if delete {
                   print("Delete INPUT Files...")

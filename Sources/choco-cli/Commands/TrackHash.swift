@@ -122,7 +122,7 @@ struct TrackHash: ParsableCommand {
 
         switch tool {
         case .ffmpeg:
-          var outputOptions: [FFmpeg.InputOutputOption] = []
+          var outputOptions: [FFmpeg.OutputOption] = []
           extractedTracks.forEach { track in
             outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamIndex(track.id), isOptional: false, isNegativeMapping: false))
           }
@@ -133,15 +133,13 @@ struct TrackHash: ParsableCommand {
           outputOptions.append(.format("streamhash"))
           outputOptions.append(.avOption(name: "hash", value: hash, streamSpecifier: nil))
 
-          var inputOptions: [FFmpeg.InputOutputOption] = []
+          var inputOptions: [FFmpeg.InputOption] = []
           ffmpegOptions?.split(separator: ",").forEach { inputOptions.append(.raw(String($0))) }
 
           let ffmpeg = FFmpeg(
             global: .init(logLevel: .init(level: .error), hideBanner: true),
-            ios: [
-              .input(url: file, options: inputOptions),
-              .output(url: "-", options: outputOptions),
-            ])
+            inputs: [.init(url: file, options: inputOptions)],
+            outputs: [.init(url: "-", options: outputOptions)])
           print(ffmpeg.arguments.joined(separator: " "))
           let output = try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
           print(try output.utf8stderrOutput())
@@ -230,7 +228,7 @@ struct TrackHash: ParsableCommand {
         files.dropFirst().forEach { file in
           do {
             print("removing \(file)")
-            try FileSyscalls.unlink(.absolute(FilePath(file))).get()
+            try SystemCall.unlink(file).get()
           } catch {
             print("error: ", error)
           }

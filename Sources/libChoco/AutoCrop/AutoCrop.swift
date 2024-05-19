@@ -46,15 +46,17 @@ public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: 
   }
   
 
-  var inputOptions = [FFmpeg.InputOutputOption]()
+  var inputOptions = [FFmpeg.InputOption]()
   if let hw = hw {
     inputOptions.append(.hardwareAcceleration(hw, streamSpecifier: nil))
   }
   var ffmpeg = FFmpeg(
     global: .init(hideBanner: true, enableStdin: false),
-    ios: [
-      .input(url: file, options: inputOptions),
-      .output(url: "-", options: [
+    inputs: [
+      .init(url: file, options: inputOptions),
+      ],
+    outputs: [
+      .init(url: "-", options: [
         .map(inputFileID: 0, streamSpecifier: .streamType(.video, additional: .streamIndex(0)), isOptional: false, isNegativeMapping: false),
         .filter(filtergraph: filters.joined(separator: ","), streamSpecifier: nil),
         .format("null"),
@@ -62,7 +64,7 @@ public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: 
     ])
 
   if let frames {
-    ffmpeg.ios[1].options.append(.avOption(name: "frames", value: "\(frames)", streamSpecifier: nil))
+    ffmpeg.outputs[0].options.append(.frameCount(Int(frames), streamSpecifier: nil))
   }
 
   logger?.info("running ffmpeg: \(ffmpeg.arguments)")

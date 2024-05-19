@@ -544,8 +544,8 @@ extension ChocoCommonOptions.VideoOptions {
 
   // only for single video track
   // sar: input sar
-  func ffmpegIOOptions(cropInfo: CropInfo?, sourceSAR: SampleAspectRatio) -> [FFmpeg.InputOutputOption] {
-    var options = [FFmpeg.InputOutputOption]()
+  func ffmpegIOOptions(cropInfo: CropInfo?, sourceSAR: SampleAspectRatio) -> [FFmpeg.OutputOption] {
+    var options = [FFmpeg.OutputOption]()
     options.append(.codec(codec.ffCodec, streamSpecifier: .streamType(.video)))
     if !keepPixelFormat {
       options.append(.pixelFormat(codec.recommendedPixelFormat, streamSpecifier: nil))

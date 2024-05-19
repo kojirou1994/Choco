@@ -28,14 +28,14 @@ struct Verify: ParsableCommand {
         print("verifying \(input)...")
         let startDate = Date()
 
-        var outputOptions = [FFmpeg.InputOutputOption]()
+        var outputOptions = [FFmpeg.OutputOption]()
         outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamType(.video), isOptional: true, isNegativeMapping: false))
         if !videoOnly {
           outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamType(.audio), isOptional: true, isNegativeMapping: false))
         }
         outputOptions.append(.format("null"))
 
-        var inputOptions = [FFmpeg.InputOutputOption]()
+        var inputOptions = [FFmpeg.InputOption]()
 
         switch hw {
         case .cuvid:
@@ -48,10 +48,10 @@ struct Verify: ParsableCommand {
         default: break
         }
 
-        let ffmpeg = FFmpeg(global: .init(logLevel: .init(enabledFlags: [.level], level: verbose ? .info : .warning), hideBanner: true, enableStdin: false), ios: [
-          .input(url: input, options: inputOptions),
-          .output(url: "-", options: outputOptions)
-        ])
+        let ffmpeg = FFmpeg(
+          global: .init(logLevel: .init(enabledFlags: [.level], level: verbose ? .info : .warning), hideBanner: true, enableStdin: false),
+          inputs: [.init(url: input, options: inputOptions)],
+          outputs: [.init(url: "-", options: outputOptions)])
         print(ffmpeg.arguments)
         let result = try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .none), options: .init(checkNonZeroExitCode: false))
         print("ffmpeg termination status: \(result.exitStatus)")

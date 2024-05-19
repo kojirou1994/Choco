@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version: 5.9
 
 import PackageDescription
 
@@ -23,7 +23,7 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0"),
     .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
     .package(url: "https://github.com/kojirou1994/MediaUtility.git", from: "0.6.0"),
-    .package(url: "https://github.com/kojirou1994/Executable.git", from: "0.5.0"),
+    .package(url: "https://github.com/kojirou1994/Executable.git", from: "0.6.0"),
     .package(url: "https://github.com/kojirou1994/IOUtility.git", from: "0.0.1"),
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
@@ -32,7 +32,7 @@ let package = Package(
     .package(url: "https://github.com/kojirou1994/YYJSONEncoder.git", from: "0.0.2"),
     .package(url: "https://github.com/AlwaysRightInstitute/mustache.git", .upToNextMajor(from: "1.0.0")),
     .package(url: "https://github.com/apple/swift-crypto.git", from: "1.0.0"),
-    .package(url: "https://github.com/kojirou1994/ISOCodes.git", .exact("0.1.0")),
+    .package(url: "https://github.com/kojirou1994/ISOCodes.git", exact: "0.1.0"),
     .package(url: "https://github.com/objecthub/swift-numberkit.git", from: "2.4.0"),
     .package(url: "https://github.com/kojirou1994/Escape.git", from: "0.0.1"),
   ],

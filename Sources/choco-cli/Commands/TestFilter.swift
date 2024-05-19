@@ -51,7 +51,7 @@ struct TestFilter: ParsableCommand {
             try fm.createDirectory(at: outputDirectoryURL)
             let outputFile = outputDirectoryURL.appendingPathComponent("%05d.png")
 
-            var outputOptions = [FFmpeg.InputOutputOption]()
+            var outputOptions = [FFmpeg.OutputOption]()
             outputOptions.append(.format("image2"))
             if !filter.isEmpty {
               outputOptions.append(.filter(filtergraph: filter, streamSpecifier: nil))
@@ -59,15 +59,15 @@ struct TestFilter: ParsableCommand {
             outputOptions.append(.map(inputFileID: 0, streamSpecifier: .streamIndex(videoTrackID), isOptional: false, isNegativeMapping: false))
             outputOptions.append(.frameCount(frames, streamSpecifier: .streamID(0)))
 
-            var inputOptions = [FFmpeg.InputOutputOption]()
+            var inputOptions = [FFmpeg.InputOption]()
             if let start = start {
               inputOptions.append(.startPosition(start))
             }
 
-            let ffmpeg = FFmpeg(global: .init(hideBanner: true, enableStdin: false), ios: [
-              .input(url: input, options: inputOptions),
-              .output(url: outputFile.path, options: outputOptions)
-            ])
+            let ffmpeg = FFmpeg(
+              global: .init(hideBanner: true, enableStdin: false),
+              inputs: [.init(url: input, options: inputOptions)],
+              outputs: [.init(url: outputFile.path, options: outputOptions)])
             print(ffmpeg.arguments)
             try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .none))
 

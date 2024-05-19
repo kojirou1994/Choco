@@ -20,7 +20,7 @@ struct ThinBDMV: ParsableCommand {
 
   func run() throws {
     let logger = Logger(label: "thin-bdmv")
-    let outputPath = try FileSyscalls.realPath(FilePath(output))
+    let outputPath: FilePath = try SystemCall.realPath(output).get()
     var buffer = [UInt8](repeating: 0, count: size)
 
     inputs.forEach { input in
@@ -42,12 +42,12 @@ struct ThinBDMV: ParsableCommand {
       }
 
       do {
-        let inputPath = try FileSyscalls.realPath(FilePath(input))
+        let inputPath: FilePath = try SystemCall.realPath(input).get()
         let inputName = try inputPath.lastComponent.unwrap().string
         logger.info("Directory Name: \(inputName)")
 
         let outputRootPath = outputPath.appending(inputName)
-        try SystemFileManager.createDirectoryIntermediately(.absolute(outputRootPath))
+        try SystemFileManager.createDirectoryIntermediately(outputRootPath)
 
         let allContents = try SystemFileManager.subpathsOfDirectory(atPath: inputPath)
         print("Total items: \(allContents.count)")
@@ -60,14 +60,14 @@ struct ThinBDMV: ParsableCommand {
             return
           }
           do {
-            let fileType = try SystemFileManager.fileStatus(.absolute(absolutePath)).get().fileType
+            let fileType = try SystemFileManager.fileStatus(absolutePath).get().fileType
             switch fileType {
             case .regular:
               print("copy")
               try copyLimitedFile(src: absolutePath, dst: newPath)
             case .directory:
               print("mkdir")
-              try SystemFileManager.createDirectoryIntermediately(.absolute(newPath))
+              try SystemFileManager.createDirectoryIntermediately(newPath)
             default:
               print("warning: skipped file type: \(fileType)")
             }
