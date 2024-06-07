@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kojirou1994/CUtility.git",
       "state" : {
-        "revision" : "0aedc737ba936d53a987488d44a5aef9db894981",
-        "version" : "0.3.6"
+        "revision" : "6252ca15b09a1c8e675e6b98f1a61da9e2ed53ed",
+        "version" : "0.3.7"
       }
     },
     {
@@ -77,8 +77,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kojirou1994/MediaUtility.git",
       "state" : {
-        "revision" : "8251f1918a9a3d72e61e440e8fdd13f4ab82f845",
-        "version" : "0.6.9"
+        "revision" : "1ed086a13745b108f8d888cb09177cee1c2fdb93",
+        "version" : "0.6.10"
       }
     },
     {
@@ -131,8 +131,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-argument-parser.git",
       "state" : {
-        "revision" : "46989693916f56d1186bd59ac15124caef896560",
-        "version" : "1.3.1"
+        "revision" : "0fbc8848e389af3bb55c182bc19ca9d5dc2f255b",
+        "version" : "1.4.0"
       }
     },
     {
@@ -174,7 +174,7 @@
     {
       "identity" : "swift-numerics",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-numerics",
+      "location" : "https://github.com/apple/swift-numerics.git",
       "state" : {
         "revision" : "0a5bc04095a675662cf24757cc0640aa2204253b",
         "version" : "1.0.2"
@@ -221,8 +221,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kojirou1994/SystemUp.git",
       "state" : {
-        "revision" : "17b8da52d49f58cd5f7e0af8d83d047381d73660",
-        "version" : "0.5.2"
+        "revision" : "b6211b17b26b9a0226e6b232a2f3dd65adc09479",
+        "version" : "0.5.6"
       }
     },
     {
