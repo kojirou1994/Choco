@@ -1,5 +1,5 @@
 import ArgumentParser
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 import Foundation
 import URLFileManager
 import libChoco
@@ -69,7 +69,7 @@ struct TestFilter: ParsableCommand {
               inputs: [.init(url: input, options: inputOptions)],
               outputs: [.init(url: outputFile.path, options: outputOptions)])
             print(ffmpeg.arguments)
-            try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .none))
+            try ffmpeg.launch(use: .posix)
 
           } catch {
             print("error handling input \(input) for filter \(filter): \(error)")

@@ -3,7 +3,7 @@ import Foundation
 import ArgumentParser
 import MediaTools
 import IOStreams
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 
 struct MplsCommand: ParsableCommand {
   static var configuration: CommandConfiguration {
@@ -140,7 +140,7 @@ extension MplsCommand {
                                output: outputFileURL.path,
                                inputs: inputs)
             print(mkv.arguments)
-            try mkv.launch(use: TSCExecutableLauncher(outputRedirection: .none))
+            try mkv.launch(use: .posix)
           }
 
         }

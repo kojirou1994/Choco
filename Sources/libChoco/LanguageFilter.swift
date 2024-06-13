@@ -15,8 +15,8 @@ extension Language {
 
 public struct LanguageFilter {
 
-  let isExcluded: Bool
-  let languages: Set<Language>
+  public let isExcluded: Bool
+  public let languages: Set<Language>
 
   public static var `default`: Self {
     .init(isExcluded: false, languages: [.chi, .jpn])

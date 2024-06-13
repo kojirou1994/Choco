@@ -1,10 +1,9 @@
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 import Foundation
 import KwiftUtility
 import MediaTools
 import MplsParser
 import Rainbow
-import struct TSCBasic.ProcessResult
 import URLFileManager
 import Logging
 import ISOCodes
@@ -13,6 +12,7 @@ import FPExecutableLauncher
 import JSON
 import NumberKit
 import SystemUp
+import Command
 
 let fm = URLFileManager.default
 
@@ -33,8 +33,8 @@ public final class ChocoMuxer {
 
     init() throws {
       let options = try FFmpeg(global: .init(enableStdin: false))
-        .launch(use: TSCExecutableLauncher(outputRedirection: .collect), options: .init(checkNonZeroExitCode: false))
-        .utf8stderrOutput()
+        .launch(use: .posix(stdout: .makePipe, stderr: .makePipe), options: .init(checkNonZeroExitCode: false))
+        .errorUTF8String
       x265 = options.contains("--enable-libx265")
       x264 = options.contains("--enable-libx264")
       svtav1 = options.contains("--enable-libsvtav1")
@@ -87,7 +87,7 @@ public final class ChocoMuxer {
 
   private let audioConvertQueue = OperationQueue()
 
-  private var runningProcessID: Int32?
+  private var runningProcessID: ProcessID?
   var currentTemporaryPath: URL?
 
   let logger: Logger
@@ -107,15 +107,15 @@ public final class ChocoMuxer {
     try checkCodecs()
   }
 
-  private func launch<E: Executable>(externalExecutable: E) throws -> ProcessResult {
-    let process = try externalExecutable
-      .generateProcess(use: TSCExecutableLauncher(outputRedirection: .none))
-    try process.launch()
-    runningProcessID = process.processID
+  private func launch<E: Executable>(externalExecutable: E) throws -> Command.Output {
+    var process = try externalExecutable
+      .generateProcess(use: .posix)
+      .spawn()
+    runningProcessID = process.pid
     defer {
       runningProcessID = nil
     }
-    let result = try process.waitUntilExit()
+    let result = try process.waitOutput()
     return result
   }
 
@@ -123,12 +123,11 @@ public final class ChocoMuxer {
                                      checkAllowedExitCodes codes: [CInt]) throws {
 //    logger.debug("Running \(externalExecutable.commandLineArguments)")
     let result = try launch(externalExecutable: externalExecutable)
-    switch result.exitStatus {
-    case .terminated(code: let code):
-      if !codes.contains(code) {
+    if result.status.exited {
+      if !codes.contains(result.status.exitStatus) {
         throw ExecutableError.nonZeroExit
       }
-    case .signalled(signal: _):
+    } else if result.status.signaled {
       throw ExecutableError.nonZeroExit
     }
   }
@@ -138,7 +137,7 @@ public final class ChocoMuxer {
   public func terminate() {
     terminated = true
     audioConvertQueue.cancelAllOperations()
-    runningProcessID.map { _ = kill($0, SIGTERM) }
+    runningProcessID.map { _ = Signal.terminate.send(to: .processID($0)) }
     runningProcessID = nil
   }
 
@@ -168,7 +167,7 @@ public final class ChocoMuxer {
       }
       do {
         let result = try launch(externalExecutable: task.joinWorker!.executable)
-        if result.exitStatus == .terminated(code: 2) {
+        if result.status == .exited(2) {
           throw ExecutableError.nonZeroExit
         }
         return .success([task.joinWorker!.outputURL])
@@ -354,7 +353,7 @@ extension ChocoMuxer {
                   try fm.createDirectory(at: outputDirectoryURL)
                   let cmd = options.removeSourceFiles ? "mv" : "cp"
                   try AnyExecutable(executableName: cmd, arguments: [currentFileURL.path, dstPath.path])
-                    .launch(use: TSCExecutableLauncher(outputRedirection: .none))
+                    .launch(use: .posix)
                   outputResult = .success(.init(path: dstPath))
                 } catch {
                   outputResult = .failure(.copyFile(error))
@@ -636,8 +635,8 @@ extension ChocoMuxer {
     let mediainfo: JSON
     do {
       let output = try MediaInfo(full: true, output: .json, files: [mkvinfo.fileName!])
-        .launch(use: TSCExecutableLauncher())
-        .output.get()
+        .launch(use: PosixExecutableLauncher())
+        .output
       mediainfo = try .read(string: output).get()
     } catch {
       return .failure(.mediainfo(error))
@@ -804,7 +803,7 @@ extension ChocoMuxer {
 
                 try pipeline.run()
 
-                runningProcessID = pipeline.processes.first?.processIdentifier
+                runningProcessID = (pipeline.processes.first?.processIdentifier).map(ProcessID.init)
 
 
                 pipeline.waitUntilExit()
@@ -1008,7 +1007,11 @@ extension ChocoMuxer {
       if !tempFFmpegFlacFiles.isEmpty {
         let flacMD5s: [String]
         do {
-          flacMD5s = try FlacMD5.calculate(inputs: tempFFmpegFlacFiles.map { $0.path })
+          flacMD5s = try FlacEncoder.md5Calculator(inputs: tempFFmpegFlacFiles.map { $0.path })
+            .launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
+            .output.split(separator: UInt8(ascii: "\n")).map {
+              String(decoding: $0, as: UTF8.self)
+            }
         } catch {
           return .failure(.validateFlacMD5(error))
         }
@@ -1035,7 +1038,7 @@ extension ChocoMuxer {
     // clean temp flac
     audioConverters.forEach { converter in
       _ = try? AnyExecutable(executableName: "metaflac", arguments: ["--remove-tag", "encoder", converter.input.path])
-        .launch(use: TSCExecutableLauncher(outputRedirection: .none))
+        .launch(use: .posix)
     }
 
     // external temp flac -> final audio tracks

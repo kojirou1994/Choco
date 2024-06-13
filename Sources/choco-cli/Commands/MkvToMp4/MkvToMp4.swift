@@ -1,7 +1,7 @@
 import Foundation
 import KwiftUtility
 import ArgumentParser
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 import Units
 import Precondition
 
@@ -527,7 +527,7 @@ struct MkvToMp4: ParsableCommand {
         extractedChapterFileURL = nil
       }
 
-      let launcher = TSCExecutableLauncher(outputRedirection: .collect)
+      let launcher = PosixExecutableLauncher(stdout: .makePipe, stderr: .makePipe)
 
       logger.info("Extracting...")
       let extractor = MkvExtract(
@@ -536,7 +536,7 @@ struct MkvToMp4: ParsableCommand {
       let extractionResult = try extractor.launch(use: launcher)
       allTempFiles.append(contentsOf: extractedTracks)
 
-      logger.debug("mkvextract output:\n\((try? extractionResult.utf8Output()) ?? "")")
+      logger.debug("mkvextract output:\n\(extractionResult.outputUTF8String)")
 
       logger.info("Muxing...")
       var importings = zip(supportedTracks, extractedTracks).map { track, trackFile -> MP4Box.FileImporting in
@@ -578,7 +578,7 @@ struct MkvToMp4: ParsableCommand {
       let muxer = MP4Box(importings: importings,
                          tmp: mp4Tmp ?? tmp, output: outputFileURL.path)
       logger.debug("MP4Box arguments: \(muxer.arguments)")
-      let muxerResult = try muxer.launch(use: TSCExecutableLauncher(outputRedirection: .none))
+      let muxerResult = try muxer.launch(use: .posix)
 
     }
   }

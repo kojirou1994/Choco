@@ -1,5 +1,5 @@
 import ArgumentParser
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 import Foundation
 import libChoco
 import FPExecutableLauncher
@@ -65,9 +65,9 @@ struct TestScript: ParsableCommand {
     try! script.write(to: scriptFileURL, atomically: false, encoding: .utf8)
 
     let output = try VsPipe(script: scriptFileURL.path, output: .info)
-      .launch(use: TSCExecutableLauncher(outputRedirection: .collect), options: .init(checkNonZeroExitCode: false))
+      .launch(use: .posix(stdout: .makePipe, stderr: .makePipe), options: .init(checkNonZeroExitCode: false))
     do {
-      let info = try VsPipe.Info.parse(output.utf8Output())
+      let info = try VsPipe.Info.parse(output.outputUTF8String)
       print("Info Parsed!")
       print("Resolution: \(info.width)x\(info.height)")
       print("FPS: \(info.fps.0)/\(info.fps.1)")
@@ -75,8 +75,8 @@ struct TestScript: ParsableCommand {
       print("Format: \(info.formatName)")
     } catch {
       print("cannot parse vspipe!")
-      try? print("stdout:\n\(output.utf8Output())")
-      try? print("stderr:\n\(output.utf8stderrOutput())")
+      print("stdout:\n\(output.outputUTF8String)")
+      print("stderr:\n\(output.errorUTF8String)")
     }
 
     if let outputDirectoryURL = previewDirectory.map({ URL(fileURLWithPath: $0).appendingPathComponent(inputBasename) }) {

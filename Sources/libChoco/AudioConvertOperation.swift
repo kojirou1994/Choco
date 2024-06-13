@@ -1,27 +1,27 @@
-import TSCBasic
 import class Foundation.Operation
-import TSCLibc
 import MediaTools
-import TSCExecutableLauncher
+import PosixExecutableLauncher
+import SystemUp
 
-class AudioConvertOperation: Operation {
+final class AudioConvertOperation: Operation, @unchecked Sendable {
 
-  let process: Process
+  var process: PosixExecutableLauncher.Process.ChildProcess
   let converter: AudioConverter
   let errorHandler: (Error) -> Void
 
   init(converter: AudioConverter, errorHandler: @escaping (Error) -> Void) {
     self.process = try! converter.executable
-      .generateProcess(use: TSCExecutableLauncher(outputRedirection: .collect))
+      .generateProcess(use: .posix)
+      .spawn()
+
     self.converter = converter
     self.errorHandler = errorHandler
   }
 
   override func main() {
     do {
-      try process.launch()
-      let result = try process.waitUntilExit()
-      if result.exitStatus != .terminated(code: 0) {
+      let result = try process.waitOutput()
+      if result.status != .exited(0) {
         print("error while converting flac file! \(converter.input)")
       }
     } catch {
@@ -30,7 +30,7 @@ class AudioConvertOperation: Operation {
   }
 
   override func cancel() {
-    process.signal(SIGTERM)
+    Signal.terminate.send(to: .processID(process.pid))
     super.cancel()
   }
 }

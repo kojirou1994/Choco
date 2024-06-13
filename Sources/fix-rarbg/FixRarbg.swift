@@ -5,7 +5,7 @@ import SystemFileManager
 import SystemPackage
 import SystemUp
 import Precondition
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 import ISOCodes
 
 /// regular file contents of directory
@@ -121,7 +121,7 @@ struct FixRarbg: ParsableCommand {
                                      inputs: mergeInputs)
                 print("MUXING")
                 try SystemFileManager.createDirectoryIntermediately(outputRARBGPath)
-                try merge.launch(use: TSCExecutableLauncher(outputRedirection: .none))
+                try merge.launch(use: .posix)
                 if delete {
                   print("Delete INPUT Files...")
                   if deleteUnused {

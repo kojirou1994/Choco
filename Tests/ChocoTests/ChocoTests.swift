@@ -1,10 +1,10 @@
 import XCTest
-@testable import libChoco
+import libChoco
 
 final class ChocoTests: XCTestCase {
   func testScriptTemplate() throws {
-    let filePath = "/Volumes/Source/Sample.mp4"
-    let encodeScript = """
+    _ = "/Volumes/Source/Sample.mp4"
+    _ = """
     import vapoursynth as vs
     core = vs.get_core()
     v = core.ffms2.Source({{{filePath}}}, fpsnum=30000, fpsden=1001, format=vs.YUV420P{{{encoderDepth}}})

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MplsParser
+import MplsParser
 
 final class MplsParserTests: XCTestCase {
 

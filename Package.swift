@@ -62,6 +62,7 @@ let package = Package(
         .product(name: "MediaTools", package: "MediaUtility"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "FPExecutableLauncher", package: "Executable"),
+        .product(name: "PosixExecutableLauncher", package: "Executable"),
         .product(name: "JSON", package: "YYJSONEncoder"),
         .product(name: "NumberKit", package: "swift-numberkit"),
         .product(name: "Escape", package: "Escape"),
@@ -89,7 +90,7 @@ let package = Package(
     .executableTarget(
       name: "chapter-tool",
       dependencies: [
-        .product(name: "TSCExecutableLauncher", package: "Executable"),
+        .product(name: "PosixExecutableLauncher", package: "Executable"),
         "URLFileManager",
         .product(name: "Logging", package: "swift-log"),
         .product(name: "MediaUtility", package: "MediaUtility"),
@@ -100,7 +101,7 @@ let package = Package(
       name: "fix-rarbg",
       dependencies: [
         "ISOCodes",
-        .product(name: "TSCExecutableLauncher", package: "Executable"),
+        .product(name: "PosixExecutableLauncher", package: "Executable"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "MediaUtility", package: "MediaUtility"),
         .product(name: "MediaTools", package: "MediaUtility"),

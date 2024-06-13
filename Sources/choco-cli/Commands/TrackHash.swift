@@ -1,6 +1,6 @@
 import Foundation
 import ArgumentParser
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 import MediaTools
 #if canImport(CryptoKit)
 import CryptoKit
@@ -141,9 +141,9 @@ struct TrackHash: ParsableCommand {
             inputs: [.init(url: file, options: inputOptions)],
             outputs: [.init(url: "-", options: outputOptions)])
           print(ffmpeg.arguments.joined(separator: " "))
-          let output = try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
-          print(try output.utf8stderrOutput())
-          hashes = try output.utf8Output().split(separator: "\n").map { String($0.split(separator: "=")[1]) }
+          let output = try ffmpeg.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
+          print(output.errorUTF8String)
+          hashes = output.outputUTF8String.split(separator: "\n").map { String($0.split(separator: "=")[1]) }
         case .mkvextract:
           let extractedFilePaths = extractedTracks
             .map { _ in tmpDir.appendingPathComponent(UUID().uuidString) }
@@ -155,7 +155,7 @@ struct TrackHash: ParsableCommand {
           let extractor = MkvExtract(
             filepath: file,
             extractions: [.tracks(outputs: outputs)])
-          try extractor.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
+          try extractor.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
           hashes = try extractedFilePaths.map { trackFileURL -> String in
             var hash = SHA256()
             try BufferEnumerator(options: .init(bufferSizeLimit: 4*1024))
@@ -211,7 +211,7 @@ struct TrackHash: ParsableCommand {
               editor.actions.append(.init(selector: .track(.uid(trackUID.description)), modifications: [.set(name: "flag-enabled", value: "0")]))
             }
             print(editor.arguments)
-            try editor.launch(use: .tsc(outputRedirection: .none))
+            try editor.launch(use: .posix)
           }
         }
 

@@ -1,5 +1,5 @@
 import ArgumentParser
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 import Foundation
 import libChoco
 
@@ -53,8 +53,8 @@ struct Verify: ParsableCommand {
           inputs: [.init(url: input, options: inputOptions)],
           outputs: [.init(url: "-", options: outputOptions)])
         print(ffmpeg.arguments)
-        let result = try ffmpeg.launch(use: TSCExecutableLauncher(outputRedirection: .none), options: .init(checkNonZeroExitCode: false))
-        print("ffmpeg termination status: \(result.exitStatus)")
+        let result = try ffmpeg.launch(use: .posix, options: .init(checkNonZeroExitCode: false))
+        print("ffmpeg termination status: \(result.status)")
         let time = Date().timeIntervalSince(startDate)
         print("time used: \(String(format: "%.3f", time)) seconds.")
       } catch {

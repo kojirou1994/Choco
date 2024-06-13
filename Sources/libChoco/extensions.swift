@@ -2,6 +2,8 @@ import Foundation
 import MediaTools
 import MplsParser
 import ISOCodes
+import KwiftExtension
+import PosixExecutableLauncher
 
 extension MplsClip {
 
@@ -198,4 +200,19 @@ extension MatroskaChapter {
     }
 
   }
+}
+
+extension MkvMergeIdentification {
+
+  public init(url: URL) throws {
+    try self.init(filePath: url.path)
+  }
+
+  public init(filePath: String) throws {
+    let mkvmerge = try AnyExecutable(
+      executableName: "mkvmerge", arguments: ["-J", filePath]
+    ).launch(use: .posix(stdout: .makePipe, stderr: .makePipe)).output
+    self = try JSONDecoder().kwiftDecode(from: mkvmerge)
+  }
+
 }

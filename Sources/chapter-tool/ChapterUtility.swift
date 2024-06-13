@@ -1,6 +1,6 @@
 import MediaUtility
 import Foundation
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 import Logging
 import MediaTools
 import URLFileManager
@@ -22,7 +22,7 @@ struct ChapterUtility {
   func extractAndReadChapter(from fileURL: URL, keepChapterFile: Bool) throws -> MatroskaChapter {
     let chapterBackupURL = fm.makeUniqueFileURL(fileURL.appendingPathExtension("chapter.xml"))
     _ = try MkvExtract(filepath: fileURL.path, extractions: [.chapter(filename: chapterBackupURL.path)])
-      .launch(use: TSCExecutableLauncher())
+      .launch(use: .posix)
     guard fm.fileExistance(at: chapterBackupURL).exists else {
       throw ChapterToolError.noChapter
     }
@@ -47,7 +47,7 @@ struct ChapterUtility {
         logger.info("Replacing chapter for file: \(path)")
       }
       _ = try MkvPropEdit(parseMode: nil, file: path, actions: [.chapter(filename: chap)])
-        .launch(use: TSCExecutableLauncher(outputRedirection: .none))
+        .launch(use: .posix)
     }
     if chapter.entries.allSatisfy({ $0.isEmpty }) {
       // no valid chapters

@@ -1,5 +1,5 @@
 import MediaUtility
-import TSCExecutableLauncher
+import PosixExecutableLauncher
 import URLFileManager
 import Foundation
 import MediaTools
@@ -69,8 +69,8 @@ public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: 
 
   logger?.info("running ffmpeg: \(ffmpeg.arguments)")
   do {
-    let result = try ffmpeg.launch(use: TSCExecutableLauncher())
-    for line in try! result.utf8stderrOutput().components(separatedBy: .newlines).reversed() {
+    let result = try ffmpeg.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
+    for line in result.errorUTF8String.components(separatedBy: .newlines).reversed() {
       if line.hasPrefix("[Parsed_cropdetect") {
         let cropRange = try line.range(of: "crop=").unwrap()
         return try .success(.init(ffmpegOutput: line[cropRange.upperBound...]))
@@ -91,9 +91,9 @@ public func handbrakeCrop(at path: String, previews: Int, tempFile: URL) throws 
 
   let handBrake = HandBrakePreview(input: path, output: tempFile.path, previews: previews)
 
-  let result = try handBrake.launch(use: TSCExecutableLauncher(outputRedirection: .collect))
-  
-  let stderr = try result.stderrOutput.get()
+  let result = try handBrake.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
+
+  let stderr = result.error
   try? fm.removeItem(at: tempFile)
 
   let prefix = "  + autocrop: "
