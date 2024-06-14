@@ -635,7 +635,7 @@ extension ChocoMuxer {
     let mediainfo: JSON
     do {
       let output = try MediaInfo(full: true, output: .json, files: [mkvinfo.fileName!])
-        .launch(use: PosixExecutableLauncher())
+        .launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
         .output
       mediainfo = try .read(string: output).get()
     } catch {
