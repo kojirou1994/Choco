@@ -16,7 +16,7 @@ import PrettyBytes
 import SystemUp
 import SystemPackage
 
-extension MediaTrackType: EnumerableFlag {
+extension MediaTrackType: @retroactive EnumerableFlag {
   public static var allCases: [MediaTrackType] {
     [.video, .audio, .subtitles]
   }

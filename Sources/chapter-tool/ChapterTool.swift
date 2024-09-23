@@ -209,7 +209,7 @@ struct ChapterTool: ParsableCommand {
     @Flag(help: "Clean generated meaningless chapter titles automatically")
     var auto: Bool = false
 
-    static let minChapterInterval = Timestamp.second * 3
+    static var minChapterInterval: Timestamp { Timestamp.second * 3 }
 
     func run() throws {
       inputs.forEach { path in

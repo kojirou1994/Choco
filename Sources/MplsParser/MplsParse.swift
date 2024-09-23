@@ -24,7 +24,7 @@ public enum MplsReadError: Error {
   case invalidSubPathType(UInt8)
 }
 
-extension Read {
+extension Read where Self: ~Copyable {
   mutating func readTimestamp() throws -> Timestamp {
     try Timestamp(mpls: readInteger())
   }
@@ -50,7 +50,7 @@ extension MplsPlaylist {
   }
 
 
-  public static func parse<T>(_ reader: inout T) throws -> Self where T: Read, T: Seek {
+  public static func parse<T: ~Copyable>(_ reader: inout T) throws -> Self where T: Read, T: Seek {
 
     // MARK: parse header
     do {
@@ -265,7 +265,7 @@ extension MplsPlaylist {
 
 extension MplsStream {
 
-  internal static func parse<T>(_ handle: inout T) throws -> Self where T: Read, T: Seek {
+  internal static func parse<T: ~Copyable>(_ handle: inout T) throws -> Self where T: Read, T: Seek {
     var length = try handle.readByte()
     var currentIndex = try handle.currentOffset()// >> 3
     let streamType = try StreamType(rawValue: handle.readByte()).unwrap("Invalid Stream Type")

@@ -3,7 +3,7 @@ import libChoco
 import Logging
 import KwiftUtility
 
-extension Logger.Level: ExpressibleByArgument {}
+extension Logger.Level: @retroactive ExpressibleByArgument {}
 
 struct CommonOptionsGroup: ParsableArguments {
   @OptionGroup(title : "IO")

@@ -34,7 +34,7 @@ extension ChocoMuxer.TimeSummary {
 @main
 struct ChocoCli: ParsableCommand {
 
-  static var muxer: ChocoMuxer?
+  nonisolated(unsafe) static var muxer: ChocoMuxer?
 
   static let configuration: CommandConfiguration =
     .init(

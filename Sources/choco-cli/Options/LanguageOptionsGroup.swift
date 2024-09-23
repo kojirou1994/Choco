@@ -2,7 +2,7 @@ import ArgumentParser
 import libChoco
 import ISOCodes
 
-extension Language: ExpressibleByArgument {}
+extension Language: @retroactive ExpressibleByArgument {}
 extension LanguageFilter: ExpressibleByArgument {}
 
 struct LanguageOptionsGroup: ParsableArguments {

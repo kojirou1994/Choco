@@ -312,9 +312,8 @@ extension ChocoMuxer {
     var normalFiles: [FileSummary.NormalFileTask] = []
 
     do {
-      let stream = try Fts.open(path: file.path, options: [.physical, .noChdir]).get()
-      defer { stream.close() }
-      while !terminated, let entry = stream.read() {
+      let stream = try Fts.open(path: file.path, options: [.physical, .noChdir])
+      while !terminated, let entry = try stream.read() {
         if entry.info == .file {
           let currentFileURL = URL(fileURLWithPath: entry.path.string)
 
@@ -706,7 +705,7 @@ extension ChocoMuxer {
               let parts = try darString.splitTwoPart(":").unwrap()
               let dar = try SampleAspectRatio(.init(parts.0).unwrap(errInfo), .init(parts.1).unwrap(errInfo))
 
-              sar = dar.divided(by: SampleAspectRatio(width, height))
+              sar = dar.divided(by: SampleAspectRatio(Int(width), Int(height)))
             } catch {
               fatalError("cannot detect sar from dar! error: \(error)")
             }
@@ -715,12 +714,12 @@ extension ChocoMuxer {
             do {
               let num = try (videoTrack["FrameRate_Original_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num origin")
               let den = try (videoTrack["FrameRate_Original_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den origin")
-              return Rational(num, den)
+              return Rational(Int(num), Int(den))
             } catch {
               do {
                 let num = try (videoTrack["FrameRate_Num"]?.string.flatMap(UInt.init)).unwrap("no framerate num")
                 let den = try (videoTrack["FrameRate_Den"]?.string.flatMap(UInt.init)).unwrap("no framerate den")
-                return Rational(num, den)
+                return Rational(Int(num), Int(den))
               } catch {
                 // try find known fps values
                 let value = try (videoTrack["FrameRate"]?.string).unwrap("no framerate value (FrameRate)")

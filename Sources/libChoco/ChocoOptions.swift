@@ -538,7 +538,7 @@ extension ChocoCommonOptions.VideoOptions.Codec {
 }
 
 import NumberKit
-typealias SampleAspectRatio = Rational<UInt>
+typealias SampleAspectRatio = Rational<Int>
 
 extension ChocoCommonOptions.VideoOptions {
 
