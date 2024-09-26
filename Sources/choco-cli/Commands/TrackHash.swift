@@ -11,10 +11,10 @@ import Crypto
 #endif
 import BufferUtility
 import MediaUtility
-import URLFileManager
 import PrettyBytes
 import SystemUp
 import SystemPackage
+import SystemFileManager
 
 extension MediaTrackType: @retroactive EnumerableFlag {
   public static var allCases: [MediaTrackType] {
@@ -72,8 +72,8 @@ struct TrackHash: AsyncParsableCommand {
   @Argument()
   var inputs: [String]
 
-  func run() throws {
-    let fm = URLFileManager.default
+  func run() async throws {
+
     if !disabledTrackTypes.isEmpty {
       print("Disabled track types: \(disabledTrackTypes)")
     }
@@ -82,7 +82,7 @@ struct TrackHash: AsyncParsableCommand {
     }
 
     let formatter = BytesStringFormatter(uppercase: true)
-    let tmpDir = (PosixEnvironment.get(key: "TMPDIR") ?? tmp).map(URL.init(fileURLWithPath:)) ?? FileManager.default.temporaryDirectory
+    let tmpDir = FilePath(PosixEnvironment.get(key: "TMPDIR") ?? tmp ?? "/tmp")
 
     /// key is hashes
     var dedupFileDatas = [[String]: [String]]()
@@ -109,12 +109,12 @@ struct TrackHash: AsyncParsableCommand {
         }
 
         let hashes: [String]
-        var tempFilePaths = [URL]()
+        var tempFilePaths = [FilePath]()
 
         defer {
           tempFilePaths.forEach { path in
             do {
-              try fm.removeItem(at: path)
+              try SystemFileManager.remove(path)
             } catch {
             }
           }
@@ -146,20 +146,20 @@ struct TrackHash: AsyncParsableCommand {
           hashes = output.outputUTF8String.split(separator: "\n").map { String($0.split(separator: "=")[1]) }
         case .mkvextract:
           let extractedFilePaths = extractedTracks
-            .map { _ in tmpDir.appendingPathComponent(UUID().uuidString) }
+            .map { _ in tmpDir.appending(UUID().uuidString) }
 
           let outputs = zip(extractedTracks, extractedFilePaths)
             .map { track, path in
-              MkvExtractionMode.TrackOutput(trackID: track.id, filename: path.path)
+              MkvExtractionMode.TrackOutput(trackID: track.id, filename: path.string)
             }
           let extractor = MkvExtract(
             filepath: file,
             extractions: [.tracks(outputs: outputs)])
           try extractor.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
-          hashes = try extractedFilePaths.map { trackFileURL -> String in
+          hashes = try extractedFilePaths.map { trackFilePath -> String in
             var hash = SHA256()
             try BufferEnumerator(options: .init(bufferSizeLimit: 4*1024))
-              .enumerateBuffer(file: trackFileURL) { (buffer, _, _) in
+              .systemEnumerateBuffer(file: trackFilePath) { (buffer, _, _) in
                 hash.update(bufferPointer: buffer)
               }
             return formatter.bytesToHexString(hash.finalize())
