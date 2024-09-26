@@ -38,7 +38,7 @@ extension MkvMergeIdentification.Track {
   }
 }
 
-struct TrackHash: ParsableCommand {
+struct TrackHash: AsyncParsableCommand {
 
   enum Tool: String, ExpressibleByArgument, CaseIterable {
     case ffmpeg

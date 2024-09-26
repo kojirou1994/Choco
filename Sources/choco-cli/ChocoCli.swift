@@ -32,7 +32,7 @@ extension ChocoMuxer.TimeSummary {
 }
 
 @main
-struct ChocoCli: ParsableCommand {
+struct ChocoCli: AsyncParsableCommand {
 
   nonisolated(unsafe) static var muxer: ChocoMuxer?
 
