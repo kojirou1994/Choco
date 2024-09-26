@@ -38,6 +38,17 @@ extension MkvMergeIdentification.Track {
   }
 }
 
+extension OperationQueue {
+
+    func result<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
+      try await withUnsafeThrowingContinuation { cn in
+        self.addOperation {
+          cn.resume(with: .init(catching: body))
+        }
+      }
+    }
+
+  }
 
 
 struct TrackHash: AsyncParsableCommand {
@@ -46,6 +57,9 @@ struct TrackHash: AsyncParsableCommand {
     case ffmpeg
     case mkvextract
   }
+
+  @Option(name: .customShort("j", allowingJoined: true))
+  var jobs: Int = 1
 
   @Option(help: "Temp dir to extract tracks.")
   var tmp: String?
@@ -85,25 +99,43 @@ struct TrackHash: AsyncParsableCommand {
     }
 
     let tmpDir = FilePath(PosixEnvironment.get(key: "TMPDIR") ?? tmp ?? "/tmp")
+
     let hasher = TrackHasher(
       tmpDir: tmpDir,
       formatter: BytesStringFormatter(uppercase: true),
       tool: tool, hash: hash, slowVideo: slowVideo, dedup: dedup, ffmpegOptions: ffmpegOptions, disabledTrackTypes: disabledTrackTypes)
 
-    /// key is hashes
-    var dedupFileDatas = [[String]: [String]]()
+    let dedupFileDatas: [[String]: [String]] = await withThrowingTaskGroup(of: (path: String, hashes: [String]).self) { group in
+      /// key is hashes
+      var dedupFileDatas = [[String]: [String]]()
 
-    inputs.forEach { file in
-      do {
-        let hashes = try hasher.getHashes(file: file)
+      let queue = OperationQueue()
+      queue.maxConcurrentOperationCount = jobs
 
-        // if no hashes, ignore it
-        if !hashes.isEmpty, removeDup {
-          dedupFileDatas[hashes, default: []].append(file)
+      for input in inputs {
+        group.addTask {
+          try await queue.result {
+            try (input, hasher.getHashes(file: input))
+          }
         }
-      } catch {
-        print("Failed, error: \(error)")
       }
+
+      while true {
+        do {
+          guard let result = try await group.next() else {
+            break
+          }
+          // if no hashes, ignore it
+          if !result.hashes.isEmpty, removeDup {
+            dedupFileDatas[result.hashes, default: []].append(result.path)
+          }
+        } catch {
+          print("Failed, error: \(error)")
+        }
+      }
+
+      return dedupFileDatas
+
     }
 
     if removeDup {
@@ -191,6 +223,7 @@ struct TrackHash: AsyncParsableCommand {
           global: .init(logLevel: .init(level: .error), hideBanner: true),
           inputs: [.init(url: file, options: inputOptions)],
           outputs: [.init(url: "-", options: outputOptions)])
+        // TODO: ffmpeg failure handling
         let output = try ffmpeg.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
 
         debugInfo = """
