@@ -139,8 +139,8 @@ struct TrackHash: AsyncParsableCommand {
 
     @available(*, noasync)
     func getHashes(file: String) throws -> [String] {
-      print("")
-      print("Reading file: \(file)")
+      print("\nStart reading file: \(file)")
+
       let info = try MkvMergeIdentification(filePath: file)
 
       let tracks = try info.tracks.unwrap("no tracks!").notEmpty("no tracks!")
@@ -169,6 +169,8 @@ struct TrackHash: AsyncParsableCommand {
         }
       }
 
+      let debugInfo: String
+
       switch tool {
       case .ffmpeg:
         var outputOptions: [FFmpeg.OutputOption] = []
@@ -189,9 +191,13 @@ struct TrackHash: AsyncParsableCommand {
           global: .init(logLevel: .init(level: .error), hideBanner: true),
           inputs: [.init(url: file, options: inputOptions)],
           outputs: [.init(url: "-", options: outputOptions)])
-        print(ffmpeg.arguments.joined(separator: " "))
         let output = try ffmpeg.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
-        print(output.errorUTF8String)
+
+        debugInfo = """
+        ffmpeg \(ffmpeg.arguments.joined(separator: " "))
+        \(output.errorUTF8String)
+        """
+
         hashes = output.outputUTF8String.split(separator: "\n").map { String($0.split(separator: "=")[1]) }
       case .mkvextract:
         let extractedFilePaths = extractedTracks
@@ -205,6 +211,11 @@ struct TrackHash: AsyncParsableCommand {
           filepath: file,
           extractions: [.tracks(outputs: outputs)])
         try extractor.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
+
+        debugInfo = """
+        \(MkvExtract.executableName) \(extractor.arguments.joined(separator: " "))
+        """
+
         hashes = try extractedFilePaths.map { trackFilePath -> String in
           var hash = SHA256()
           try BufferEnumerator(options: .init(bufferSizeLimit: 4*1024))
@@ -216,13 +227,15 @@ struct TrackHash: AsyncParsableCommand {
         tempFilePaths = extractedFilePaths
       }
 
-      for (track, hash) in zip(extractedTracks, hashes) {
-        print(track.remuxerInfo)
-        print("Hash:", hash)
-      }
+      let separator = "------"
+      print("""
+      \n\(separator)\nSUCCESS: \(file)
+      \(debugInfo)
+      \(zip(extractedTracks, hashes).map { (track, hash) in "\(track.remuxerInfo)\nHash: \(hash)" }.joined(separator: "\n"))\n\(separator)
+      """)
 
       if dedup {
-        print("Dedup enabled, start checking.")
+//        print("Dedup enabled, start checking.")
         var disabledTrackIDs = [UInt]()
         var checkedAudios = [(spec: AudioTrackHashSpec, trackID: Int, hash: String)]()
         var subtitleHashes = [(trackID: Int, hash: String)]()
@@ -232,14 +245,14 @@ struct TrackHash: AsyncParsableCommand {
           case .audio:
             let spec = track.spec
             if let existed = checkedAudios.first(where: { $0.hash == hash && $0.spec == spec }) {
-              print("dup audio track \(track.id) detected, dst trackID: \(existed.trackID)")
+//              print("dup audio track \(track.id) detected, dst trackID: \(existed.trackID)")
               disabledTrackIDs.append(track.properties!.uid!)
             } else {
               checkedAudios.append((spec, track.id, hash))
             }
           case .subtitles:
             if let existed = subtitleHashes.first(where: { $0.hash == hash }) {
-              print("dup subtitle track \(track.id) detected, dst trackID: \(existed.trackID)")
+//              print("dup subtitle track \(track.id) detected, dst trackID: \(existed.trackID)")
               disabledTrackIDs.append(track.properties!.uid!)
             } else {
               subtitleHashes.append((track.id, hash))
@@ -247,20 +260,24 @@ struct TrackHash: AsyncParsableCommand {
           }
         }
         if disabledTrackIDs.isEmpty {
-          print("no dup tracks")
+//          print("no dup tracks")
         } else {
-          print("disable tracks: \(disabledTrackIDs)")
+//          print("disable tracks: \(disabledTrackIDs)")
 
           var editor = MkvPropEdit(filepath: file)
           disabledTrackIDs.forEach { trackUID in
             editor.actions.append(.init(selector: .track(.uid(trackUID.description)), modifications: [.set(name: "flag-enabled", value: "0")]))
           }
-          print(editor.arguments)
-          try editor.launch(use: .posix)
+
+          do {
+            try editor.launch(use: .posix)
+            print(MkvPropEdit.executableName, editor.arguments, "OK")
+          } catch {
+            print(MkvPropEdit.executableName, editor.arguments, "FAILED!")
+          }
         }
       }
 
-      print("")
       return hashes
     }
   }
