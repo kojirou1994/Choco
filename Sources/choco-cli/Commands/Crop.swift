@@ -1,18 +1,11 @@
 import ArgumentParser
 import ExecutableLauncher
 import Foundation
-import URLFileManager
+import SystemUp
+import SystemPackage
 import Precondition
 import libChoco
 import Logging
-
-private func sysTempDir() -> String {
-  if let envV = ProcessInfo.processInfo.environment["TMPDIR"] {
-    return envV
-  }
-
-  return URLFileManager.default.temporaryDirectory.path
-}
 
 enum OutputFormat: String, ExpressibleByArgument, CaseIterable, CustomStringConvertible {
   case text
@@ -52,22 +45,22 @@ struct Crop: ParsableCommand {
   @Option(help: "")
   var frames: UInt?
 
-  @Option()
-  var tmp: String = sysTempDir()
+  @OptionGroup
+  var temp: TempOptions
 
   @Argument()
   var input: String
 
   func run() throws {
-    let tempDirURL = URL(fileURLWithPath: tmp)
-    let tempFileURL = tempDirURL.appendingPathComponent("\(UUID()).mkv")
+    let tempDirPath = temp.tmpDirPath()
+    let tempFilePath = tempDirPath.appending("\(UUID()).mkv")
     let logger = Logger(label: "crop", factory: StreamLogHandler.standardError(label:))
     let info: CropInfo
     switch tool {
     case .ffmpeg:
       info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, skip: skip, frames: frames, hw: hw, logger: logger).get()
     case .handbrake:
-      info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFileURL)
+      info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFilePath)
     }
     switch format {
     case .text:

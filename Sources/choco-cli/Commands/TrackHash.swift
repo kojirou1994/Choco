@@ -58,8 +58,8 @@ struct TrackHash: AsyncParsableCommand {
   @Option(name: .customShort("j", allowingJoined: true))
   var jobs: Int = 1
 
-  @Option(help: "Temp dir to extract tracks.")
-  var tmp: String?
+  @OptionGroup
+  var temp: TempOptions
 
   @Option(help: "Tool selection: \(Tool.allCases.map(\.rawValue)).")
   var tool: Tool = .ffmpeg
@@ -95,7 +95,7 @@ struct TrackHash: AsyncParsableCommand {
       print("De-duplicate enabled")
     }
 
-    let tmpDir = FilePath(PosixEnvironment.get(key: "TMPDIR") ?? tmp ?? "/tmp")
+    let tmpDir = temp.tmpDirPath()
 
     let hasher = TrackHasher(
       tmpDir: tmpDir,

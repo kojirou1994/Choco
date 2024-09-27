@@ -1,9 +1,10 @@
 import MediaUtility
 import PosixExecutableLauncher
-import URLFileManager
-import Foundation
 import MediaTools
 import Logging
+import SystemPackage
+import SystemUp
+import SystemFileManager
 
 public enum CropTool: String, CaseIterable, CustomStringConvertible {
   case ffmpeg
@@ -83,18 +84,16 @@ public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: 
 }
 
 #warning("handbrake does not support selecting video track")
-public func handbrakeCrop(at path: String, previews: Int, tempFile: URL) throws -> CropInfo {
-  let fm = URLFileManager.default
-  if fm.fileExistance(at: tempFile).exists {
-    try fm.removeItem(at: tempFile)
-  }
+public func handbrakeCrop(at path: String, previews: Int, tempFile: FilePath) throws -> CropInfo {
 
-  let handBrake = HandBrakePreview(input: path, output: tempFile.path, previews: previews)
+  _ = SystemCall.unlink(tempFile)
+
+  let handBrake = HandBrakePreview(input: path, output: tempFile.string, previews: previews)
 
   let result = try handBrake.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
 
   let stderr = result.error
-  try? fm.removeItem(at: tempFile)
+  _ = SystemCall.unlink(tempFile)
 
   let prefix = "  + autocrop: "
   for lineBuffer in stderr.lazySplit(separator: UInt8(ascii: "\n")) {
