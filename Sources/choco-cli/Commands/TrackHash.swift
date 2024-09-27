@@ -39,17 +39,14 @@ extension MkvMergeIdentification.Track {
 }
 
 extension OperationQueue {
-
-    func result<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
-      try await withUnsafeThrowingContinuation { cn in
-        self.addOperation {
-          cn.resume(with: .init(catching: body))
-        }
+  func result<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
+    try await withUnsafeThrowingContinuation { cn in
+      self.addOperation {
+        cn.resume(with: .init(catching: body))
       }
     }
-
   }
-
+}
 
 struct TrackHash: AsyncParsableCommand {
 
@@ -110,7 +107,7 @@ struct TrackHash: AsyncParsableCommand {
       var dedupFileDatas = [[String]: [String]]()
 
       let queue = OperationQueue()
-      queue.maxConcurrentOperationCount = jobs
+      queue.maxConcurrentOperationCount = max(jobs, 1)
 
       for input in inputs {
         group.addTask {
