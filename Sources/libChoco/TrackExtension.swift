@@ -79,6 +79,9 @@ extension MkvMergeIdentification.Track {
     if case let flags = self.flags, !flags.isEmpty {
       str.append(" \(flags.sorted(by: {$0.key.rawValue < $1.key.rawValue}).map{"\($0.0.rawValue):\($0.1)"}.joined(separator: " "))")
     }
+    if let trackName = properties?.trackName {
+      str.append("\n\(trackName)")
+    }
     return str
   }
 
