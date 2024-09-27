@@ -38,7 +38,7 @@ struct TestScript: ParsableCommand {
 
   func run() throws {
 
-    let encodeScript = try String(contentsOfFile: template)
+    let encodeScript = try String(contentsOfFile: template, encoding: .utf8)
 
     let inputURL = URL(fileURLWithPath: input)
     let inputBasename = inputURL.deletingPathExtension().lastPathComponent

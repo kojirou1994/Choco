@@ -75,7 +75,7 @@ struct VideoOptionsGroup: ParsableArguments {
 
   private func scriptTemplate() throws -> String? {
     try encodeScript
-      .map { try String(contentsOfFile: $0) }
+      .map { try String(contentsOfFile: $0, encoding: .utf8) }
   }
 
   func getOptions() throws -> ChocoCommonOptions.VideoOptions {

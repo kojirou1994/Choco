@@ -578,7 +578,7 @@ struct MkvToMp4: ParsableCommand {
       let muxer = MP4Box(importings: importings,
                          tmp: mp4Tmp ?? tmp, output: outputFileURL.path)
       logger.debug("MP4Box arguments: \(muxer.arguments)")
-      let muxerResult = try muxer.launch(use: .posix)
+      try muxer.launch(use: .posix)
 
     }
   }
