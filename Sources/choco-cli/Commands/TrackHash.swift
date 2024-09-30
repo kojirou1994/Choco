@@ -137,7 +137,8 @@ struct TrackHash: AsyncParsableCommand {
 
     if removeDup {
       print("Start checking duplicated files...")
-      for (_, files) in dedupFileDatas where files.count > 1 {
+      for (_, var files) in dedupFileDatas where files.count > 1 {
+        files.sort()
         print("keep file: \(files[0])")
         files.dropFirst().forEach { file in
           do {
