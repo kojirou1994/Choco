@@ -36,13 +36,14 @@ public struct Mpls {
 
   public init(filePath: String) throws {
     let mkvid = try MkvMergeIdentification(filePath: filePath)
-    self.init(mkvid)
+    try self.init(mkvid)
   }
 
-  public init(_ info: MkvMergeIdentification) {
+  public init(_ info: MkvMergeIdentification) throws {
     guard let size = info.container?.properties?.playlistSize,
           let files = info.container?.properties?.playlistFile,
           let durationValue = info.container?.properties?.playlistDuration else {
+      throw ChocoError.errorReadingFile
       fatalError("Invalid MPLS: \(info)")
     }
 
