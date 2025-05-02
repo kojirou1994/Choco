@@ -137,7 +137,7 @@ public final class ChocoMuxer {
   public func terminate() {
     terminated = true
     audioConvertQueue.cancelAllOperations()
-    runningProcessID.map { _ = Signal.terminate.send(to: .processID($0)) }
+    runningProcessID.map { _ = Signal.kill.send(to: .processID($0)) }
     runningProcessID = nil
   }
 
@@ -806,6 +806,11 @@ extension ChocoMuxer {
 
 
                 pipeline.waitUntilExit()
+                for p in pipeline.processes {
+                  guard p.terminationReason == .exit, p.terminationStatus == 0 else {
+                    throw ExecutableError.nonZeroExit
+                  }
+                }
               } catch {
                 return .failure(.subTask(error))
               }
