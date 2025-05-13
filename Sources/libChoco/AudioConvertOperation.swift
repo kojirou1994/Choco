@@ -2,16 +2,16 @@ import class Foundation.Operation
 import MediaTools
 import PosixExecutableLauncher
 import SystemUp
+import Command
 
 final class AudioConvertOperation: Operation, @unchecked Sendable {
 
-  var process: PosixExecutableLauncher.Process.ChildProcess
+  var process: Command.ChildProcess
   let converter: AudioConverter
   let errorHandler: (Error) -> Void
 
   init(converter: AudioConverter, errorHandler: @escaping (Error) -> Void) {
-    self.process = try! converter.executable
-      .generateProcess(use: .posix)
+    self.process = try! Command(executable: converter.executable)
       .spawn()
 
     self.converter = converter
@@ -21,7 +21,7 @@ final class AudioConvertOperation: Operation, @unchecked Sendable {
   override func main() {
     do {
       let result = try process.waitOutput()
-      if result.status != .exited(0) {
+      if !result.status.isSuccess {
         print("error while converting flac file! \(converter.input)")
       }
     } catch {
@@ -30,7 +30,7 @@ final class AudioConvertOperation: Operation, @unchecked Sendable {
   }
 
   override func cancel() {
-    Signal.terminate.send(to: .processID(process.pid))
+    Signal.kill.send(to: .processID(process.pid))
     super.cancel()
   }
 }

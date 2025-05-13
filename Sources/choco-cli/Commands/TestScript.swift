@@ -2,8 +2,8 @@ import ArgumentParser
 import PosixExecutableLauncher
 import Foundation
 import libChoco
-import FPExecutableLauncher
 import URLFileManager
+import Command
 
 struct TestScript: ParsableCommand {
 
@@ -85,7 +85,8 @@ struct TestScript: ParsableCommand {
 
       let vspipe = VsPipe(script: scriptFileURL.path, output: .file(.stdout), start: start, end: end, container: .y4m)
 
-      let pipeline = try ContiguousPipeline(vspipe)
+      var pipeline = CommandChain(firstStandardInput: .null)
+      try pipeline.append(vspipe)
 
       let outputFile = outputDirectoryURL.appendingPathComponent("%05d.\(format)")
       var outputOptions = [FFmpeg.OutputOption]()
@@ -101,9 +102,10 @@ struct TestScript: ParsableCommand {
 
       print(ffmpeg.arguments)
 
-      try pipeline.append(ffmpeg, isLast: true)
-      try pipeline.run()
-      pipeline.waitUntilExit()
+      try pipeline.append(ffmpeg)
+      var chain = try pipeline.launch()
+      
+      print(chain.waitUntilExit())
     }
   }
 }

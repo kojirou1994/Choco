@@ -31,7 +31,7 @@ struct CommonOptionsGroup: ParsableArguments {
     let muxer = try ChocoMuxer(commonOptions: .init(io: io.options, meta: meta.options, video: video.getOptions(), audio: audio.options, language: language.options), logger: logger)
 
     ChocoCli.muxer = muxer
-    Signals.trap(signals: [.quit, .int, .kill, .term, .abrt]) { (_) in
+    Signals.trap(signals: [.quit, .int, .term, .abrt]) { (_) in
       ChocoCli.muxer?.terminate()
     }
 

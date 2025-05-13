@@ -8,7 +8,6 @@ import URLFileManager
 import Logging
 import ISOCodes
 import Precondition
-import FPExecutableLauncher
 import JSON
 import NumberKit
 import SystemUp
@@ -87,7 +86,6 @@ public final class ChocoMuxer {
 
   private let audioConvertQueue = OperationQueue()
 
-  private var runningProcessID: ProcessID?
   var currentTemporaryPath: URL?
 
   let logger: Logger
@@ -108,15 +106,8 @@ public final class ChocoMuxer {
   }
 
   private func launch<E: Executable>(externalExecutable: E) throws -> Command.Output {
-    var process = try externalExecutable
-      .generateProcess(use: .posix)
-      .spawn()
-    runningProcessID = process.pid
-    defer {
-      runningProcessID = nil
-    }
-    let result = try process.waitOutput()
-    return result
+    try externalExecutable
+      .launch(use: .posix)
   }
 
   private func launch<E: Executable>(externalExecutable: E,
@@ -137,8 +128,6 @@ public final class ChocoMuxer {
   public func terminate() {
     terminated = true
     audioConvertQueue.cancelAllOperations()
-    runningProcessID.map { _ = Signal.kill.send(to: .processID($0)) }
-    runningProcessID = nil
   }
 
   private func logConverterStart(name: String, input: String, output: String) {
@@ -788,29 +777,24 @@ extension ChocoMuxer {
               currentFFmpegAdditionalInputFileID += 1
             } else {
               // use vspipe piping to ffmpeg
-              defer {
-                runningProcessID = nil
-              }
               do {
-                let pipeline = try ContiguousPipeline(VsPipe(script: scriptFileURL.path, output: .file(.stdout), container: .y4m))
+                var pipeline = CommandChain(firstStandardInput: .null)
+                try pipeline.append(VsPipe(script: scriptFileURL.path, output: .file(.stdout), container: .y4m))
 
                 let vspipeFFmpeg = FFmpeg(global: .init(hideBanner: true), 
                                           inputs: [.init(url: "pipe:")],
                                           outputs: [videoOutput])
 
-                try pipeline.append(vspipeFFmpeg, isLast: true)
+                try pipeline.append(vspipeFFmpeg)
 
-                try pipeline.run()
+                var processes = try pipeline.launch()
 
-                runningProcessID = (pipeline.processes.first?.processIdentifier).map(ProcessID.init)
+                let codes = processes.waitUntilExit()
 
-
-                pipeline.waitUntilExit()
-                for p in pipeline.processes {
-                  guard p.terminationReason == .exit, p.terminationStatus == 0 else {
-                    throw ExecutableError.nonZeroExit
-                  }
+                guard codes.allSatisfy(\.isSuccess) else {
+                  throw ExecutableError.nonZeroExit
                 }
+
               } catch {
                 return .failure(.subTask(error))
               }

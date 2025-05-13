@@ -143,7 +143,7 @@ struct TrackHash: AsyncParsableCommand {
         files.dropFirst().forEach { file in
           do {
             print("removing \(file)")
-            try SystemCall.unlink(file).get()
+            try SystemCall.unlink(file)
           } catch {
             print("error: ", error)
           }

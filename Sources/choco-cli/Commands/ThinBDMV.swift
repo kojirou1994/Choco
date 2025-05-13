@@ -20,7 +20,7 @@ struct ThinBDMV: ParsableCommand {
 
   func run() throws {
     let logger = Logger(label: "thin-bdmv")
-    let outputPath: FilePath = try SystemCall.realPath(output).get()
+    let outputPath = try FilePath(SystemCall.realPath(output))
     var buffer = [UInt8](repeating: 0, count: size)
 
     inputs.forEach { input in
@@ -42,7 +42,7 @@ struct ThinBDMV: ParsableCommand {
       }
 
       do {
-        let inputPath: FilePath = try SystemCall.realPath(input).get()
+        let inputPath = try FilePath(SystemCall.realPath(input))
         let inputName = try inputPath.lastComponent.unwrap().string
         logger.info("Directory Name: \(inputName)")
 
@@ -60,7 +60,7 @@ struct ThinBDMV: ParsableCommand {
             return
           }
           do {
-            let fileType = try SystemFileManager.fileStatus(absolutePath).get().fileType
+            let fileType = try SystemFileManager.fileStatus(absolutePath, \.fileType)
             switch fileType {
             case .regular:
               print("copy")

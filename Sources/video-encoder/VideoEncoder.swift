@@ -137,14 +137,23 @@ struct VideoEncoder: ParsableCommand {
     var encoderInput = input
     switch input {
     case .path(let filePath):
-      if let ext = filePath.extension,
-         (ext == "vpy" || ext == "py") {
-        print("use vspipe as decoder")
-        var vspipe = Command(executable: "vspipe", arguments: ["-c", "y4m", filePath.string, "-"])
-        vspipe.stdout = .makePipe
-        var process = try vspipe.spawn()
+      if let ext = filePath.extension {
+          var decoder: Command?
+          switch ext {
+            case "vpy", "py":
+            print("use vspipe as decoder")
+            decoder = Command(executable: "vspipe", arguments: ["-c", "y4m", filePath.string, "-"])
+            case "mkv", "mp4":
+            print("use ffmpeg as decoder")
+            decoder = Command(executable: "ffmpeg", arguments: ["-loglevel", "quiet", "-i", filePath.string, "-map", "0:v:0", "-f", "yuv4mpegpipe", "-"])
+          default: break
+          }
+       if var decoder { 
+decoder.stdout = .makePipe
+        var process = try decoder.spawn()
         encoderInput = .fd(process.pipes.takeStdOut()!.local)
         processes.append(process)
+       }
       }
     default: break
     }
@@ -206,7 +215,7 @@ struct VideoEncoder: ParsableCommand {
       encoderCommand.stdin = .fd(fd)
     case .path(let path):
       if redirectInputToEncoderStdIn {
-        let path: FilePath = try SystemCall.realPath(path).get()
+        let path = try FilePath(SystemCall.realPath(path))
         encoderCommand.stdin = .path(path, mode: .readOnly, options: [])
       }
     case .none: encoderCommand.stdin = .null
@@ -226,16 +235,14 @@ struct VideoEncoder: ParsableCommand {
   }
 
   func run() throws {
-    var status = FileStatus()
 
     // MARK: check output overwrite
     if let output {
       if overwrite {
-        _ = SystemCall.unlink(output)
+        try? SystemCall.unlink(output)
       } else {
-        switch SystemCall.fileStatus(output, into: &status) {
-        case .success: throw Errno.fileExists
-        case .failure: break
+        if SystemCall.check(accessibility: .existence, for: output, flags: .noFollow) {
+          throw Errno.fileExists
         }
       }
     }
@@ -266,7 +273,7 @@ struct VideoEncoder: ParsableCommand {
 
     func removeUnfinishedOutput() {
       if let output, removeUnfinished {
-        _ = SystemCall.unlink(output)
+        try? SystemCall.unlink(output)
       }
     }
 
@@ -313,8 +320,7 @@ struct VideoEncoder: ParsableCommand {
 
     // MARK: check output exist, remove input optionally
     if let output {
-      switch SystemCall.fileStatus(output, into: &status) {
-      case .success:
+      if SystemCall.check(accessibility: .existence, for: output, flags: .noFollow) {
         print("encode succeess, output file existed!")
         // MARK: auto-mux output
         switch autoMux {
@@ -332,11 +338,11 @@ struct VideoEncoder: ParsableCommand {
         if removeInput {
           switch input {
           case .path(let path):
-            print("remove input", SystemCall.unlink(path))
+            print("remove input", (try? SystemCall.unlink(path)) as Any)
           default: break
           }
         }
-      case .failure:
+      } else {
         print("encoder exit 0 but output not existed!")
         throw Errno.noSuchFileOrDirectory
       }

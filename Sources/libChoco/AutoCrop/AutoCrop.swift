@@ -86,14 +86,14 @@ public func ffmpegCrop(file: String, baseFilter: String, limit: Double?, round: 
 #warning("handbrake does not support selecting video track")
 public func handbrakeCrop(at path: String, previews: Int, tempFile: FilePath) throws -> CropInfo {
 
-  _ = SystemCall.unlink(tempFile)
+  try? SystemCall.unlink(tempFile)
 
   let handBrake = HandBrakePreview(input: path, output: tempFile.string, previews: previews)
 
   let result = try handBrake.launch(use: .posix(stdout: .makePipe, stderr: .makePipe))
 
   let stderr = result.error
-  _ = SystemCall.unlink(tempFile)
+  try? SystemCall.unlink(tempFile)
 
   let prefix = "  + autocrop: "
   for lineBuffer in stderr.lazySplit(separator: UInt8(ascii: "\n")) {

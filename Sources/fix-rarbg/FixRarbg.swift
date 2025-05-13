@@ -63,7 +63,7 @@ struct FixRarbg: ParsableCommand {
     inputs.forEach { input in
       do {
         print("OPENING DIRECTORY: \(input)")
-        let inputPath: FilePath = try SystemCall.realPath(input).get()
+        let inputPath = try FilePath(SystemCall.realPath(input))
         let subtitleDirPath = inputPath.appending("Subs")
         print("will read subtitles from \(subtitleDirPath)")
         let outputRARBGPath = try outputRootPath.appending(inputPath.lastComponent.unwrap("input has no directory name!"))
@@ -106,7 +106,7 @@ struct FixRarbg: ParsableCommand {
               }
               let outputFilePath = outputRARBGPath.appending("\(mainFilename).mkv")
               print("->\(outputFilePath)")
-              try preconditionOrThrow(!SystemFileManager.fileExists(atPath: outputFilePath), "output file already existed!")
+              try preconditionOrThrow(!SystemCall.check(accessibility: .existence, for: outputFilePath, flags: .noFollow), "output file already existed!")
 
               var mergeInputs = [MkvMerge.Input(file: filePath.string)]
               usedSubInfos.forEach { sub in

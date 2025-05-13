@@ -1,11 +1,11 @@
 import Foundation
-import mustache
+import Mustache
 import NumberKit
 import Escape
 
 public func generateScript(encodeScript: String, filePath: String, trackIndex: Int, cropInfo: CropInfo?, encoderDepth: Int, fps: Rational<Int>?) throws -> String {
 //  let template = try String(contentsOfFile: templatePath)
-  let parser = MustacheParser()
+  var parser = MustacheParser()
   let tree = parser.parse(string: encodeScript)
   var dic = [
     "filePath": filePath.pythonEscaped(),
