@@ -2,7 +2,12 @@ import ArgumentParser
 import libChoco
 import ISOCodes
 
-extension Language: @retroactive ExpressibleByArgument {}
+extension Language: @retroactive ExpressibleByArgument {
+  public static var allValueStrings: [String] {
+    [Self.jpn, .eng, .chi, .fre].map(\.alpha3BibliographicCode)
+  }
+}
+
 extension LanguageFilter: ExpressibleByArgument {}
 
 struct LanguageOptionsGroup: ParsableArguments {

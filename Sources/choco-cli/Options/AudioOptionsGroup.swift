@@ -28,10 +28,10 @@ struct AudioOptionsGroup: ParsableArguments {
   @Flag(inversion: FlagInversion.prefixedNo, help: "Encode audio.")
   var encodeAudio: Bool = true
 
-  @Option(help: "Codec for lossless audio track, \(ChocoCommonOptions.AudioOptions.AudioCodec.availableValues)")
+  @Option(help: "Codec for lossless audio track.")
   var audioCodec: ChocoCommonOptions.AudioOptions.AudioCodec = .flac
 
-  @Option(help: "Codec for fixing lossy audio track, \(ChocoCommonOptions.AudioOptions.AudioCodec.availableValues)")
+  @Option(help: "Codec for fixing lossy audio track.")
   var audioLossyCodec: ChocoCommonOptions.AudioOptions.AudioCodec = .opus
 
   @Option(help: "Audio bitrate(kbps) per channel")
@@ -40,7 +40,7 @@ struct AudioOptionsGroup: ParsableArguments {
   @Flag(help: "Reduce audio bitrate for multi-channels")
   var reduceBitrate: Bool = false
 
-  @Option(help: "Downmix method, \(ChocoCommonOptions.AudioOptions.DownmixMethod.availableValues)")
+  @Option(help: "Downmix method.")
   var downmix: ChocoCommonOptions.AudioOptions.DownmixMethod = .disable
 
   @Flag(help: "Remove dts when another same spec truehd exists")

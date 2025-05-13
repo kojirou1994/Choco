@@ -18,7 +18,7 @@ struct IOOptionsGroup: ParsableArguments {
   @Option(help: "Split info")
   var split: ChocoSplit?
 
-  @Option(help: "Keep temp dir method, \(ChocoCommonOptions.IOOptions.KeepTempMethod.availableValues)")
+  @Option(help: "Keep temp dir method")
   var keepTemp: ChocoCommonOptions.IOOptions.KeepTempMethod = .never
 
   @Flag(help: "Ignore mkvmerge warning")

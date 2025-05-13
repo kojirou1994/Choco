@@ -21,7 +21,7 @@ struct CommonOptionsGroup: ParsableArguments {
   @OptionGroup(title : "Language")
   var language: LanguageOptionsGroup
 
-  @Option(help: "Log level, \(Logger.Level.availableValues)")
+  @Option(help: "Log level")
   var logLevel: Logger.Level = .info
 
   func withMuxerSetup(_ body: (ChocoMuxer) throws -> Void) throws {

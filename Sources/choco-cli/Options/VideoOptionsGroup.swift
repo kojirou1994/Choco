@@ -8,16 +8,16 @@ extension ChocoCommonOptions.VideoOptions.VideoQuality: ExpressibleByArgument {}
 extension ChocoCommonOptions.VideoOptions.VideoSAR: ExpressibleByArgument {}
 
 struct VideoOptionsGroup: ParsableArguments {
-  @Option(name: [.customShort("v"), .long], help: "Video processing method, \(ChocoCommonOptions.VideoOptions.VideoProcess.availableValues).")
+  @Option(name: [.customShort("v"), .long], help: "Video processing method.")
   var videoProcess: ChocoCommonOptions.VideoOptions.VideoProcess = .copy
 
   @Option(help: "FFmpeg video filter argument.")
   var videoFilter: String = ""
 
-  @Option(help: "Codec for video track, \(ChocoCommonOptions.VideoOptions.Codec.availableValues)")
+  @Option(help: "Codec for video track.")
   var videoCodec: ChocoCommonOptions.VideoOptions.Codec = .x265
 
-  @Option(help: "Color preset for video track, \(ChocoCommonOptions.VideoOptions.ColorPreset.availableValues)")
+  @Option(help: "Color preset for video track.")
   var videoColor: ChocoCommonOptions.VideoOptions.ColorPreset?
 
   @Option(help: "VS script template path.")
@@ -26,7 +26,7 @@ struct VideoOptionsGroup: ParsableArguments {
   @Option(help: "Codec preset for video track")
   var videoPreset: String?
 
-  @Option(help: "SAR handling for video track, \(ChocoCommonOptions.VideoOptions.VideoSAR.availableValues)")
+  @Option(help: "SAR handling for video track.")
   var videoSAR: ChocoCommonOptions.VideoOptions.VideoSAR = .source
 
   @Option(help: "Codec crf for video track, eg. crf:19 or bitrate:5000k")
