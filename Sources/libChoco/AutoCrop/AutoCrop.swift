@@ -6,12 +6,6 @@ import SystemPackage
 import SystemUp
 import SystemFileManager
 
-public enum CropTool: String, CaseIterable, CustomStringConvertible {
-  case ffmpeg
-  case handbrake
-  public var description: String { rawValue }
-}
-
 private struct HandBrakePreview: Executable {
   static let executableName: String = "HandBrakeCLI"
 

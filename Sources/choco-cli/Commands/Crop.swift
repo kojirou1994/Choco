@@ -14,15 +14,10 @@ enum OutputFormat: String, ExpressibleByArgument, CaseIterable, CustomStringConv
   var description: String { rawValue }
 }
 
-extension CropTool: ExpressibleByArgument {}
-
 struct Crop: ParsableCommand {
 
   @Option(name: .shortAndLong, help: "Available: \(OutputFormat.allCases)")
   var format: OutputFormat = .text
-
-  @Option(name: .shortAndLong, help: "Available: \(CropTool.allCases)")
-  var tool: CropTool
 
   @Option(help: "Base filter for ffmpeg")
   var filter: String?
@@ -55,13 +50,7 @@ struct Crop: ParsableCommand {
     let tempDirPath = temp.tmpDirPath()
     let tempFilePath = tempDirPath.appending("\(UUID()).mkv")
     let logger = Logger(label: "crop", factory: StreamLogHandler.standardError(label:))
-    let info: CropInfo
-    switch tool {
-    case .ffmpeg:
-      info = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, skip: skip, frames: frames, hw: hw, logger: logger).get()
-    case .handbrake:
-      info = try handbrakeCrop(at: input, previews: previews, tempFile: tempFilePath)
-    }
+    let info: CropInfo = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, skip: skip, frames: frames, hw: hw, logger: logger).get()
     switch format {
     case .text:
       print(info)
