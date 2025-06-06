@@ -6,6 +6,7 @@ import SystemPackage
 import Precondition
 import libChoco
 import Logging
+import SystemUp
 
 enum OutputFormat: String, ExpressibleByArgument, CaseIterable, CustomStringConvertible {
   case text
@@ -42,6 +43,9 @@ struct Crop: ParsableCommand {
 
   func run() throws {
     let logger = Logger(label: "crop", factory: StreamLogHandler.standardError(label:))
+    _ = Signal.interrupt.set(handler: .custom({ signal in
+      print("strl+c many times to kill ffmpeg")
+    }))
     let info: CropInfo = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, skip: skip, frames: frames, hw: hw, logger: logger).get()
     switch format {
     case .text:
