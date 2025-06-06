@@ -25,9 +25,6 @@ struct Crop: ParsableCommand {
   @Option(help: "Hardware accel for ffmpeg")
   var hw: String?
 
-  @Option(help: "How many preview images are generated, for handbrake.")
-  var previews: Int = 200
-
   @Option(help: "Set higher black value threshold, which can be optionally specified from nothing (0) to everything (255 for 8-bit based formats).")
   var limit: Double?
 
@@ -40,15 +37,10 @@ struct Crop: ParsableCommand {
   @Option(help: "")
   var frames: UInt?
 
-  @OptionGroup
-  var temp: TempOptions
-
   @Argument()
   var input: String
 
   func run() throws {
-    let tempDirPath = temp.tmpDirPath()
-    let tempFilePath = tempDirPath.appending("\(UUID()).mkv")
     let logger = Logger(label: "crop", factory: StreamLogHandler.standardError(label:))
     let info: CropInfo = try ffmpegCrop(file: input, baseFilter: filter ?? "", limit: limit, round: round, skip: skip, frames: frames, hw: hw, logger: logger).get()
     switch format {
