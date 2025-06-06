@@ -41,9 +41,9 @@ final class ChocoTests: XCTestCase {
 
   func testCrop() throws {
     let str = "1920:1024:0:28"
-    let info = try CropInfo(ffmpegOutput: str)
-    XCTAssertEqual(info, .absolute(width: 1920, height: 1024, x: 0, y: 28))
-    XCTAssertEqual(info.ffmpegArgument, "crop=" + str)
+    let info = try CropInfo.Absolute(ffmpegOutput: str)
+    XCTAssertEqual(info, .init(width: 1920, height: 1024, x: 0, y: 28))
+    XCTAssertEqual(CropInfo.absolute(info).ffmpegArgument, "crop=" + str)
   }
 
   func testAudioBitrate() {
