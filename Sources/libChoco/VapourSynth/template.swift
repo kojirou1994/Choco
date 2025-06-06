@@ -52,12 +52,12 @@ public func generateScript(encodeScript: String, filePath: String, trackIndex: I
     dic["cropRight"] = right
     dic["cropTop"] = top
     dic["cropBottom"] = bottom
-  case .absolute(let width, let height, let x, let y):
+  case .absolute(let absolute):
     dic["cropMode"] = CropMode.absolute
-    dic["cropWidth"] = width
-    dic["cropHeight"] = height
-    dic["cropLeft"] = x
-    dic["cropTop"] = y
+    dic["cropWidth"] = absolute.width
+    dic["cropHeight"] = absolute.height
+    dic["cropLeft"] = absolute.x
+    dic["cropTop"] = absolute.y
   case nil:
     dic["cropMode"] = CropMode.none
   }
