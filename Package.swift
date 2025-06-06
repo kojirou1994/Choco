@@ -22,7 +22,7 @@ let package = Package(
     .package(url: "https://github.com/kojirou1994/PrettyBytes.git", from: "0.0.1"),
     .package(url: "https://github.com/apple/swift-argument-parser.git", exact: "1.3.1"),
     .package(url: "https://github.com/kojirou1994/URLFileManager.git", from: "0.0.1"),
-    .package(url: "https://github.com/kojirou1994/MediaUtility.git", from: "0.6.0"),
+    .package(url: "https://github.com/kojirou1994/MediaUtility.git", branch: "master"),
     .package(url: "https://github.com/kojirou1994/Executable.git", branch: "master"),
     .package(url: "https://github.com/kojirou1994/IOUtility.git", from: "0.0.1"),
     .package(url: "https://github.com/onevcat/Rainbow.git", from: "3.0.0"),
