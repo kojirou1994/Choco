@@ -128,6 +128,8 @@ public final class ChocoMuxer {
   public func terminate() {
     terminated = true
     audioConvertQueue.cancelAllOperations()
+
+    _ = Signal.kill.send(to: .sameGroupID)
   }
 
   private func logConverterStart(name: String, input: String, output: String) {
