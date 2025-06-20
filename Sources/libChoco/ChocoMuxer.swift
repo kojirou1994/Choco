@@ -287,58 +287,9 @@ extension ChocoMuxer {
       }
     case .directory:
       logger.info("The input is a directory.")
-      if !options.recursive {
-        logger.error("Recursive is disabled.")
-        return .failure(.directoryInputButNotRecursive)
-      }
+      logger.error("Recursive is disabled.")
+      return .failure(.directoryInputButNotRecursive)
     }
-
-    // start scan directory
-    logger.info("Opening directory")
-
-    let inputPrefix = file.path
-    let dirName = file.lastPathComponent
-
-    var files: [FileSummary.FileTask] = []
-
-    do {
-      let stream = try Fts.open(path: file.path, options: [.physical, .noChdir])
-      while !terminated, let entry = try stream.read() {
-        if entry.info == .file {
-          let currentFileURL = URL(fileURLWithPath: entry.path.string)
-
-          let fileDirPath = currentFileURL.deletingLastPathComponent().path
-          guard fileDirPath.hasPrefix(inputPrefix) else {
-            logger.error("Path handling incorrect")
-            continue
-          }
-          let outputDirectoryURL = commonOptions.io.outputRootDirectory
-            .appendingPathComponent(dirName)
-            .appendingPathComponent(String(fileDirPath.dropFirst(inputPrefix.count)))
-
-          let inputInfo = IOFileInfo(path: currentFileURL)
-          let startTime = Date()
-
-          // macOS resource files
-          if currentFileURL.lastPathComponent == ".DS_Store" || currentFileURL.lastPathComponent.hasPrefix("._") {
-            continue
-          }
-
-          if options.fileTypes.contains(currentFileURL.pathExtension.lowercased()) {
-            // remux
-            let outputResult = self.withTemporaryDirectory { tempDirectory in
-              _remux(file: currentFileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
-            }
-            files.append(.init(input: inputInfo, output: outputResult, timeSummary: .init(startTime: startTime)))
-          }
-        }
-      }
-    } catch {
-      logger.error("Failed to open the directory: \(file.path)")
-      return .failure(.openDirectory(file))
-    }
-
-    return .success(.init(files: files))
   }
 
 

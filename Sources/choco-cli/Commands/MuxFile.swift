@@ -7,9 +7,6 @@ struct MuxFile: ParsableCommand {
   @Flag(help: "Endless loop muxing if any success file")
   var endless: Bool = false
 
-  @Flag(help: "Recursive into directories.")
-  var recursive: Bool = false
-
   @Flag(help: "Delete the source files after remuxing.")
   var removeSourceFiles: Bool = false
 
@@ -21,7 +18,7 @@ struct MuxFile: ParsableCommand {
 
   func run() throws {
     try common.withMuxerSetup { muxer in
-      let fileRemuxOptions = FileRemuxOptions(recursive: recursive, removeSourceFiles: removeSourceFiles, fileTypes: FileRemuxOptions.defaultFileTypes)
+      let fileRemuxOptions = FileRemuxOptions(removeSourceFiles: removeSourceFiles, fileTypes: FileRemuxOptions.defaultFileTypes)
 
       var endlessLoopCount = 0
       var hasFailureTasks = false
