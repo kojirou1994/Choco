@@ -49,11 +49,5 @@ extension ChocoMuxer {
       public let timeSummary: TimeSummary
     }
     public let files: [FileTask]
-    public let normalFiles: [NormalFileTask]
-
-    public struct NormalFileTask {
-      public let input: IOFileInfo
-      public let output: Result<IOFileInfo, ChocoError>
-    }
   }
 }

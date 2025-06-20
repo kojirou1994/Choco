@@ -20,17 +20,13 @@ public struct BDMVRemuxOptions {
 }
 
 public struct FileRemuxOptions {
-  public init(recursive: Bool, copyNormalFiles: Bool, copyOverwrite: Bool, removeSourceFiles: Bool, fileTypes: Set<String>) {
+  public init(recursive: Bool, removeSourceFiles: Bool, fileTypes: Set<String>) {
     self.recursive = recursive
-    self.copyNormalFiles = copyNormalFiles
-    self.copyOverwrite = copyOverwrite
     self.removeSourceFiles = removeSourceFiles
     self.fileTypes = fileTypes
   }
 
   public let recursive: Bool
-  public let copyNormalFiles: Bool
-  public let copyOverwrite: Bool
   public let removeSourceFiles: Bool
   public let fileTypes: Set<String>
 

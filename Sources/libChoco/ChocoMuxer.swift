@@ -283,7 +283,7 @@ extension ChocoMuxer {
         let inputInfo = IOFileInfo(path: file)
         let fileSummary = _remux(file: file, outputDirectoryURL: commonOptions.io.outputRootDirectory, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
 
-        return .success(.init(files: [.init(input: inputInfo, output: fileSummary, timeSummary: .init(startTime: startTime))], normalFiles: []))
+        return .success(.init(files: [.init(input: inputInfo, output: fileSummary, timeSummary: .init(startTime: startTime))]))
       }
     case .directory:
       logger.info("The input is a directory.")
@@ -300,7 +300,6 @@ extension ChocoMuxer {
     let dirName = file.lastPathComponent
 
     var files: [FileSummary.FileTask] = []
-    var normalFiles: [FileSummary.NormalFileTask] = []
 
     do {
       let stream = try Fts.open(path: file.path, options: [.physical, .noChdir])
@@ -331,26 +330,6 @@ extension ChocoMuxer {
               _remux(file: currentFileURL, outputDirectoryURL: outputDirectoryURL, temporaryPath: tempDirectory, deleteAfterRemux: options.removeSourceFiles)
             }
             files.append(.init(input: inputInfo, output: outputResult, timeSummary: .init(startTime: startTime)))
-          } else {
-            // copy
-            if options.copyNormalFiles {
-              let outputResult: Result<ChocoMuxer.IOFileInfo, ChocoError>
-              let dstPath = outputDirectoryURL.appendingPathComponent(currentFileURL.lastPathComponent)
-              if fm.fileExistance(at: dstPath).exists, !options.copyOverwrite {
-                outputResult = .failure(.outputExist)
-              } else {
-                do {
-                  try fm.createDirectory(at: outputDirectoryURL)
-                  let cmd = options.removeSourceFiles ? "mv" : "cp"
-                  try AnyExecutable(executableName: cmd, arguments: [currentFileURL.path, dstPath.path])
-                    .launch(use: .posix)
-                  outputResult = .success(.init(path: dstPath))
-                } catch {
-                  outputResult = .failure(.copyFile(error))
-                }
-              }
-              normalFiles.append(.init(input: inputInfo, output: outputResult))
-            }
           }
         }
       }
@@ -359,7 +338,7 @@ extension ChocoMuxer {
       return .failure(.openDirectory(file))
     }
 
-    return .success(.init(files: files, normalFiles: normalFiles))
+    return .success(.init(files: files))
   }
 
 
